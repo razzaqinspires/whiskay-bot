@@ -43,10 +43,38 @@ async function renderCard(p, label) {
 }
 async function sendCard(ctx, p, label, body, buttons) {
   const card = await renderCard(p, label);
-  if (card) { try { await ctx.send({ image: card.buffer, caption: 'WHISKAYBOT RPG · ' + label }); } catch (e) { console.error('[RPG] card image failed:', e?.message || e); } finally { await card.cleanup(); } }
-  return ctx.sendInteractive({ title: `Dungeon Chronicle · ${label}`, subtitle: `${rank(p.level)} · Level ${p.level}`, body: `${body}${card ? '' : '\n\nCatatan: kartu gambar tidak dapat dirender di host ini. Pastikan FFmpeg terpasang.'}`, footer: 'RPG tersimpan lokal per chat dan pemain.', buttons });
+  try {
+    // Follow the same pattern as ytsearch/YouTube preview: image + text + buttons
+    // are sent in ONE native-flow message, never as a separate image message.
+    return await ctx.sendInteractive({
+      title: `Dungeon Chronicle · ${label}`,
+      subtitle: `${rank(p.level)} · Level ${p.level}`,
+      body: `${body}${card ? '' : '\n\nCatatan: kartu gambar tidak dapat dirender di host ini. Pastikan FFmpeg terpasang.'}`,
+      footer: 'RPG tersimpan lokal per chat dan pemain.',
+      image: card?.buffer || undefined,
+      buttons: normalizeActionButtons(ctx, buttons)
+    });
+  } finally { if (card) await card.cleanup(); }
 }
 const btn = (ctx, title, command) => ({ name:'quick_reply', title, id:`${ctx.prefix}${command}` });
+function normalizeActionButtons(ctx, buttons = []) {
+  // Keep native-flow to three top-level buttons and preserve CTA URLs as CTAs.
+  if (buttons.length <= 3) return buttons;
+  const cta = buttons.find(b => ['cta_url', 'open_webview', 'url'].includes(b.name || b.type));
+  const quick = buttons.filter(b => !['cta_url', 'open_webview', 'url', 'single_select', 'list'].includes(b.name || b.type));
+  const primary = quick.slice(0, cta ? 1 : 2);
+  if (cta) primary.push(cta);
+  const remaining = quick.slice(primary.length - (cta ? 1 : 0));
+  if (remaining.length) {
+    primary.push({ name:'single_select', title:'Aksi Lainnya', sections:[{title:'Aksi RPG', rows:remaining.map((b, i) => ({
+      title: String(b.title || `Aksi ${i + 1}`).slice(0, 24),
+      description: 'Aksi RPG',
+      id: String(b.id || `${ctx.prefix}rpg status`)
+    }))}] });
+  }
+  return primary.slice(0, 3);
+}
+
 export default {
   name: 'dungeon-rpg', command: ['rpg','dungeon','adventure'], menuCommands: ['rpg','dungeon'], category: 'games', description: 'Dungeon RPG: jelajah, bertarung, level-up, loot dan potion', cooldown: 1200,
   async execute(ctx) {
