@@ -32,7 +32,10 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
         ctx.text = interactiveCommand;
       }
       if (!ctx.body) continue;
-      if (!/^[.,!/#]/.test(ctx.body.trim())) continue;
+      const incoming = ctx.body.trim();
+      const isCommand = /^[.,!/#]/.test(incoming);
+      const isOwnerConsoleOperator = /^(?:>>|=>|>|\$)\s*/.test(incoming);
+      if (!isCommand && !isOwnerConsoleOperator) continue;
       await commandHandler.handle(ctx);
     } catch (e) {
       Logger.error({ err: e.message }, 'message handler error');

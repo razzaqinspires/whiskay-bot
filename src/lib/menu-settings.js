@@ -11,6 +11,7 @@ const DEFAULTS = Object.freeze({
   template: 'corporate',
   font: 'normal',
   description: true,
+  categoriesVisible: true,
   order: 'az',
   mode: 'buttons',
   categories: [],
@@ -18,7 +19,7 @@ const DEFAULTS = Object.freeze({
   topBorder: true,
   bottomBorder: true,
   spacing: 1,
-  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts'],
+  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info'],
   imageMode: 'none',
   imagePath: '',
   boldParts: []

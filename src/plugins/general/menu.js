@@ -1,8 +1,31 @@
 import config from '../../config/index.js';
 import { registry } from '../../core/registry.js';
 import { getMenuSettings, getNewCommandSet, getCommandRecommendations } from '../../lib/menu-settings.js';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFileAsync = promisify(execFile);
 import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
+
+
+async function renderOfficialCanvas(kind, botName) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'whiskay-menu-canvas-'));
+  const svgPath = path.join(dir, 'canvas.svg'), pngPath = path.join(dir, 'canvas.png');
+  const isRpg = kind === 'rpg';
+  const title = isRpg ? 'DUNGEON CHRONICLE' : `${botName} · COMMAND MENU`;
+  const subtitle = isRpg ? 'PLAYER PROFILE  /  LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080d18"/><stop offset=".55" stop-color="#17243b"/><stop offset="1" stop-color="#302139"/></linearGradient><linearGradient id="gold"><stop stop-color="#e7c889"/><stop offset="1" stop-color="#85e4ca"/></linearGradient><pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" fill="none" stroke="#c6d3e7" stroke-opacity=".07"/></pattern></defs><rect width="1200" height="675" fill="url(#bg)"/><rect width="1200" height="675" fill="url(#grid)"/><circle cx="960" cy="150" r="220" fill="#85e4ca" opacity=".06"/><rect x="44" y="44" width="1112" height="587" rx="28" fill="#0b1424" fill-opacity=".78" stroke="#a5b7cf" stroke-opacity=".4"/><text x="84" y="104" font-family="Arial,sans-serif" font-size="17" letter-spacing="6" fill="#85e4ca">WHISKAYBOT  /  OFFICIAL CANVAS</text><text x="84" y="200" font-family="Arial,sans-serif" font-size="48" font-weight="800" fill="#f3f0e7">${title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</text><text x="84" y="250" font-family="Arial,sans-serif" font-size="20" letter-spacing="2" fill="#a7b7cb">${subtitle}</text><path d="M84 300H730" stroke="url(#gold)" stroke-width="3"/><text x="84" y="370" font-family="Arial,sans-serif" font-size="22" fill="#e7c889">${isRpg?'ENTER THE ABYSS · FORGE YOUR LEGEND':'DISCOVER · CUSTOMIZE · COMMAND'}</text><text x="84" y="425" font-family="Arial,sans-serif" font-size="17" fill="#a7b7cb">A refined interface built for your own journey.</text><g transform="translate(880 230)"><path d="M120 0L240 68V202L120 270 0 202V68Z" fill="#15243a" stroke="#e7c889" stroke-width="2"/><path d="M120 36L205 84V186L120 234 35 186V84Z" fill="#1c3446" stroke="#85e4ca" stroke-opacity=".8"/><path d="M120 75L160 135 120 195 80 135Z" fill="url(#gold)"/><circle cx="120" cy="135" r="85" fill="none" stroke="#e7c889" stroke-opacity=".3" stroke-width="2"/></g><text x="84" y="584" font-family="Arial,sans-serif" font-size="13" letter-spacing="4" fill="#7f91aa">YOUR STORY. YOUR RULES. YOUR DESIGN.</text></svg>`;
+  try {
+    await writeFile(svgPath, svg);
+    await execFileAsync('ffmpeg', ['-hide_banner','-loglevel','error','-y','-i',svgPath,'-frames:v','1','-vf','format=rgb24',pngPath], { timeout: 12000 });
+    return await readFile(pngPath);
+  } catch (error) {
+    console.error('[MENU] official canvas render failed:', error?.message || error);
+    return null;
+  } finally { await rm(dir, {recursive:true,force:true}); }
+}
 
 function mapChars(text, upper, lower, digits = null) {
   return String(text).replace(/[A-Za-z0-9]/g, c => {
@@ -27,10 +50,12 @@ const fontFns = {
   fraktur: s => mapChars(s,0x1D56C,0x1D586),
   italicbold: s => mapChars(s,0x1D468,0x1D482),
   sansbold: s => mapChars(s,0x1D5D4,0x1D5EE,0x1D7F6),
-  zalgo: s => String(s).split('').map(c=>c+'̙̥̀͡').join(''),
   mixed: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('').map(c=>({'A':'ᗩ','B':'ᗷ','C':'ᑕ','D':'ᗪ','E':'E','F':'ᖴ','G':'G','H':'ᕼ','I':'I','J':'ᒍ','K':'K','L':'ᒪ','M':'ᗰ','N':'ᑎ','O':'O','P':'ᑭ','Q':'ᑫ','R':'ᖇ','S':'ᔕ','T':'T','U':'ᑌ','V':'ᐯ','W':'ᗯ','X':'᙭','Y':'Y','Z':'ᘔ','a':'ᗩ','b':'ᗷ','c':'ᑕ','d':'ᗪ','e':'E','f':'ᖴ','g':'G','h':'ᕼ','i':'I','j':'ᒍ','k':'K','l':'ᒪ','m':'ᗰ','n':'ᑎ','o':'O','p':'ᑭ','q':'ᑫ','r':'ᖇ','s':'ᔕ','t':'T','u':'ᑌ','v':'ᐯ','w':'ᗯ','x':'᙭','y':'Y','z':'ᘔ'}[c])).join('')),
   cyrillic: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','АВCDЕFGНІЈКLМNOPQRSТUVWХYZаьсԁеfɡһіјκӏmnорԛгѕтцѵԝхуz'),
-  greek: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','ΑΒϹDΕFϜΗΙЈΚLΜΝΟΡϘRSΤՍVШΧΥΖαβϲδεζηιϳκλμνορςτυνχωყζ')
+  greek: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','ΑΒϹDΕFϜΗΙЈΚLΜΝΟΡϘRSΤՍVШΧΥΖαβϲδεζηιϳκλμνορςτυνχωყζ'),
+  italic: s => mapChars(s,0x1D434,0x1D44E),
+  script: s => mapChars(s,0x1D49C,0x1D4B6),
+  circled: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ')
 };
 const FONT_LABELS = {
   normal: ['Normal','Teks standar, paling kompatibel','Type something to start'],
@@ -43,13 +68,18 @@ const FONT_LABELS = {
   fraktur: ['Fraktur','Gaya gotik','𝔗𝔶𝔭𝔢 𝔰𝔬𝔪𝔢𝔱𝔥𝔦𝔫𝔤 𝔱𝔬 𝔰𝔱𝔞𝔯𝔱'],
   italicbold: ['Bold Italic','Miring dan tebal','𝑻𝒚𝒑𝒆 𝒔𝒐𝒎𝒆𝒕𝒉𝒊𝒏𝒈 𝒕𝒐 𝒔𝒕𝒂𝒓𝒕'],
   sansbold: ['Sans Bold','Sans-serif tebal','𝗧𝘆𝗽𝗲 𝘀𝗼𝗺𝗲𝘁𝗵𝗶𝗻𝗴 𝘁𝗼 𝘀𝘁𝗮𝗿𝘁'],
-  zalgo: ['Zalgo','Efek glitch; dapat sulit dibaca','T̙̥̀͡ỳ̙̥͡p̙̥̀͡è̙̥͡']
+  italic: ['Italic Serif','Miring elegan','𝑇𝑦𝑝𝑒'],
+  script: ['Script','Tulisan kaligrafi','𝒯𝓎𝓅𝑒'],
+  circled: ['Circled','Huruf dalam lingkaran','Ⓣⓨⓟⓔ']
 };
 const TEMPLATE = {
   corporate: { top: '╭━━━〔', mid: '┃', bottom: '╰━━━━━━━━━━━━━━━━' },
   minimal: { top: '┌─', mid: '│', bottom: '└────────────' },
   terminal: { top: '╔══[', mid: '║', bottom: '╚════════════' },
-  elegant: { top: '┏━━━━━━━━', mid: '┃', bottom: '┗━━━━━━━━━━━━' }
+  elegant: { top: '┏━━━━━━━━', mid: '┃', bottom: '┗━━━━━━━━━━━━' },
+  aurora: { top: '✦･ﾟ〔', mid: '✧', bottom: '✦━━━━━━━━━━━━' },
+  classic: { top: '╔════〔', mid: '║', bottom: '╚════════════' },
+  compact: { top: '〔', mid: '›', bottom: '┈┈┈┈┈┈┈┈┈' }
 };
 const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank']);
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
@@ -86,12 +116,13 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('prefix')) lines.push(line(settings,`Prefix: ${config.prefixes.join(' ')}`));
   if(settings.widgets.includes('new')) lines.push(line(settings,'🆕 = perintah baru selama 7 hari'));
   if(settings.widgets.includes('website')) lines.push(line(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`));
+  if(settings.widgets.includes('info')) lines.push(line(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`));
   if(settings.widgets.includes('rank')) lines.push(line(settings,`Profile / rank / engagement: ${ctx.prefix}profile`));
   if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; lines.push(line(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`)); } catch { lines.push(line(settings,'Produk website: data live tidak tersedia')); } }
   if(settings.widgets.includes('count')||settings.widgets.includes('prefix')||settings.widgets.includes('new')) lines.push('');
   let lastCategory='';
   rows.forEach((row,index)=>{
-    if(settings.order==='category'&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
+    if(settings.categoriesVisible!==false&&settings.order==='category'&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
     const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${ctx.prefix}${row.command}${mark}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
@@ -114,23 +145,20 @@ async function renderMenu(ctx) {
   if(settings.imageMode==='manual'&&settings.imagePath){
     try { image=await readFile(settings.imagePath); }
     catch { imageWarning='Foto menu manual tidak ditemukan di penyimpanan bot. Pilih ulang melalui .setmenu image manual.'; }
-  } else if(settings.imageMode==='official') {
-    const officialUrl=String(config.website.menuImageUrl||'').trim();
+  } else if(settings.imageMode==='official'||settings.imageMode==='official-rpg') {
+    const officialUrl=String(settings.imageMode==='official-rpg' ? (config.website.rpgImageUrl||'') : (config.website.menuImageUrl||'')).trim();
     let validUrl=false;try{const parsed=new URL(officialUrl);validUrl=['http:','https:'].includes(parsed.protocol);}catch{}
     if(validUrl) image={url:officialUrl};
-    else imageWarning='Gambar official belum tersedia: MENU_IMAGE_URL kosong atau tidak valid.';
-  }
-  // Send the image as a normal WhatsApp media message first. Native interactive
-  // headers silently drop media on some Baileys/WhatsApp combinations.
-  if(image){
-    try {
-      await ctx.send({image, caption:'Gambar menu WhiskayBot'});
-    } catch (error) {
-      imageWarning=`Gambar menu gagal dikirim (${String(error?.message||error).slice(0,180)}). Periksa URL publik atau file foto, lalu coba lagi.`;
+    else {
+      const canvas = await renderOfficialCanvas(settings.imageMode==='official-rpg'?'rpg':'menu', config.botName);
+      if(canvas) image=canvas;
+      else imageWarning='Kanvas official gagal dibuat pada host ini. Pastikan FFmpeg tersedia; menu teks tetap dapat digunakan.';
     }
   }
+  // Attach the canvas directly to the same interactive message so the image,
+  // command list, and embedded settings button are delivered together.
   const finalText=imageWarning?`${text}\n\n⚠️ ${imageWarning}`:text;
-  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),buttons}); }
+  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons}); }
   catch { return ctx.reply(`${finalText}\n\nGunakan ${ctx.prefix}setmenu untuk mengatur menu.`); }
 }
 export default {name:'menu',command:['menu','help'],menuCommands:['menu'],description:'Tampilkan daftar perintah dan pengaturan menu pribadi',category:'general',cooldown:3000,async execute(ctx){return renderMenu(ctx);}};

@@ -17,3 +17,8 @@ export async function updateProfile(group,user,patch,actor='system',consent=fals
 export async function awardMessageXP(group,user){if(!group||!user||!(await getGroupLeveling(group)))return null;const d=await read(),k=key(group,user),old=d.users[k]||{xp:0,level:1,coin:0,points:0,familiarity:0,premium:false,notifyLevelUp:true,balance:0};const before=old.level||1;const gain=5+(Math.floor(Math.random()*4));const next={...old,xp:(old.xp||0)+gain,points:(old.points||0)+1,familiarity:Math.min(100,(old.familiarity||0)+0.05)};let needed=xpForNextLevel(next.level||1);while(next.xp>=needed){next.xp-=needed;next.level=(next.level||1)+1;needed=xpForNextLevel(next.level)};const leveled=next.level>before;d.users[k]=next;if(leveled)d.audit.push({at:Date.now(),type:'level-up',group,user,from:before,to:next.level});await save(d);return {profile:next,leveled,from:before,to:next.level,gain,needed}}
 export async function setLevelNotifications(group,user,enabled){return updateProfile(group,user,{notifyLevelUp:Boolean(enabled)},'self',true)}
 export async function auditLog(limit=30){const d=await read();return d.audit.slice(-limit).reverse()}
+
+export async function getLeaderboard(group, limit = 10) {
+ const d = await read();
+ return Object.entries(d.users || {}).filter(([k]) => k.startsWith(`${group}|`)).map(([k,p]) => ({ user:k.slice(String(group).length+1), level:Number(p.level||1), xp:Number(p.xp||0), coin:Number(p.coin||0), points:Number(p.points||0) })).sort((a,b)=>b.level-a.level||b.xp-a.xp||b.points-a.points).slice(0,Math.max(1,Math.min(25,Number(limit)||10)));
+}

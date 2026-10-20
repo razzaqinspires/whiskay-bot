@@ -2,8 +2,14 @@ import { mkdir, readFile, rename, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { Worker } from 'node:worker_threads';
 const execFileAsync = promisify(execFile);
+import { syncDashboardPlayer, dashboardUrl } from '../../services/dungeonWebsiteSync.js';
 const DATA = path.resolve('data/dungeon-rpg.json');
+const FLOOR_DATA = path.resolve('data/dungeon/floors.json');
+async function getFloorDefinition(floor){try{const d=JSON.parse(await readFile(FLOOR_DATA,'utf8'));return d.floors?.[clamp(Number(floor||1)-1,0,(d.floors?.length||1)-1)]||null;}catch{return null;}}
+function predictBattle(player,enemy){return new Promise(resolve=>{let settled=false;const finish=v=>{if(settled)return;settled=true;resolve(v);};let worker;try{worker=new Worker(new URL('../../workers/dungeon-predictor.js',import.meta.url));worker.once('message',data=>{finish(data);worker.terminate().catch(()=>{});});worker.once('error',()=>{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});worker?.terminate().catch(()=>{});});worker.postMessage({player,enemy});setTimeout(()=>{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});worker?.terminate().catch(()=>{});},1500).unref?.();}catch{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});}});}
+
 const CARD_DIR = path.resolve('data/cache/rpg-cards');
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const keyFor = (ctx) => `${ctx.chat}|${ctx.sender}`;
@@ -11,7 +17,7 @@ const defaults = () => ({ level: 1, xp: 0, hp: 100, maxHp: 100, gold: 0, potions
 async function readAll() { try { const d = JSON.parse(await readFile(DATA, 'utf8')); return d && typeof d === 'object' ? d : {}; } catch { return {}; } }
 async function writeAll(data) { await mkdir(path.dirname(DATA), { recursive: true }); const temp = DATA + '.tmp'; await writeFile(temp, JSON.stringify(data, null, 2)); await rename(temp, DATA); }
 async function getPlayer(ctx) { const d = await readAll(); return { all: d, player: { ...defaults(), ...(d[keyFor(ctx)] || {}) } }; }
-async function savePlayer(ctx, all, player) { all[keyFor(ctx)] = player; await writeAll(all); }
+async function savePlayer(ctx, all, player) { all[keyFor(ctx)] = player; await writeAll(all); void syncDashboardPlayer(ctx.chat,ctx.sender,{name:ctx.pushName||'Adventurer',level:player.level,xp:player.xp,nextXp:needXp(player.level),hp:player.hp,maxHp:player.maxHp,gold:player.gold,weapon:player.weapon,weaponPower:player.weaponPower,potions:player.potions,wins:player.wins,losses:player.losses,floor:player.floor,inventory:[{name:player.weapon,slot:'weapon',power:player.weaponPower},{name:'Potion of Renewal',slot:'consumable',quantity:player.potions}]}); }
 const needXp = level => Math.floor(70 + level * 42 + Math.pow(level, 1.35) * 9);
 const rank = level => level >= 30 ? 'MYTHIC' : level >= 20 ? 'DIAMOND' : level >= 12 ? 'PLATINUM' : level >= 7 ? 'GOLD' : level >= 3 ? 'SILVER' : 'ROOKIE';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -68,27 +74,31 @@ export default {
     }
     if (sub === 'explore' || sub === 'fight') {
       if (p.hp <= 0) p.hp = Math.ceil(p.maxHp*.5);
-      const monsters = [{name:'Cave Slime',hp:26,attack:8,xp:28,gold:12},{name:'Crypt Wolf',hp:38,attack:12,xp:42,gold:20},{name:'Stone Guardian',hp:54,attack:16,xp:60,gold:32},{name:'Abyss Warden',hp:70,attack:21,xp:86,gold:45}];
-      const m = { ...monsters[Math.floor(Math.random()*Math.min(monsters.length,1+Math.floor(p.floor/2))) ] };
-      m.hp += (p.floor-1)*7; m.attack += Math.floor((p.floor-1)*1.8); m.xp += (p.floor-1)*8; m.gold += (p.floor-1)*4;
-      const damage = Math.max(1, p.weaponPower + Math.floor(Math.random()*12) + Math.floor(p.level/3));
+      const floorDef = await getFloorDefinition(p.floor);
+      const enemy = floorDef?.enemy;
+      const m = enemy ? {name:enemy.name,hp:enemy.hp,attack:enemy.attack,xp:floorDef.rewards.xp,gold:floorDef.rewards.gold,defense:enemy.defense,skills:enemy.skills} : {name:'Cave Slime',hp:26,attack:8,xp:28,gold:12,defense:0,skills:[]};
+      const rawDamage = Math.max(1, p.weaponPower + Math.floor(Math.random()*12) + Math.floor(p.level/3));
+      const damage = Math.max(1, rawDamage - Math.floor((m.defense||0)*0.35));
       const monsterDamage = Math.max(1,m.attack - Math.floor(p.level/4));
+      const forecastData = await predictBattle(p,m);
+      const forecast = `\n\n📊 Worker AI Forecast: peluang menang ${forecastData.winProbability}% · ${forecastData.estimatedTurns} giliran · potensi damage masuk ~${forecastData.estimatedIncoming} HP · confidence ${forecastData.confidence}%. Estimasi statistik, bukan jaminan; buff, skill, dan variasi serangan dapat mengubah hasil.`;
+
       if (damage >= m.hp) {
         p.wins++; p.xp += m.xp; p.gold += m.gold; p.hp = Math.min(p.maxHp,p.hp + 8);
         const loot = Math.random() < .18;
         if (loot) { p.potions++; }
         const oldLevel=p.level;
         while (p.xp >= needXp(p.level)) { p.xp -= needXp(p.level); p.level++; p.maxHp += 8; p.hp = Math.min(p.maxHp,p.hp+18); p.weaponPower += (p.level%3===0?2:1); }
-        if (p.wins%3===0) p.floor++;
+        if (p.wins%3===0) p.floor=Math.min(10,p.floor+1);
         await savePlayer(ctx,all,p);
         const levelLine = p.level>oldLevel ? `\n\nLEVEL UP! ${oldLevel} → ${p.level}. Max HP dan kekuatan meningkat.` : '';
-        return sendCard(ctx,p,'VICTORY',`Monster: ${m.name}\nSeranganmu: ${damage} damage — monster dikalahkan.\nLoot: +${m.xp} XP, +${m.gold} gold${loot?' dan +1 potion':''}.\nPemulihan tempur: +8 HP.${levelLine}`,actions);
+        return sendCard(ctx,p,'VICTORY',`Lantai ${p.floor}: ${floorDef?.name||'Dungeon'}\nMonster: ${m.name}\nSeranganmu: ${damage} damage — monster dikalahkan.\nLoot: +${m.xp} XP, +${m.gold} gold${loot?' dan +1 potion':''}.\nPemulihan tempur: +8 HP.${levelLine}${forecast}`, [...actions,{name:'cta_url',title:'⚔️ Arena Battle Web',url:dashboardUrl(ctx.chat,ctx.sender,`/dungeon?floor=${p.floor}`),merchant_url:dashboardUrl(ctx.chat,ctx.sender,`/dungeon?floor=${p.floor}`),webview_interaction:true}]);
       }
       p.hp = Math.max(0,p.hp-monsterDamage); p.losses++; p.xp += Math.floor(m.xp*.2);
       const defeated = p.hp === 0;
       if (defeated) { p.gold=Math.max(0,p.gold-Math.min(p.gold,5+p.floor*2)); p.hp=Math.ceil(p.maxHp*.4); }
       await savePlayer(ctx,all,p);
-      return sendCard(ctx,p,'RETREAT',`Monster: ${m.name}\nDamage seranganmu: ${damage}; monster masih bertahan.\nKamu menerima ${monsterDamage} damage.\n${defeated?'Kamu tumbang lalu kembali ke camp; sebagian gold hilang.':''}\nHP: ${p.hp}/${p.maxHp}\nKamu memperoleh ${Math.floor(m.xp*.2)} XP dari pertarungan.`,[btn(ctx,'Coba Lagi','rpg explore'),btn(ctx,'Gunakan Potion','rpg potion'),btn(ctx,'Profil RPG','rpg status')]);
+      return sendCard(ctx,p,'RETREAT',`Lantai ${p.floor}: ${floorDef?.name||'Dungeon'}\nMonster: ${m.name}\nDamage seranganmu: ${damage}; monster masih bertahan.\nKamu menerima ${monsterDamage} damage.\n${defeated?'Kamu tumbang lalu kembali ke camp; sebagian gold hilang.':''}\nHP: ${p.hp}/${p.maxHp}\nKamu memperoleh ${Math.floor(m.xp*.2)} XP dari pertarungan.${forecast}`,[btn(ctx,'Coba Lagi','rpg explore'),btn(ctx,'Gunakan Potion','rpg potion'),btn(ctx,'Profil RPG','rpg status'),{name:'cta_url',title:'Arena Battle Web',url:dashboardUrl(ctx.chat,ctx.sender,`/dungeon?floor=${p.floor}`),merchant_url:dashboardUrl(ctx.chat,ctx.sender,`/dungeon?floor=${p.floor}`),webview_interaction:true}]);
     }
     return ctx.sendInteractive({ title:'DUNGEON RPG', subtitle:'WhiskayBot Adventure System', body:'Petualangan turn-based dengan level, XP, rank, HP, gold, potion, monster, loot, dan dungeon floor.\n\nTekan Mulai untuk membuat profil lalu jelajahi dungeon.', buttons:[btn(ctx,'Mulai / Status','rpg status'),btn(ctx,'Jelajah Dungeon','rpg explore'),btn(ctx,'Panduan','rpg help')] });
   }

@@ -163,13 +163,12 @@ async function sendVideoPreview(ctx, rawUrl) {
   const date = info.uploadDate && /^\d{8}$/.test(info.uploadDate) ? `${info.uploadDate.slice(0,4)}-${info.uploadDate.slice(4,6)}-${info.uploadDate.slice(6,8)}` : '—';
   const body = `VIDEO PREVIEW\n${info.title}\n\nChannel: ${info.channel || 'Tidak diketahui'}\nDurasi: ${info.duration}\nViews: ${info.views}\nTanggal unggah: ${date}\n\nPilih format yang ingin kamu ambil. Bot belum mengunduh file sampai salah satu tombol format dipilih.`;
   return ctx.sendInteractive({
-    image: info.thumbnail && /^https:\/\//i.test(info.thumbnail) ? info.thumbnail : undefined,
+    image: info.thumbnail && /^https:\/\//i.test(info.thumbnail) ? { url: info.thumbnail } : undefined,
     title: 'YouTube · Video Preview', subtitle: info.channel || 'Sumber publik YouTube', body,
     footer: 'Pilih satu tindakan · tidak ada unduhan otomatis',
     buttons: [
-      { name: 'quick_reply', title: 'Dapatkan Audio MP3', id: `${ctx.prefix}ytmp3 ${info.url}` },
-      { name: 'quick_reply', title: 'Dapatkan Video MP4', id: `${ctx.prefix}ytmp4 ${info.url}` },
-      { name: 'quick_reply', title: 'Kembali ke Hasil', id: `${ctx.prefix}ytpreview` }
+      { name: 'quick_reply', title: '🎵 Ambil Audio MP3', id: `${ctx.prefix}ytmp3 ${info.url}` },
+      { name: 'quick_reply', title: '🎬 Ambil Video MP4', id: `${ctx.prefix}ytmp4 ${info.url}` }
     ]
   });
 }

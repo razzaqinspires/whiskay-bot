@@ -317,15 +317,24 @@ function parseNativeFlowParams(native) {
     try {
       const p = JSON.parse(native.paramsJson);
       const id = p.id || p.row_id || p.rowId || p.selected_id || p.selectedId
-        || p.selectedRowId || p.selected_row_id || p.command || p.buttonId || p.button_id;
+        || p.selectedRowId || p.selected_row_id || p.selected_row || p.rowID
+        || p.command || p.buttonId || p.button_id || p.action || p.selected;
       if (typeof id === 'string' && id.trim()) return id;
       for (const value of Object.values(p)) {
         if (value && typeof value === 'object') {
-          const nested = value.id || value.row_id || value.rowId || value.selectedRowId || value.selected_row_id;
+          const nested = value.id || value.row_id || value.rowId || value.selectedRowId
+            || value.selected_row_id || value.selected_row || value.button_id || value.action;
           if (typeof nested === 'string' && nested.trim()) return nested;
         }
       }
-    } catch {}
+    } catch {
+      try {
+        const decoded = JSON.parse(JSON.parse(native.paramsJson));
+        const id = decoded?.id || decoded?.row_id || decoded?.rowId
+          || decoded?.selected_row_id || decoded?.selectedRowId || decoded?.button_id;
+        if (typeof id === 'string' && id.trim()) return id;
+      } catch {}
+    }
   }
   return '';
 }

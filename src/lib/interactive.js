@@ -168,7 +168,9 @@ export async function sendInteractiveMessage(sock, jid, opts = {}, quoted = null
       const formatted = Buffer.isBuffer(mediaSource) || mediaSource instanceof Uint8Array
         ? Buffer.from(mediaSource)
         : typeof mediaSource === 'string' ? { url: mediaSource } : mediaSource;
-      mediaPayload = await prepareWAMessageMedia({ image: formatted }, { upload: sock.waUploadToServer });
+      const prepared = await prepareWAMessageMedia({ image: formatted }, { upload: sock.waUploadToServer });
+      if (prepared?.imageMessage) mediaPayload = { imageMessage: prepared.imageMessage };
+      else mediaPayload = null;
     } catch (error) {
       // A broken or unsupported image should not prevent the text/button fallback.
       mediaPayload = null;

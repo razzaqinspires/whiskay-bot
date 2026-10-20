@@ -107,9 +107,23 @@ export default {
       }
       const code = raw.replace(/^\s*--\s*/, '');
       if (!code) return ctx.reply('Konsol owner-only\n> kode async\n=> kode async dengan hasil return\n$ perintah shell\n>> kode Python\nContoh filter: > return -f(sendMessage, const dungeon)');
-      const fn = new AsyncFunction('ctx', 'm', 'sock', 'util', 'process', `"use strict"; ${mode === 'return' ? 'return (' + code.replace(/;\s*$/, '') + ')' : code}`);
-      const result = await fn(ctx, ctx.m || ctx.message || null, ctx.sock || ctx.client || null, util, process);
-      return ctx.reply(`${mode === 'return' ? '=>' : 'OK'}\n${clip(result === undefined ? '(undefined)' : result)}`);
+      const sock = ctx.sock || ctx.client || null;
+      const m = ctx.m || ctx.message || ctx;
+      const sendMessage = async (jid, content, options = {}) => {
+        if (!sock?.sendMessage) throw new Error('sock.sendMessage tidak tersedia pada konteks ini');
+        return sock.sendMessage(jid || ctx.chat, content, options);
+      };
+      const reply = (...args) => ctx.reply(...args);
+      const fn = new AsyncFunction(
+        'ctx', 'm', 'sock', 'util', 'process', 'sendMessage', 'reply',
+        `"use strict"; ${mode === 'return' ? 'return (' + code.replace(/;\s*$/, '') + ')' : code}`
+      );
+      const result = await fn(ctx, m, sock, util, process, sendMessage, reply);
+      if (result === undefined) return ctx.reply(`${mode === 'return' ? '=>' : 'OK'}\n(undefined)`);
+      if (result && typeof result === 'object' && typeof result.then === 'function') {
+        return ctx.reply(`${mode === 'return' ? '=>' : 'OK'}\n${clip(await result)}`);
+      }
+      return ctx.reply(`${mode === 'return' ? '=>' : 'OK'}\n${clip(result)}`);
     }
     const args = ctx.args || [];
     if (args[0] === 'open') {
