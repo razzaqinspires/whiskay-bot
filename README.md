@@ -5,7 +5,7 @@
 
 **A private-first, extensible WhatsApp bot with interactive menus, media tools, progression systems, and an integration bridge to the official Razzaq Ventures platform.**
 
-[![Version](https://img.shields.io/badge/version-2.3.8-17243b?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/version-2.3.9-17243b?style=for-the-badge)](package.json)
 [![Runtime](https://img.shields.io/badge/Node.js-20%2B-2f855a?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Baileys%207-176b5b?style=for-the-badge&logo=whatsapp&logoColor=white)](https://github.com/WhiskeySockets/Baileys)
 [![Ecosystem](https://img.shields.io/badge/Ecosystem-Razzaq%20Ventures-c9aa66?style=for-the-badge)](https://razzaq-ventures-platform.vercel.app/)
@@ -142,10 +142,10 @@ The examples below use `.` as the prefix. The active prefix list is configured b
 | `.ytmp3 URL` | Download public video audio as MP3. |
 | `.ytmp4 URL` | Download public video as MP4, targeting up to 720p. |
 | `.ytpreview URL` | Open a video preview with thumbnail, title, channel, duration, view count and format buttons. |
-| `.ytpage page query` | Navigate paginated search results (10 results per WhatsApp list page; up to 25 total). |
+| `.ytpage [page]` | Navigate the active search results. Use a page number, `next`, or `prev`; no query is required while the current search session is active. |
 | `.ythelp` | Open the YouTube command guide. |
 
-**Server dependencies:** `yt-dlp` and FFmpeg must be installed and available on `PATH`. The current plugin targets files up to 48 MB. Search retrieves up to 25 results, paginated as 10 rows per WhatsApp list page to respect interactive-list limits. Choosing a row opens a thumbnail-backed preview card with explicit Audio MP3 and Video MP4 actions; the list itself does not start a download. The search card keeps “Putar Hasil Pertama” and removes the redundant “Audio MP3 hasil pertama” action. Public videos only; it does not bypass login, private videos, or paywalls. YouTube delivery changes over time, so keep `yt-dlp` updated.
+**Server dependencies:** `yt-dlp` and FFmpeg must be installed and available on `PATH`. The current plugin targets files up to 48 MB. Search retrieves up to 25 results, paginated as 10 rows per WhatsApp list page to respect interactive-list limits. The list uses the same `single_select` → `sections` → `rows` schema as `.menu` and `.setmenu`; each row's `id` routes to `.ytpreview pick N`. The active query/results are cached per chat and sender for page navigation and selection. Use `.ytpage next` or `.ytpage prev` while the search session remains in memory. Choosing a row opens a thumbnail-backed preview card with explicit Audio MP3 and Video MP4 actions; the list itself does not start a download. The search card keeps “Putar Hasil Pertama” and removes the redundant “Audio MP3 hasil pertama” action. Public videos only; it does not bypass login, private videos, or paywalls. YouTube delivery changes over time, so keep `yt-dlp` updated.
 
 Example on Debian/Ubuntu:
 

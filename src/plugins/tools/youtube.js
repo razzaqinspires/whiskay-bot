@@ -101,23 +101,63 @@ async function inspectVideo(rawUrl) {
     uploadDate: clean(info.upload_date || '', 8)
   };
 }
-async function sendSearchResults(ctx, query, page = 0) {
-  const results = await searchVideos(query);
-  if (!results.length) return ctx.reply('Tidak ada hasil video publik yang ditemukan.');
-  const pageSize = 10;
-  const pageCount = Math.max(1, Math.ceil(results.length / pageSize));
-  const safePage = Math.max(0, Math.min(pageCount - 1, Number(page) || 0));
-  const pageResults = results.slice(safePage * pageSize, (safePage + 1) * pageSize);
-  const numbered = pageResults.map((v, i) => {
-    const number = safePage * pageSize + i + 1;
-    return `${String(number).padStart(2, '0')}. ${v.title}\n   ${v.duration} · ${v.channel || 'Channel tidak diketahui'}\n   Pilih: ${ctx.prefix}ytpreview pick ${safePage} ${number} ${query}`;
-  }).join('\n\n');
-  const nav = [
-    `${safePage < pageCount - 1 ? `Berikutnya: ${ctx.prefix}ytpage ${safePage + 1} ${query}` : ''}`,
-    `${safePage > 0 ? `Sebelumnya: ${ctx.prefix}ytpage ${safePage - 1} ${query}` : ''}`
-  ].filter(Boolean).join('\n');
-  return ctx.reply(`YouTube · Search Library\n${results.length} hasil · halaman ${safePage + 1}/${pageCount} · ${clean(query, 70)}\n\nPilih nomor untuk membuka pratinjau. Tidak ada file diunduh sebelum format dipilih.\n\n${numbered}\n\nPutar hasil pertama: ${ctx.prefix}ytmp3 ${results[0].url}${nav ? `\n\n${nav}` : ''}\n\nCatatan: daftar native tidak ditampilkan karena dukungan list message Baileys/WhatsApp tidak konsisten; gunakan nomor/perintah di atas.`);
+const searchSessions = new Map();
+const PAGE_SIZE = 10;
+function searchSessionKey(ctx) { return `${ctx.chat || ''}:${ctx.sender || ctx.chat || ''}`; }
+function getSearchSession(ctx) { return searchSessions.get(searchSessionKey(ctx)); }
+function saveSearchSession(ctx, query, results, page = 0) {
+  const key = searchSessionKey(ctx);
+  const session = { query, results, page, updatedAt: Date.now() };
+  searchSessions.set(key, session);
+  // Bound memory: keep the most recent 100 chat/user sessions.
+  while (searchSessions.size > 100) searchSessions.delete(searchSessions.keys().next().value);
+  return session;
 }
+function buildSearchSections(ctx, results, page) {
+  const start = page * PAGE_SIZE;
+  const rows = results.slice(start, start + PAGE_SIZE).map((v, offset) => {
+    const index = start + offset;
+    return {
+      title: `${String(index + 1).padStart(2, '0')}. ${clean(v.title, 70)}`.slice(0, 100),
+      description: `${v.duration} · ${clean(v.channel || 'Channel tidak diketahui', 60)}`.slice(0, 100),
+      id: `${ctx.prefix}ytpreview pick ${index + 1}`
+    };
+  });
+  return [{ title: `Hasil ${start + 1}–${Math.min(start + rows.length, results.length)}`, rows }];
+}
+async function sendSearchResults(ctx, query, page = 0, existingResults = null) {
+  const results = existingResults || await searchVideos(query);
+  if (!results.length) return ctx.reply('Tidak ada hasil video publik yang ditemukan.');
+  const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.max(0, Math.min(pageCount - 1, Number(page) || 0));
+  const session = saveSearchSession(ctx, query, results, safePage);
+  const start = safePage * PAGE_SIZE;
+  const pageResults = results.slice(start, start + PAGE_SIZE);
+  const body = `Kata kunci: ${clean(query, 90)}\nHalaman ${safePage + 1}/${pageCount} · ${results.length} hasil\n\nPilih judul melalui tombol “Daftar Hasil”. Pratinjau akan menampilkan metadata dan pilihan MP3/MP4. Tidak ada file yang diunduh sebelum format dipilih.`;
+  const buttons = [
+    { name: 'quick_reply', title: 'Putar Hasil Pertama', id: `${ctx.prefix}ytmp3 ${results[0].url}` },
+    { name: 'single_select', title: 'Daftar Hasil', sections: buildSearchSections(ctx, results, safePage) }
+  ];
+  if (safePage < pageCount - 1) buttons.push({ name: 'quick_reply', title: 'Hasil Berikutnya', id: `${ctx.prefix}ytpage ${safePage + 1}` });
+  if (safePage > 0) buttons.push({ name: 'quick_reply', title: 'Halaman Sebelumnya', id: `${ctx.prefix}ytpage ${safePage - 1}` });
+  // Keep quick replies within the native-flow button budget. The list is the primary picker.
+  const normalizedButtons = buttons.filter(Boolean).slice(0, 3);
+  try {
+    return await ctx.sendInteractive({
+      title: 'YouTube · Search Library',
+      subtitle: `${results.length} hasil · halaman ${safePage + 1}/${pageCount}`,
+      body,
+      footer: 'Pilih hasil untuk membuka pratinjau · MP3/MP4 dipilih setelah pratinjau',
+      buttons: normalizedButtons
+    });
+  } catch (error) {
+    // The serializer's interactive helper has a text fallback. This explicit fallback
+    // also keeps commands usable if the native-flow envelope fails before relay.
+    const text = pageResults.map((v, i) => `${String(start + i + 1).padStart(2, '0')}. ${v.title}\n${v.duration} · ${v.channel || 'Channel tidak diketahui'}\n${ctx.prefix}ytpreview pick ${start + i + 1}`).join('\n\n');
+    return ctx.reply(`YouTube · Search Library\n${body}\n\n${text}\n\nNavigasi: ${ctx.prefix}ytpage ${safePage + 1}`);
+  }
+}
+
 async function sendVideoPreview(ctx, rawUrl) {
   const info = await inspectVideo(rawUrl);
   const date = info.uploadDate && /^\d{8}$/.test(info.uploadDate) ? `${info.uploadDate.slice(0,4)}-${info.uploadDate.slice(4,6)}-${info.uploadDate.slice(6,8)}` : '—';
@@ -129,7 +169,7 @@ async function sendVideoPreview(ctx, rawUrl) {
     buttons: [
       { name: 'quick_reply', title: 'Dapatkan Audio MP3', id: `${ctx.prefix}ytmp3 ${info.url}` },
       { name: 'quick_reply', title: 'Dapatkan Video MP4', id: `${ctx.prefix}ytmp4 ${info.url}` },
-      { name: 'quick_reply', title: 'Kembali ke Pencarian', id: `${ctx.prefix}ytsearch ${info.title}` }
+      { name: 'quick_reply', title: 'Kembali ke Hasil', id: `${ctx.prefix}ytpreview` }
     ]
   });
 }
@@ -201,10 +241,10 @@ export default [
   },
   {
     name: 'ytsearch', command: ['ytsearch'], menuCommands: ['ytsearch'], category: 'tools', cooldown: 8_000,
-    description: 'Cari hingga 25 video YouTube dan pilih hasil dengan nomor',
+    description: 'Cari hingga 25 video YouTube dengan daftar native dan pratinjau',
     async execute(ctx) {
       const query = (ctx.args || []).join(' ').trim();
-      if (!query) return ctx.sendInteractive({ title: 'YouTube Search', body: `Cari video dengan kata kunci.\n\nContoh: ${ctx.prefix}ytsearch tutorial robotika`, footer: 'Pilih hasil melalui nomor/perintah teks; native list dapat tidak didukung WhatsApp.', buttons: [{ name: 'quick_reply', title: 'Panduan YouTube', id: `${ctx.prefix}ythelp` }] });
+      if (!query) return ctx.sendInteractive({ title: 'YouTube Search', body: `Cari video dengan kata kunci.\n\nContoh: ${ctx.prefix}ytsearch tutorial robotika`, footer: 'Pilih judul melalui tombol Daftar Hasil untuk membuka pratinjau.', buttons: [{ name: 'quick_reply', title: 'Panduan YouTube', id: `${ctx.prefix}ythelp` }] });
       try {
         return await sendSearchResults(ctx, query);
       } catch (e) { return ctx.reply(`❌ Pencarian YouTube gagal: ${clean(e.message, 420)}`); }
@@ -212,14 +252,27 @@ export default [
   },
   {
     name: 'ytpage', command: ['ytpage'], category: 'tools', cooldown: 2500,
-    description: 'Navigasi halaman hasil pencarian YouTube',
+    description: 'Navigasi halaman hasil pencarian YouTube yang aktif',
     async execute(ctx) {
       const args = ctx.args || [];
-      const page = Number(args[0]);
-      const query = args.slice(1).join(' ').trim();
-      if (!Number.isInteger(page) || page < 0 || !query) return ctx.reply('Navigasi halaman tidak valid. Jalankan .ytsearch kata kunci.');
-      try { return await sendSearchResults(ctx, query, page); }
-      catch (e) { return ctx.reply(`❌ Pencarian YouTube gagal: ${clean(e?.message || e, 400)}`); }
+      const session = getSearchSession(ctx);
+      if (!session) return ctx.sendInteractive({
+        title: 'YouTube · Navigasi Hasil',
+        body: `Belum ada pencarian aktif di chat ini. Jalankan ${ctx.prefix}ytsearch kata kunci terlebih dahulu.`,
+        buttons: [{ name: 'quick_reply', title: 'Buka Pencarian YouTube', id: `${ctx.prefix}ythelp` }]
+      });
+      const pageCount = Math.max(1, Math.ceil(session.results.length / PAGE_SIZE));
+      let page;
+      if (!args.length || args[0].toLowerCase() === 'next') page = session.page + 1;
+      else if (args[0].toLowerCase() === 'prev' || args[0].toLowerCase() === 'back') page = session.page - 1;
+      else page = Number(args[0]);
+      if (!Number.isInteger(page) || page < 0 || page >= pageCount) {
+        const buttons = [];
+        if (session.page > 0) buttons.push({ name: 'quick_reply', title: 'Halaman Sebelumnya', id: `${ctx.prefix}ytpage ${session.page - 1}` });
+        if (session.page < pageCount - 1) buttons.push({ name: 'quick_reply', title: 'Hasil Berikutnya', id: `${ctx.prefix}ytpage ${session.page + 1}` });
+        return ctx.sendInteractive({ title: 'Navigasi YouTube', body: `Halaman aktif ${session.page + 1}/${pageCount}. Pilih halaman yang tersedia.`, buttons });
+      }
+      return sendSearchResults(ctx, session.query, page, session.results);
     }
   },
   {
@@ -228,17 +281,19 @@ export default [
     async execute(ctx) {
       const args = ctx.args || [];
       if (args[0] === 'pick') {
-        const page = Number(args[1]), number = Number(args[2]), query = args.slice(3).join(' ').trim();
-        if (!Number.isInteger(page) || page < 0 || !Number.isInteger(number) || number < 1 || !query) return ctx.reply(`Format: ${ctx.prefix}ytpreview pick HALAMAN NOMOR KATA_KUNCI`);
-        try {
-          const results = await searchVideos(query);
-          const picked = results[number - 1];
-          if (!picked || Math.floor((number - 1) / 10) !== page) return ctx.reply('Nomor hasil tidak valid untuk halaman tersebut. Jalankan pencarian lagi.');
-          return await sendVideoPreview(ctx, picked.url);
-        } catch (e) { return ctx.reply(`❌ Pratinjau YouTube gagal: ${clean(e?.message || e, 400)}`); }
+        const session = getSearchSession(ctx);
+        const number = Number(args[1]);
+        if (!session) return ctx.reply(`Sesi pencarian tidak ditemukan. Jalankan ${ctx.prefix}ytsearch kata kunci lagi, lalu pilih hasil dari tombol Daftar Hasil.`);
+        if (!Number.isInteger(number) || number < 1 || number > session.results.length) return ctx.reply(`Nomor hasil tidak valid. Pilih nomor 1–${session.results.length} dari daftar pencarian terakhir.`);
+        const picked = session.results[number - 1];
+        return sendVideoPreview(ctx, picked.url);
       }
       const raw = args.join(' ').trim();
-      if (!raw) return ctx.reply(`Gunakan ${ctx.prefix}ytpreview URL_VIDEO atau pilih nomor dari hasil pencarian.`);
+      if (!raw) {
+        const session = getSearchSession(ctx);
+        if (session) return sendSearchResults(ctx, session.query, session.page, session.results);
+        return ctx.sendInteractive({ title: 'YouTube · Pratinjau', body: `Kirim URL video, atau jalankan ${ctx.prefix}ytsearch kata kunci untuk menampilkan daftar hasil yang dapat dipilih.`, buttons: [{ name: 'quick_reply', title: 'Panduan YouTube', id: `${ctx.prefix}ythelp` }] });
+      }
       try { return await sendVideoPreview(ctx, raw); }
       catch (e) { return ctx.reply(`❌ Pratinjau YouTube gagal: ${clean(e?.message || e, 400)}`); }
     }
@@ -247,7 +302,7 @@ export default [
     name: 'ythelp', command: ['ythelp'], menuCommands: ['ythelp'], category: 'tools', cooldown: 3_000,
     description: 'Bantuan perintah YouTube downloader',
     async execute(ctx) {
-      return ctx.sendInteractive({ title: 'WhiskayBot · YouTube Tools', body: `• ${ctx.prefix}ytmp3 URL — unduh audio MP3\n• ${ctx.prefix}ytmp4 URL — unduh video MP4\n• ${ctx.prefix}ytplay query — cari lalu kirim audio\n• ${ctx.prefix}ytsearch query — cari video dan pilih hasil dengan nomor\n\nContoh:\n${ctx.prefix}ytsearch lagu Indonesia\n${ctx.prefix}ytplay lofi study\n${ctx.prefix}ytmp3 https://youtu.be/VIDEO_ID\n${ctx.prefix}ytmp4 https://youtu.be/VIDEO_ID`, footer: 'Perlu yt-dlp dan FFmpeg terpasang di server. Batas file 48 MB; hanya video publik yang dapat diakses.', buttons: [{ name: 'quick_reply', title: 'Cari YouTube', id: `${ctx.prefix}ytsearch ` }, { name: 'quick_reply', title: 'Contoh Putar', id: `${ctx.prefix}ytplay lofi study` }] });
+      return ctx.sendInteractive({ title: 'WhiskayBot · YouTube Tools', body: `• ${ctx.prefix}ytmp3 URL — unduh audio MP3\n• ${ctx.prefix}ytmp4 URL — unduh video MP4\n• ${ctx.prefix}ytplay query — cari lalu kirim audio\n• ${ctx.prefix}ytsearch query — cari video dan pilih hasil melalui Daftar Hasil\n\nContoh:\n${ctx.prefix}ytsearch lagu Indonesia\n${ctx.prefix}ytplay lofi study\n${ctx.prefix}ytmp3 https://youtu.be/VIDEO_ID\n${ctx.prefix}ytmp4 https://youtu.be/VIDEO_ID`, footer: 'Perlu yt-dlp dan FFmpeg terpasang di server. Batas file 48 MB; hanya video publik yang dapat diakses.', buttons: [{ name: 'quick_reply', title: 'Cari YouTube', id: `${ctx.prefix}ytsearch ` }, { name: 'quick_reply', title: 'Contoh Putar', id: `${ctx.prefix}ytplay lofi study` }] });
     }
   }
 ];

@@ -1,6 +1,6 @@
 # WhiskayBot v2.3.8
 
-- YouTube search now has a text/number selection fallback instead of relying on native single-select lists. Each result points to a preview-first command; download still requires selecting MP3/MP4.
+- YouTube search now has a text/number selection fallback; v2.3.9 restores the native single-select list using the project menu serializer pattern. Each result points to a preview-first command; download still requires selecting MP3/MP4.
 - Added owner-only console operators: `>` async eval, `=>` async expression return, `$` shell, `>>` Python subprocess.
 - Added `-f(term1, term2)` source scanner with file/path/line/character/time statistics and source preview/file retrieval commands.
 - Scanner excludes node_modules, hidden files/directories, `.env`, `.dat`, `.json`, binary formats and oversized files.

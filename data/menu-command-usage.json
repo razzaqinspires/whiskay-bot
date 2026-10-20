@@ -13,8 +13,8 @@
       "lastUsed": 1792337902356
     },
     "leveling": {
-      "count": 22,
-      "lastUsed": 1792515341597
+      "count": 23,
+      "lastUsed": 1792516903440
     },
     "ping": {
       "count": 3,
@@ -29,8 +29,8 @@
       "lastUsed": 1792513278914
     },
     "ytsearch": {
-      "count": 4,
-      "lastUsed": 1792515207818
+      "count": 6,
+      "lastUsed": 1792517085925
     },
     "ytmp3": {
       "count": 2,
@@ -41,12 +41,16 @@
       "lastUsed": 1792514614474
     },
     "ytpreview": {
-      "count": 4,
-      "lastUsed": 1792515265274
+      "count": 7,
+      "lastUsed": 1792517144761
     },
     "ytpage": {
-      "count": 1,
-      "lastUsed": 1792515249895
+      "count": 3,
+      "lastUsed": 1792517124102
+    },
+    "console": {
+      "count": 3,
+      "lastUsed": 1792516787931
     }
   }
 }

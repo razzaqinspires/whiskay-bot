@@ -291,9 +291,47 @@ function detectMedia(msg) {
   return { type, hasMedia: supported.includes(type), canUploadToInstagram: type === 'imageMessage' || type === 'videoMessage' };
 }
 
+function unwrapInteractiveMessage(msg) {
+  let current = msg?.message || msg || {};
+  for (let i = 0; i < 6 && current && typeof current === 'object'; i++) {
+    const next = current.ephemeralMessage?.message
+      || current.viewOnceMessage?.message
+      || current.viewOnceMessageV2?.message
+      || current.viewOnceMessageV2Extension?.message
+      || current.documentWithCaptionMessage?.message
+      || current.editedMessage?.message;
+    if (!next) break;
+    current = next;
+  }
+  return normalizeMessageContent(current) || {};
+}
+
+function parseNativeFlowParams(native) {
+  const direct = [
+    native?.buttonReply?.id, native?.buttonReply?.selectedId,
+    native?.buttonReply?.selected_id, native?.selectedId,
+    native?.selected_id, native?.rowId, native?.row_id
+  ].find(v => typeof v === 'string' && v.trim());
+  if (direct) return direct;
+  if (typeof native?.paramsJson === 'string') {
+    try {
+      const p = JSON.parse(native.paramsJson);
+      const id = p.id || p.row_id || p.rowId || p.selected_id || p.selectedId
+        || p.selectedRowId || p.selected_row_id || p.command || p.buttonId || p.button_id;
+      if (typeof id === 'string' && id.trim()) return id;
+      for (const value of Object.values(p)) {
+        if (value && typeof value === 'object') {
+          const nested = value.id || value.row_id || value.rowId || value.selectedRowId || value.selected_row_id;
+          if (typeof nested === 'string' && nested.trim()) return nested;
+        }
+      }
+    } catch {}
+  }
+  return '';
+}
+
 export function extractText(msg) {
-  const m = normalizeMessageContent(msg?.message);
-  if (!m) return '';
+  const m = unwrapInteractiveMessage(msg);
   if (m.conversation) return m.conversation;
   if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
   if (m.imageMessage?.caption) return m.imageMessage.caption;
@@ -302,25 +340,15 @@ export function extractText(msg) {
   if (m.buttonsResponseMessage?.selectedButtonId) return m.buttonsResponseMessage.selectedButtonId;
   if (m.listResponseMessage?.singleSelectReply?.selectedRowId) return m.listResponseMessage.singleSelectReply.selectedRowId;
   if (m.templateButtonReplyMessage?.selectedId) return m.templateButtonReplyMessage.selectedId;
-  const native = m.interactiveResponseMessage?.nativeFlowResponseMessage;
-  if (native?.buttonReply?.id) return native.buttonReply.id;
-  if (native?.paramsJson) {
-    try { const p = JSON.parse(native.paramsJson); return p.id || p.row_id || p.rowId || p.selected_id || p.selectedId || p.command || ''; } catch {}
-  }
-  return '';
+  return parseNativeFlowParams(m.interactiveResponseMessage?.nativeFlowResponseMessage);
 }
 
 function extractInteractiveId(msg) {
-  const m = normalizeMessageContent(msg?.message) || {};
+  const m = unwrapInteractiveMessage(msg);
   if (m.buttonsResponseMessage?.selectedButtonId) return m.buttonsResponseMessage.selectedButtonId;
   if (m.listResponseMessage?.singleSelectReply?.selectedRowId) return m.listResponseMessage.singleSelectReply.selectedRowId;
   if (m.templateButtonReplyMessage?.selectedId) return m.templateButtonReplyMessage.selectedId;
-  const n = m.interactiveResponseMessage?.nativeFlowResponseMessage;
-  if (n?.buttonReply?.id) return n.buttonReply.id;
-  if (n?.paramsJson) {
-    try { const p = JSON.parse(n.paramsJson); return p.id || p.row_id || p.rowId || p.selected_id || p.selectedId || p.command || ''; } catch {}
-  }
-  return '';
+  return parseNativeFlowParams(m.interactiveResponseMessage?.nativeFlowResponseMessage);
 }
 
 export function attachSerializerRuntime(sock) {

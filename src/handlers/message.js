@@ -24,6 +24,13 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
           }
         } catch (levelError) { Logger.warn({ err: levelError.message }, 'leveling event skipped'); }
       }
+      // Native-flow/list replies may be exposed only as selectedButtonId.
+      const interactiveCommand = String(ctx.selectedButtonId || '').trim();
+      if (interactiveCommand && /^[.,!/#]/.test(interactiveCommand) &&
+          !/^[.,!/#]/.test(String(ctx.body || '').trim())) {
+        ctx.body = interactiveCommand;
+        ctx.text = interactiveCommand;
+      }
       if (!ctx.body) continue;
       if (!/^[.,!/#]/.test(ctx.body.trim())) continue;
       await commandHandler.handle(ctx);
