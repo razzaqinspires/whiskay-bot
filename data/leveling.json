@@ -1,0 +1,52 @@
+{
+  "groups": {
+    "120363411759263661@g.us": true
+  },
+  "users": {
+    "120363411759263661@g.us|6283193905842@s.whatsapp.net": {
+      "xp": 63,
+      "level": 1,
+      "coin": 0,
+      "points": 9,
+      "familiarity": 0.44999999999999996,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "profileImageMode": "official",
+      "profileImagePath": ""
+    }
+  },
+  "audit": [
+    {
+      "at": 1792337906525,
+      "type": "group-leveling",
+      "group": "120363411759263661@g.us",
+      "enabled": true,
+      "actor": "6283193905842@s.whatsapp.net"
+    },
+    {
+      "at": 1792337937078,
+      "type": "profile-update",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "actor": "self",
+      "consent": true,
+      "fields": [
+        "profileImageMode",
+        "profileImagePath"
+      ]
+    },
+    {
+      "at": 1792337953977,
+      "type": "profile-update",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "actor": "self",
+      "consent": true,
+      "fields": [
+        "profileImageMode",
+        "profileImagePath"
+      ]
+    }
+  ]
+}
