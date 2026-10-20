@@ -8,3 +8,6 @@ node_modules/
 # Per-user menu preferences and 7-day command ledger
 /data/menu-settings.json
 /data/menu-command-ledger.json
+
+# Runtime state, private user profiles, generated cards and download cache
+/data/

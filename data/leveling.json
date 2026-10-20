@@ -4,11 +4,11 @@
   },
   "users": {
     "120363411759263661@g.us|6283193905842@s.whatsapp.net": {
-      "xp": 63,
-      "level": 1,
+      "xp": 54,
+      "level": 2,
       "coin": 0,
-      "points": 9,
-      "familiarity": 0.44999999999999996,
+      "points": 23,
+      "familiarity": 1.1500000000000004,
       "premium": false,
       "notifyLevelUp": true,
       "balance": 0,
@@ -46,6 +46,47 @@
       "fields": [
         "profileImageMode",
         "profileImagePath"
+      ]
+    },
+    {
+      "at": 1792513177988,
+      "type": "profile-update",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "actor": "self",
+      "consent": true,
+      "fields": [
+        "notifyLevelUp"
+      ]
+    },
+    {
+      "at": 1792513180641,
+      "type": "level-up",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "from": 1,
+      "to": 2
+    },
+    {
+      "at": 1792513180662,
+      "type": "profile-update",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "actor": "self",
+      "consent": true,
+      "fields": [
+        "notifyLevelUp"
+      ]
+    },
+    {
+      "at": 1792513191944,
+      "type": "profile-update",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "actor": "self",
+      "consent": true,
+      "fields": [
+        "notifyLevelUp"
       ]
     }
   ]

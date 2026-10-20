@@ -6,7 +6,7 @@ This bot integration sends owner-authorized updates and records to the Razzaq Ve
 
 - `src/services/razzaqWebsite.js`: server-side HTTP client for the health, integrations, and analytics endpoints.
 - `src/plugins/owner/website.js`: owner-only WhatsApp commands.
-- Website integration events are stored by the website in Supabase when the production API is configured correctly.
+- The current integration route uses `writeRecord` to persist validated events to the Supabase `rv_records` table when the production API and database are configured correctly. Verify this in Vercel logs and Supabase before relying on records.
 - This integration does not expose Supabase credentials to the bot and does not execute arbitrary remote commands.
 
 ## Configure the website
@@ -63,3 +63,8 @@ A successful syntax check does not prove the bot is connected to production. Con
 - Do not upload WhatsApp `sessions/` data.
 - Use a long, random `INTEGRATION_API_TOKEN` and keep it private.
 - Treat event payloads as untrusted data. Do not add arbitrary remote command execution.
+
+
+## Visitor analytics boundary
+
+The owner analytics endpoint currently summarizes recorded sales and expenses; it is not a page-view counter. Website visitor-hit tracking must be implemented in `razzaq-ventures-platform` itself. Do not write raw IP addresses, cookies, session IDs, or full user-agent strings into this bot repository. Prefer privacy-aware daily aggregates stored in the website's database and expose them through a separately validated API if needed. The GitHub workflow in this bot tracks source updates only, not website visitors.

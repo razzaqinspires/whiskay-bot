@@ -13,12 +13,24 @@
       "lastUsed": 1792337902356
     },
     "leveling": {
-      "count": 9,
-      "lastUsed": 1792337971330
+      "count": 16,
+      "lastUsed": 1792513192405
     },
     "ping": {
       "count": 1,
       "lastUsed": 1792337913443
+    },
+    "ytplay": {
+      "count": 2,
+      "lastUsed": 1792513288841
+    },
+    "ythelp": {
+      "count": 1,
+      "lastUsed": 1792513278914
+    },
+    "ytsearch": {
+      "count": 1,
+      "lastUsed": 1792513296131
     }
   }
 }
