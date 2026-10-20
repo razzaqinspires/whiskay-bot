@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.3.6",
+  "version": "2.3.8",
   "type": "module",
   "main": "src/index.js",
   "engines": {

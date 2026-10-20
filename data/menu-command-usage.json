@@ -1,8 +1,8 @@
 {
   "6283193905842@s.whatsapp.net": {
     "webexpense": {
-      "count": 6,
-      "lastUsed": 1791725075430
+      "count": 7,
+      "lastUsed": 1792514709137
     },
     "reload": {
       "count": 1,
@@ -13,24 +13,40 @@
       "lastUsed": 1792337902356
     },
     "leveling": {
-      "count": 16,
-      "lastUsed": 1792513192405
+      "count": 22,
+      "lastUsed": 1792515341597
     },
     "ping": {
-      "count": 1,
-      "lastUsed": 1792337913443
+      "count": 3,
+      "lastUsed": 1792514803512
     },
     "ytplay": {
-      "count": 2,
-      "lastUsed": 1792513288841
+      "count": 4,
+      "lastUsed": 1792514097423
     },
     "ythelp": {
       "count": 1,
       "lastUsed": 1792513278914
     },
     "ytsearch": {
+      "count": 4,
+      "lastUsed": 1792515207818
+    },
+    "ytmp3": {
+      "count": 2,
+      "lastUsed": 1792515119973
+    },
+    "rpg": {
+      "count": 8,
+      "lastUsed": 1792514614474
+    },
+    "ytpreview": {
+      "count": 4,
+      "lastUsed": 1792515265274
+    },
+    "ytpage": {
       "count": 1,
-      "lastUsed": 1792513296131
+      "lastUsed": 1792515249895
     }
   }
 }

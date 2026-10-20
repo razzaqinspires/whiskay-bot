@@ -1,3 +1,5 @@
+> Historical note: this document describes v2.3.4 behavior. Since v2.3.7, the profile official canvas is generated dynamically on the bot host and does not require `PROFILE_CARD_IMAGE_URL`.
+
 # WhiskayBot v2.3.4 — Profile/Menu Image + Scrape
 
 ## Perubahan

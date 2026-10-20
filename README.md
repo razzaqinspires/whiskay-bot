@@ -5,7 +5,7 @@
 
 **A private-first, extensible WhatsApp bot with interactive menus, media tools, progression systems, and an integration bridge to the official Razzaq Ventures platform.**
 
-[![Version](https://img.shields.io/badge/version-2.3.6-17243b?style=for-the-badge)](package.json)
+[![Version](https://img.shields.io/badge/version-2.3.8-17243b?style=for-the-badge)](package.json)
 [![Runtime](https://img.shields.io/badge/Node.js-20%2B-2f855a?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Baileys%207-176b5b?style=for-the-badge&logo=whatsapp&logoColor=white)](https://github.com/WhiskeySockets/Baileys)
 [![Ecosystem](https://img.shields.io/badge/Ecosystem-Razzaq%20Ventures-c9aa66?style=for-the-badge)](https://razzaq-ventures-platform.vercel.app/)
@@ -128,21 +128,24 @@ The examples below use `.` as the prefix. The active prefix list is configured b
 | `.setmenu image` | Configure menu image mode. |
 | `.leveling on\|off\|status` | Enable or inspect group XP leveling; requires group admin or owner. |
 | `.profile` | Show profile, rank, XP, economy, familiarity and premium status available to that profile. |
-| `.profile image` | Configure the profile image source. A user-provided/static official image is not the same as a generated dynamic profile renderer. |
+| `.profile image` | Choose automatic official landscape canvas, a personal photo, or no image. The official canvas is generated locally from profile stats; no `PROFILE_CARD_IMAGE_URL` is needed. |
 | `.rankmatrix` | Show rank thresholds. |
-| `.levelnotify on\|off` | Configure level-up notifications. |
+| `.levelnotify` | Open the notification controls. |
+| `.levelnotify on\|off` | Change the setting; button-triggered changes return a one-shot text confirmation without re-rendering the buttons. |
 
 ### YouTube tools
 
 | Command | Purpose |
 |---|---|
-| `.ytsearch query` | Search public YouTube results and show interactive choices. |
-| `.ytplay query` | Search and send audio from the first result, or accept a YouTube URL. |
+| `.ytsearch query` | Search up to 25 public results and open a selection list. Selecting a title opens a thumbnail-backed preview; it does not download immediately. |
+| `.ytplay query` | Search and show the same preview-first result flow. The “Putar Hasil Pertama” action remains available; a direct YouTube URL opens its preview first. |
 | `.ytmp3 URL` | Download public video audio as MP3. |
 | `.ytmp4 URL` | Download public video as MP4, targeting up to 720p. |
+| `.ytpreview URL` | Open a video preview with thumbnail, title, channel, duration, view count and format buttons. |
+| `.ytpage page query` | Navigate paginated search results (10 results per WhatsApp list page; up to 25 total). |
 | `.ythelp` | Open the YouTube command guide. |
 
-**Server dependencies:** `yt-dlp` and FFmpeg must be installed and available on `PATH`. The current plugin targets files up to 48 MB. Public videos only; it does not bypass login, private videos, or paywalls. YouTube delivery changes over time, so keep `yt-dlp` updated.
+**Server dependencies:** `yt-dlp` and FFmpeg must be installed and available on `PATH`. The current plugin targets files up to 48 MB. Search retrieves up to 25 results, paginated as 10 rows per WhatsApp list page to respect interactive-list limits. Choosing a row opens a thumbnail-backed preview card with explicit Audio MP3 and Video MP4 actions; the list itself does not start a download. The search card keeps “Putar Hasil Pertama” and removes the redundant “Audio MP3 hasil pertama” action. Public videos only; it does not bypass login, private videos, or paywalls. YouTube delivery changes over time, so keep `yt-dlp` updated.
 
 Example on Debian/Ubuntu:
 
@@ -165,7 +168,7 @@ If pip refuses a system-wide install, use a virtual environment or the OS-suppor
 | `.rpg rest` | Spend gold to restore HP at camp. |
 | `.rpg help` | Read the field guide. |
 
-RPG state is saved in `data/dungeon-rpg.json` per chat and player key. Landscape cards are rendered to PNG through FFmpeg and sent separately from the interactive action card. If the host has no FFmpeg or WhatsApp media delivery fails, the command should fall back to a text/interactive response. The game is entertainment, not a financial or reward system.
+RPG state is saved in `data/dungeon-rpg.json` per chat and player key. The profile card also renders a dynamic 1200×675 landscape canvas from live profile stats; it does not rely on an externally configured official-image URL. Landscape cards are rendered to PNG through FFmpeg and sent separately from the interactive action card. If the host has no FFmpeg or WhatsApp media delivery fails, the command should fall back to a text/interactive response. The game is entertainment, not a financial or reward system.
 
 ### Public page extraction
 
@@ -200,7 +203,14 @@ Aliases include `.rvstatus`, `.rvset`, `.rvsale`, `.rvexpense`, `.rvproduct`, `.
 
 The loaded plugin registry is the source of truth. This table is a maintained overview, not a promise that every deployment has every optional plugin enabled.
 
-## 05 · Official website integration
+## 05 · Profile canvas, notifications and preview UX
+
+- The official profile canvas is generated locally as a 1200×675 PNG using the user's level, XP progress, rank, economy, familiarity/role and premium state. `PROFILE_CARD_IMAGE_URL` is legacy and no longer required.
+- `MENU_IMAGE_URL` remains a separate optional URL for the official menu image; it does not control the profile canvas.
+- `.levelnotify` opens controls once. Choosing **Aktifkan** or **Nonaktifkan** changes the state and returns plain text without another button row, preventing accidental repeat-tap loops.
+- YouTube selection is preview-first: selecting a result shows its thumbnail and metadata plus explicit MP3/MP4 actions. No download begins until a format action is selected.
+
+## 06 · Official website integration
 
 **Official website:** <https://razzaq-ventures-platform.vercel.app/>  
 **Source repository:** <https://github.com/razzaqinspires/razzaq-ventures-platform>

@@ -10,6 +10,23 @@ export class CommandHandler {
   parse(ctx) {
     const b = (ctx.body || '').trim();
     if (!b) return false;
+
+    // Owner console operators: >> Python, => async eval-return, > async eval, $ shell.
+    // These operators are intentionally routed through the same owner-gated plugin.
+    const operator = b.startsWith('>>') ? 'python' : b.startsWith('=>') ? 'return' : b.startsWith('>') ? 'eval' : b.startsWith('$') ? 'exec' : null;
+    if (operator) {
+      const code = b.slice(operator === 'python' || operator === 'return' ? 2 : 1).trim();
+      const p = this._pm.resolve('console');
+      if (!p) return false;
+      ctx.prefix = operator === 'python' ? '>>' : operator === 'return' ? '=>' : operator === 'eval' ? '>' : '$';
+      ctx.command = 'console';
+      ctx.args = code ? [code] : [];
+      ctx.text = code;
+      ctx.consoleMode = operator;
+      ctx.plugin = p;
+      return true;
+    }
+
     const pre = config.prefixes.find(p => b.startsWith(p));
     if (!pre) return false;
     const parts = b.slice(pre.length).split(/\s+/);

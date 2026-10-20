@@ -34,8 +34,7 @@ export default Object.freeze({
     baseUrl: env.WEBSITE_BASE_URL || '',
     apiToken: env.WEBSITE_API_TOKEN || '',
     timeoutMs: Number(env.WEBSITE_API_TIMEOUT_MS || 8000),
-    menuImageUrl: env.MENU_IMAGE_URL || '',
-    profileCardImageUrl: env.PROFILE_CARD_IMAGE_URL || ''
+    menuImageUrl: env.MENU_IMAGE_URL || ''
   },
   rateLimit: { windowMs: 10000, max: 15 },
   cooldown: 2500,
