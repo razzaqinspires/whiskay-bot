@@ -68,3 +68,7 @@ A successful syntax check does not prove the bot is connected to production. Con
 ## Visitor analytics boundary
 
 The owner analytics endpoint currently summarizes recorded sales and expenses; it is not a page-view counter. Website visitor-hit tracking must be implemented in `razzaq-ventures-platform` itself. Do not write raw IP addresses, cookies, session IDs, or full user-agent strings into this bot repository. Prefer privacy-aware daily aggregates stored in the website's database and expose them through a separately validated API if needed. The GitHub workflow in this bot tracks source updates only, not website visitors.
+
+
+## Whiskay RPG Next.js companion update
+Set `DUNGEON_WEBSITE_URL=https://whiskay-rpg-companion.vercel.app` and `DUNGEON_SYNC_TOKEN` in the bot environment. The website must be deployed from the supplied Next.js project root. Dungeon buttons use `/dungeon?floor=N&player=<opaque-id>` and profile/inventory buttons use `/inventory?player=<opaque-id>`. The website `/api/sync` accepts only authenticated bot snapshots; set the same `BOT_SYNC_TOKEN` in Vercel. The website floor data and bot `data/dungeon/floors.json` must remain identical (10 floors). Do not overwrite the real `.env` when updating the bot.

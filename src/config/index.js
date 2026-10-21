@@ -31,7 +31,7 @@ export default Object.freeze({
   pluginDir: env.PLUGIN_DIR || './src/plugins',
   logLevel: env.LOG_LEVEL || 'info',
   website: {
-    baseUrl: env.WEBSITE_BASE_URL || '',
+    baseUrl: env.WEBSITE_BASE_URL || 'https://whiskay-rpg-companion.vercel.app',
     apiToken: env.WEBSITE_API_TOKEN || '',
     timeoutMs: Number(env.WEBSITE_API_TIMEOUT_MS || 8000),
     menuImageUrl: env.MENU_IMAGE_URL || '',
