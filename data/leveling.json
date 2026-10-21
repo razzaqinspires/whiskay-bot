@@ -4,11 +4,11 @@
   },
   "users": {
     "120363411759263661@g.us|6283193905842@s.whatsapp.net": {
-      "xp": 381,
-      "level": 3,
+      "xp": 23,
+      "level": 4,
       "coin": 0,
-      "points": 111,
-      "familiarity": 5.549999999999988,
+      "points": 124,
+      "familiarity": 6.199999999999986,
       "premium": false,
       "notifyLevelUp": true,
       "balance": 0,
@@ -131,6 +131,14 @@
       "user": "6283193905842@s.whatsapp.net",
       "from": 2,
       "to": 3
+    },
+    {
+      "at": 1792547300127,
+      "type": "level-up",
+      "group": "120363411759263661@g.us",
+      "user": "6283193905842@s.whatsapp.net",
+      "from": 3,
+      "to": 4
     }
   ]
 }
