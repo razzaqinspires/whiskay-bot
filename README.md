@@ -358,3 +358,11 @@ The documents below preserve detailed implementation notes from each feature wav
 Part of the Razzaq Ventures digital ecosystem · [Official website](https://razzaq-ventures-platform.vercel.app/)
 
 </div>
+
+## RPG expansion commands
+- `inventory` / `inv` — list item IDs and equipment status.
+- `equip <weapon|armor|accessory> <item-id>` and `unequip <slot>`.
+- `use potion [item-id|number]` or `usepotion` — use a consumable.
+- `buff`, `dungeon enter|floors|exit`, `adventure enter|exit`, `guild create <name>`, `guild info`, `quest`, `weather`, and `map`.
+
+The website sync endpoint requires matching `DUNGEON_SYNC_TOKEN` on the bot and `BOT_SYNC_TOKEN` on the website, plus configured Supabase credentials. Without these settings, the website uses local save and bot sync is skipped by design.
