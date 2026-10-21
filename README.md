@@ -366,3 +366,12 @@ Part of the Razzaq Ventures digital ecosystem · [Official website](https://razz
 - `buff`, `dungeon enter|floors|exit`, `adventure enter|exit`, `guild create <name>`, `guild info`, `quest`, `weather`, and `map`.
 
 The website sync endpoint requires matching `DUNGEON_SYNC_TOKEN` on the bot and `BOT_SYNC_TOKEN` on the website, plus configured Supabase credentials. Without these settings, the website uses local save and bot sync is skipped by design.
+
+## Aetheria Gacha update
+
+- `gacha rates` — banner rates, current pity, and gem balance.
+- `gacha summon 1` / `gacha summon 10` — spend 30 / 270 Aether Gems.
+- `gacha daily` — claim 40 Aether Gems once every 24 hours.
+- `gacha history` / `gacha collection` — view recent pulls and collected spirits.
+- Rates: SSR 3%, SR 17%, R 80%; hard pity guarantees SSR on the 50th pull since the last SSR. Duplicate spirits are converted to spirit shards.
+- Tests: `npm test` (Node's built-in test runner; no extra test dependency).
