@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
+import { getEnergy, complexityScore } from '../../lib/energy-worker.js';
 
 
 async function renderOfficialCanvas(kind, botName) {
@@ -79,7 +80,10 @@ const TEMPLATE = {
   elegant: { top: '┏━━━━━━━━', mid: '┃', bottom: '┗━━━━━━━━━━━━' },
   aurora: { top: '✦･ﾟ〔', mid: '✧', bottom: '✦━━━━━━━━━━━━' },
   classic: { top: '╔════〔', mid: '║', bottom: '╚════════════' },
-  compact: { top: '〔', mid: '›', bottom: '┈┈┈┈┈┈┈┈┈' }
+  compact: { top: '〔', mid: '›', bottom: '┈┈┈┈┈┈┈┈┈' },
+  minimalist: { top: '┌─', mid: '·', bottom: '└────────────' },
+  cyberpunk: { top: '╔═[', mid: '▸', bottom: '╚════════════' },
+  fantasy: { top: '✧༺', mid: '✦', bottom: '༻✧━━━━━━━━━━' }
 };
 const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank']);
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
@@ -106,10 +110,13 @@ async function renderMenu(ctx) {
   rows.sort((a,b)=> settings.order==='category' ? a.category.localeCompare(b.category)||a.command.localeCompare(b.command) : (settings.order==='za'?-1:1)*a.command.localeCompare(b.command));
   const t=TEMPLATE[settings.template]||TEMPLATE.corporate;
   const lines=[];
+  const energy=await getEnergy(ctx.sender||ctx.chat).catch(()=>({energy:100}));
   if(settings.widgets.includes('heading')) {
     if(settings.topBorder!==false) lines.push(style(emphasized(settings,`${t.top} ${config.botName} — MENU`,'border'),settings.font));
     else lines.push(style(emphasized(settings,`${config.botName} — MENU`,'heading'),settings.font));
   }
+  lines.push(`🔋 Energi: ${Number(energy.energy||0).toFixed(2).replace('.',',')}%`);
+  if(settings.energyDetails) lines.push('⚠️ Warning: Memuat detail energi akan memperlambat loading menu.');
   if(settings.widgets.includes('intro')) lines.push(style(emphasized(settings,`${settings.order==='category'?'Daftar perintah berdasarkan kategori lalu A–Z':settings.order==='za'?'Daftar perintah Z–A':'Daftar perintah A–Z'}\n`,'intro'),settings.font));
   const gap='\n'.repeat(Math.max(0,Math.min(3,Number(settings.spacing)||0)));
   if(settings.widgets.includes('count')) lines.push(line(settings,`Total perintah: ${rows.length}`));
@@ -123,9 +130,12 @@ async function renderMenu(ctx) {
   let lastCategory='';
   rows.forEach((row,index)=>{
     if(settings.categoriesVisible!==false&&settings.order==='category'&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
+    const plugin=registry.plugins.resolve(row.command);
+    const energyMark=plugin?.energyMode==='static'?'📌': '⚡';
+    const energyText=settings.energyDetails?` ${energyMark}${Number(plugin?.energyCost ?? complexityScore(row.command)).toFixed(2).replace('.',',')}%`:'';
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
-    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${ctx.prefix}${row.command}${mark}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
+    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${energyMark} ${ctx.prefix}${row.command}${mark}${energyText}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
   });
   if(settings.widgets.includes('footer')) lines.push('',line(settings,`Atur tampilan: ${ctx.prefix}setmenu`,'footer'));
   if(settings.bottomBorder!==false) lines.push(style(emphasized(settings,t.bottom,'border'),settings.font));

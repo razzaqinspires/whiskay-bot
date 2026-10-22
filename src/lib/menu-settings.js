@@ -9,6 +9,7 @@ const USAGE_FILE = path.join(ROOT, 'menu-command-usage.json');
 const DAY = 24 * 60 * 60 * 1000;
 const DEFAULTS = Object.freeze({
   template: 'corporate',
+  energyDetails: false,
   font: 'normal',
   description: true,
   categoriesVisible: true,
