@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { getEnergy, chargeEnergy, getHits, getRuntimeSwitches, setRuntimeSwitch, getPaymentConfig, setPaymentConfig, grantPremium, getPremiumPrice } from '../../lib/energy-worker.js';
+import { getEnergy, chargeEnergy, getHits, getRuntimeSwitches, setRuntimeSwitch, getPaymentConfig, setPaymentConfig, grantPremium, getPremiumPrice, startCharging, stopCharging, setAutoRegen } from '../../lib/energy-worker.js';
 
 const DAY = 86400000;
 const ownerTargets = configOwners();
@@ -13,16 +13,19 @@ async function runtimeInfo(){const m=process.memoryUsage();return {rss:Math.roun
 async function readPayment(){return getPaymentConfig();}
 async function getQuotedMedia(ctx){if(!ctx.quoted)return null;try{const buffer=await ctx.download(ctx.quoted);return buffer?.length?buffer:null;}catch{return null;}}
 export default {
- name:'energy-system', command:['charge','hit','setpayment','bukti','status','premium'], menuCommands:['charge','hit','setpayment','bukti','status','premium'], category:'system', cooldown:1200,
+ name:'energy-system', command:['charge','statusbaterai','setenergy','hit','setpayment','bukti','status','premium'], menuCommands:['charge','statusbaterai','setenergy','hit','setpayment','bukti','status','premium'], category:'system', cooldown:1200,
  description:'Smart Energy, dashboard hit, premium, pembayaran dan status worker',
  async execute(ctx){
   const [a='',b='',c='']=(ctx.args||[]); const action=String(a).toLowerCase(); const uid=ctx.sender||ctx.chat;
   if(ctx.command==='charge'){
-   const fast=String(action)==='fast'; const result=await chargeEnergy(uid,Date.now(),fast);
-   if(!result.ok){if(result.reason==='fast-premium-only')return ctx.reply('⚡ Fast charging hanya tersedia untuk Premium aktif.');return ctx.reply(`🔋 Charge reguler hanya bisa sekali setiap 24 jam. Coba lagi ${new Date(result.nextAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})} WIB. Energi sekarang ${result.energy.toFixed(2)}%.`);}
-   if(ctx.energyReceipt)ctx.energyReceipt.energy=result.energy;
-   return ctx.reply(`🔋 *CHARGING SELESAI*\nEnergi sekarang: ${result.energy.toFixed(2)}%\n${fast?'Fast charge Premium: baterai diisi hingga 100%.':'Charge harian: +40% energi.'}`);
+   if(action==='stop'||action==='cabut') { const r=await stopCharging(uid); if(!r.ok)return ctx.reply(`🔌 Tidak ada charger aktif. Energi ${r.energy.toFixed(2)}%.`); return ctx.reply(`🔌 Charger dicabut. Energi tersimpan: ${r.energy.toFixed(2)}%.`); }
+   const result=await startCharging(uid);
+   if(!result.ok){if(result.reason==='already-charging')return ctx.sendInteractive({title:'🔋 Sedang Mengisi',body:`Energi ${result.energy.toFixed(2)}%. Perkiraan selesai ${new Date(result.endsAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})} WIB.`,buttons:[{name:'quick_reply',title:'🔌 Cabut Charger',id:`${ctx.prefix}charge stop`},{name:'quick_reply',title:'Status Baterai',id:`${ctx.prefix}statusbaterai`}]});return ctx.reply('🔋 Baterai sudah penuh 100%; tidak perlu dicas.');}
+   const minutes=Math.ceil(result.durationMs/60000); if(ctx.energyReceipt)ctx.energyReceipt.energy=result.energy;
+   return ctx.sendInteractive({title:'⚡ Charging Dimulai',subtitle:'Pengisian real-time · 7 jam dari 0% ke 100%',body:`Energi awal: ${result.energy.toFixed(2)}%\nEstimasi waktu: ${minutes} menit\nPerkiraan penuh: ${new Date(result.endsAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})} WIB\n\nPengisian tetap tercatat setelah bot restart. Charger otomatis terputus saat 100%.`,buttons:[{name:'quick_reply',title:'🔋 Status Baterai',id:`${ctx.prefix}statusbaterai`},{name:'quick_reply',title:'🔌 Cabut Charger',id:`${ctx.prefix}charge stop`}]});
   }
+  if(ctx.command==='statusbaterai') { const e=await getEnergy(uid); const left=Math.max(0,e.chargingEndsAt-Date.now()); const mins=Math.ceil(left/60000); return ctx.sendInteractive({title:'🔋 STATUS BATERAI',body:`Energi: ${e.energy.toFixed(2)}%\nStatus: ${e.isCharging?'⚡ Sedang mengisi':'🔌 Tidak dicas'}\n${e.isCharging?`Estimasi penuh: ${mins} menit lagi\nSelesai: ${new Date(e.chargingEndsAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})} WIB`:'Gunakan .charge untuk mulai mengisi.'}`,buttons:e.isCharging?[{name:'quick_reply',title:'🔌 Cabut Charger',id:`${ctx.prefix}charge stop`},{name:'quick_reply',title:'Refresh Status',id:`${ctx.prefix}statusbaterai`}]:[{name:'quick_reply',title:'Mulai Charge',id:`${ctx.prefix}charge`}]}); }
+  if(ctx.command==='setenergy') { if(!ctx.isOwner)return ctx.reply('🔒 Saklar energi otomatis hanya untuk owner.'); if(String(a).toLowerCase()!=='auto'||!['on','off'].includes(String(b).toLowerCase()))return ctx.reply('Format: .setenergy auto on|off'); const enabled=String(b).toLowerCase()==='on'; await setAutoRegen(enabled); return ctx.reply(`⚙️ Passive Energy Regen: ${enabled?'ON':'OFF'}\n${enabled?'Energi user dipulihkan +0,01 poin persentase setiap detik sampai 100%.':'Pemulihan pasif dihentikan.'}`); }
   if(ctx.command==='hit'){
    const all=await getHits(), top=Object.entries(all.commands||{}).sort((x,y)=>y[1]-x[1]).slice(0,8), user=(all.users||{})[uid]||{total:0,commands:{}};
    const personal=Object.entries(user.commands||{}).sort((x,y)=>y[1]-x[1]).slice(0,5);

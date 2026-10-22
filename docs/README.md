@@ -134,3 +134,7 @@
 - [stages/README-UPDATE-2.3.4.md](stages/README-UPDATE-2.3.4.md)
 - [stages/README-YOUTUBE-2.3.5.md](stages/README-YOUTUBE-2.3.5.md)
 - [stages/STAGE-9-ECONOMY.md](stages/STAGE-9-ECONOMY.md)
+
+## Stage 19
+
+- [Stage 19 — Menu, Canvas V2, and Charging Audit](STAGE-19-AUDIT.md)

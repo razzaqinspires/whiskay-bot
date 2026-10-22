@@ -8,25 +8,12 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
-import { getEnergy, complexityScore } from '../../lib/energy-worker.js';
+import { getEnergy, complexityScore, getHits } from '../../lib/energy-worker.js';
+import { getProfile, getLeaderboard } from '../../lib/leveling.js';
+import { renderMenuCardV2 } from '../../services/canvas-v2.js';
 
 
-async function renderOfficialCanvas(kind, botName) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'whiskay-menu-canvas-'));
-  const svgPath = path.join(dir, 'canvas.svg'), pngPath = path.join(dir, 'canvas.png');
-  const isRpg = kind === 'rpg';
-  const title = isRpg ? 'DUNGEON CHRONICLE' : `${botName} · COMMAND MENU`;
-  const subtitle = isRpg ? 'PLAYER PROFILE  /  LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080d18"/><stop offset=".55" stop-color="#17243b"/><stop offset="1" stop-color="#302139"/></linearGradient><linearGradient id="gold"><stop stop-color="#e7c889"/><stop offset="1" stop-color="#85e4ca"/></linearGradient><pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" fill="none" stroke="#c6d3e7" stroke-opacity=".07"/></pattern></defs><rect width="1200" height="675" fill="url(#bg)"/><rect width="1200" height="675" fill="url(#grid)"/><circle cx="960" cy="150" r="220" fill="#85e4ca" opacity=".06"/><rect x="44" y="44" width="1112" height="587" rx="28" fill="#0b1424" fill-opacity=".78" stroke="#a5b7cf" stroke-opacity=".4"/><text x="84" y="104" font-family="Arial,sans-serif" font-size="17" letter-spacing="6" fill="#85e4ca">WHISKAYBOT  /  OFFICIAL CANVAS</text><text x="84" y="200" font-family="Arial,sans-serif" font-size="48" font-weight="800" fill="#f3f0e7">${title.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</text><text x="84" y="250" font-family="Arial,sans-serif" font-size="20" letter-spacing="2" fill="#a7b7cb">${subtitle}</text><path d="M84 300H730" stroke="url(#gold)" stroke-width="3"/><text x="84" y="370" font-family="Arial,sans-serif" font-size="22" fill="#e7c889">${isRpg?'ENTER THE ABYSS · FORGE YOUR LEGEND':'DISCOVER · CUSTOMIZE · COMMAND'}</text><text x="84" y="425" font-family="Arial,sans-serif" font-size="17" fill="#a7b7cb">A refined interface built for your own journey.</text><g transform="translate(880 230)"><path d="M120 0L240 68V202L120 270 0 202V68Z" fill="#15243a" stroke="#e7c889" stroke-width="2"/><path d="M120 36L205 84V186L120 234 35 186V84Z" fill="#1c3446" stroke="#85e4ca" stroke-opacity=".8"/><path d="M120 75L160 135 120 195 80 135Z" fill="url(#gold)"/><circle cx="120" cy="135" r="85" fill="none" stroke="#e7c889" stroke-opacity=".3" stroke-width="2"/></g><text x="84" y="584" font-family="Arial,sans-serif" font-size="13" letter-spacing="4" fill="#7f91aa">YOUR STORY. YOUR RULES. YOUR DESIGN.</text></svg>`;
-  try {
-    await writeFile(svgPath, svg);
-    await execFileAsync('ffmpeg', ['-hide_banner','-loglevel','error','-y','-i',svgPath,'-frames:v','1','-vf','format=rgb24',pngPath], { timeout: 12000 });
-    return await readFile(pngPath);
-  } catch (error) {
-    console.error('[MENU] official canvas render failed:', error?.message || error);
-    return null;
-  } finally { await rm(dir, {recursive:true,force:true}); }
-}
+async function renderOfficialCanvas(kind, botName) { return renderMenuCardV2({ botName, subtitle: kind === 'rpg' ? 'PLAYER PROFILE / LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER' }); }
 
 function mapChars(text, upper, lower, digits = null) {
   return String(text).replace(/[A-Za-z0-9]/g, c => {
@@ -85,7 +72,7 @@ const TEMPLATE = {
   cyberpunk: { top: '╔═[', mid: '▸', bottom: '╚════════════' },
   fantasy: { top: '✧༺', mid: '✦', bottom: '༻✧━━━━━━━━━━' }
 };
-const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank']);
+const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank','rpgstatus','leaderboard','commandhits']);
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
 function getCommandRows() {
   const rows=[];
@@ -122,17 +109,23 @@ async function renderMenu(ctx) {
   if(settings.energyDetails) lines.push('⚠️ Warning: Memuat detail energi akan memperlambat loading menu.');
   if(settings.widgets.includes('intro')) lines.push(style(emphasized(settings,`${settings.order==='category'?'Daftar perintah berdasarkan kategori lalu A–Z':settings.order==='za'?'Daftar perintah Z–A':'Daftar perintah A–Z'}\n`,'intro'),settings.font));
   const gap='\n'.repeat(Math.max(0,Math.min(3,Number(settings.spacing)||0)));
-  if(settings.widgets.includes('count')) lines.push(line(settings,`Total perintah: ${rows.length}`));
-  if(settings.widgets.includes('prefix')) lines.push(line(settings,`Prefix: ${config.prefixes.join(' ')}`));
-  if(settings.widgets.includes('new')) lines.push(line(settings,'🆕 = perintah baru selama 7 hari'));
-  if(settings.widgets.includes('website')) lines.push(line(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`));
-  if(settings.widgets.includes('info')) lines.push(line(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`));
-  if(settings.widgets.includes('rank')) lines.push(line(settings,`Profile / rank / engagement: ${ctx.prefix}profile`));
-  if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; lines.push(line(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`)); } catch { lines.push(line(settings,'Produk website: data live tidak tersedia')); } }
-  if(settings.widgets.includes('count')||settings.widgets.includes('prefix')||settings.widgets.includes('new')) lines.push('');
+  const widgetLines = {};
+  if(settings.widgets.includes('count')) widgetLines.count=line(settings,`Total perintah: ${rows.length}`);
+  if(settings.widgets.includes('prefix')) widgetLines.prefix=line(settings,`Prefix: ${config.prefixes.join(' ')}`);
+  if(settings.widgets.includes('new')) widgetLines.new=line(settings,'🆕 = perintah baru selama 7 hari');
+  if(settings.widgets.includes('website')) widgetLines.website=line(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`);
+  if(settings.widgets.includes('info')) widgetLines.info=line(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`);
+  if(settings.widgets.includes('rank')) widgetLines.rank=line(settings,`Profile / rank / engagement: ${ctx.prefix}profile`);
+  if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=line(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')} · XP ${p.xp||0}`); } catch { widgetLines.rpgstatus=line(settings,'RPG: data karakter belum tersedia'); } }
+  if(settings.widgets.includes('leaderboard')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.leaderboard=line(settings,`Leaderboard: ${board.length?board.map((p,i)=>`${i+1}.${String(p.user||'player').split('@')[0]} Lv.${p.level||1}`).join(' · '):'belum ada data'}`); } catch { widgetLines.leaderboard=line(settings,'Leaderboard: data belum tersedia'); } }
+  if(settings.widgets.includes('commandhits')) { try { const hits=await getHits(); widgetLines.commandhits=line(settings,`Total hit command: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.commandhits=line(settings,'Total hit command: tidak tersedia'); } }
+  if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; widgetLines.websiteProducts=line(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`); } catch { widgetLines.websiteProducts=line(settings,'Produk website: data live tidak tersedia'); } }
+  const widgetOrder = [...new Set([...(settings.widgetOrder||[]), ...Object.keys(widgetLines)])].filter(id => widgetLines[id]);
+  for (const id of widgetOrder) lines.push(widgetLines[id]);
+  if(['count','prefix','new'].some(id=>widgetLines[id])) lines.push('');
   let lastCategory='';
   rows.forEach((row,index)=>{
-    if(settings.categoriesVisible!==false&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
+    if(settings.categoriesVisible!==false&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push('',line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
     const plugin=registry.plugins.resolve(row.command);
     const energyMark=plugin?.energyMode==='static'?'📌':'⚡';
     const energyText=(settings.energyDetails||settings.showEnergyNumbers)?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${settings.showEnergyNumbers?`${Number(plugin?.energyCost ?? complexityScore(`${row.command} ${row.description}`)).toFixed(2).replace('.',',')}%`:''}`:'';

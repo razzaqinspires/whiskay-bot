@@ -210,6 +210,39 @@ Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, an
 - Use backups before applying `schema.sql`; review SQL migrations before running them in production.
 - A successful unit test does not prove WhatsApp login, public webhook reachability, or Supabase credentials work.
 
+## 🧰 Stage 19 — Menu Canvas & Timed Energy
+
+### Menu markers and spacing
+
+- `⚡` marks commands using dynamic energy estimation; `📌` marks plugins declaring a static energy cost. `🎟️` marks Limit usage and `💎` marks Premium-only commands.
+- A blank line is inserted before every category header. Use `.setmenu spacing 0|1|2|3` to control command-row spacing.
+- `.setmenu template <name>` applies a theme-specific font and widget layout. `.setmenu template random` randomizes the visual preset, font, widget selection, borders, order and spacing.
+
+### Dynamic menu widgets
+
+| Command | Effect |
+|---|---|
+| `.setmenu widget rpgstatus on` | Show Level, XP and Coin/Gold summary when the profile data is available |
+| `.setmenu widget leaderboard on` | Show a short leaderboard preview |
+| `.setmenu widget commandhits on` | Show the persisted total command-hit counter |
+| `.setmenu widget <name> off` | Hide a widget |
+| `.setmenu image official` | Enable landscape Menu Card V2 |
+| `.profile` | Send the portrait Profile Card V2 with progress and player stats |
+| `.setpp` (reply to an image) | Save that image as the circular avatar injected into Profile Card V2 |
+
+### Timed charging
+
+| Command | Effect |
+|---|---|
+| `.charge` | Start timed charging; progress is derived from persisted timestamps |
+| `.statusbaterai` | Display current energy and estimated completion time |
+| `.charge stop` | Manually unplug while preserving accrued progress |
+| `.setenergy auto on` | **Owner only:** enable passive regen of 0.01 percentage points per second |
+| `.setenergy auto off` | **Owner only:** disable passive regen |
+| `.raidboss` | High-energy simulation; blocked during charging with a CPU warning |
+
+Charging is modeled at 1 percentage point per 252 seconds (420 minutes from 0% to 100%). It completes automatically at 100%. Persist `data/energy-ledger.json` and `data/runtime-switches.json` between restarts. The optional native `canvas` module is used when installed; FFmpeg SVG rendering remains the fallback. See [Stage 19 Audit](docs/STAGE-19-AUDIT.md) for limitations and verification details.
+
 ## 📚 Documentation & Archives
 
 The table below lists Markdown documentation present in this repository; paths are relative and GitHub-compatible.

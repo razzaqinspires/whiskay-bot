@@ -41,10 +41,72 @@ export function complexityScore(command, previous = []) {
   return Math.round(clamp(raw, 0.25, 8.75) * 100) / 100;
 }
 function jaccard(a, b) { const aa = new Set(a), bb = new Set(b); if (!aa.size && !bb.size) return 1; let intersection = 0; for (const x of aa) if (bb.has(x)) intersection++; return intersection / Math.max(1, aa.size + bb.size - intersection); }
+function resolveCharging(u, now = Date.now()) {
+  if (!u?.isCharging) return false;
+  const started = Number(u.chargingStartedAt || now), startEnergy = clamp(Number(u.chargingStartEnergy ?? u.energy ?? 0), 0, 100);
+  const elapsed = Math.max(0, now - started), duration = Math.max(0, 100 - startEnergy) * 252000;
+  u.energy = Math.round(clamp(startEnergy + elapsed / 252000, 0, 100) * 100) / 100;
+  u.chargingEndsAt = started + duration;
+  if (u.energy >= 100 || now >= u.chargingEndsAt) {
+    u.energy = 100; u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = 100; u.chargingEndsAt = 0; u.lastChargeAt = now;
+    return true;
+  }
+  return false;
+}
 export async function getEnergy(userId) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || {};
-  return { energy: clamp(Number(u.energy ?? 100), 0, 100), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
+  const completed = resolveCharging(u);
+  if (completed) await atomicJson(ENERGY_FILE, all);
+  const energy = clamp(Number(u.energy ?? 100), 0, 100);
+  return { energy, isCharging: Boolean(u.isCharging), chargingEndsAt: Number(u.chargingEndsAt || 0), chargingStartedAt: Number(u.chargingStartedAt || 0), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
 }
+export async function isCharging(userId) { return (await getEnergy(userId)).isCharging; }
+export async function startCharging(userId, now = Date.now()) {
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
+    resolveCharging(u, now);
+    if (u.isCharging) return { ok: false, reason: 'already-charging', energy: Number(u.energy || 0), endsAt: Number(u.chargingEndsAt || 0) };
+    const energy = clamp(Number(u.energy ?? 100), 0, 100);
+    if (energy >= 100) return { ok: false, reason: 'full', energy: 100 };
+    const duration = Math.ceil((100 - energy) * 252000);
+    u.isCharging = true; u.chargingStartedAt = now; u.chargingStartEnergy = energy; u.chargingEndsAt = now + duration;
+    all[key] = u; await atomicJson(ENERGY_FILE, all);
+    return { ok: true, energy, endsAt: u.chargingEndsAt, durationMs: duration };
+  });
+}
+export async function stopCharging(userId, now = Date.now()) {
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key];
+    if (!u?.isCharging) return { ok: false, reason: 'not-charging', energy: clamp(Number(u?.energy ?? 100), 0, 100) };
+    resolveCharging(u, now); u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = Number(u.energy || 0); u.chargingEndsAt = 0; all[key] = u; await atomicJson(ENERGY_FILE, all);
+    return { ok: true, energy: clamp(Number(u.energy || 0), 0, 100) };
+  });
+}
+let regenTimer = null;
+export async function setAutoRegen(enabled) {
+  await withMutationLock(async () => { const switches = await readJson(SETTINGS_FILE, {}); switches.autoRegen = Boolean(enabled); await atomicJson(SETTINGS_FILE, switches); switchCache = { antiSpam: true, globalCooldown: true, ...switches }; switchCacheAt = Date.now(); });
+  if (enabled) startAutoRegenWorker(); else stopAutoRegenWorker();
+  return Boolean(enabled);
+}
+export function startAutoRegenWorker() {
+  if (regenTimer) return;
+  regenTimer = setInterval(async () => {
+    try {
+      await withMutationLock(async () => {
+        const all = await readJson(ENERGY_FILE, {}); let changed = false;
+        for (const u of Object.values(all)) {
+          if (u?.isCharging) { changed = resolveCharging(u) || changed; continue; }
+          const before = clamp(Number(u.energy ?? 100), 0, 100), after = Math.min(100, Math.round((before + 0.01) * 100) / 100);
+          if (after !== before) { u.energy = after; changed = true; }
+        }
+        if (changed) await atomicJson(ENERGY_FILE, all);
+      });
+    } catch (e) { console.error('[AUTO REGEN]', e?.message || e); }
+  }, 1000);
+  regenTimer.unref?.();
+}
+export function stopAutoRegenWorker() { if (regenTimer) clearInterval(regenTimer); regenTimer = null; }
+readJson(SETTINGS_FILE, {}).then(s => { if (s?.autoRegen) startAutoRegenWorker(); }).catch(() => {});
 async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
   const cost = fixedCost !== null && fixedCost !== undefined && Number.isFinite(Number(fixedCost)) ? Math.round(clamp(Number(fixedCost), 0.05, 10) * 100) / 100 : complexityScore(commandText, u.lastCommands || []);
@@ -59,13 +121,9 @@ async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   return { energy: u.energy, cost: actualCost, estimatedCost: cost, premium, commands: u.commands, totalSpent: u.totalSpent, limit: clamp(Number(u.limit ?? 20), 0, 100) };
 }
 async function chargeEnergyUnlocked(userId, now = Date.now(), fast = false) {
-  const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
-  const premium = Number(u.premiumUntil || 0) > now;
-  if (fast && !premium) return { ok: false, reason: 'fast-premium-only', energy: clamp(Number(u.energy ?? 100), 0, 100) };
-  if (!fast && now - Number(u.lastChargeAt || 0) < DAY) return { ok: false, reason: 'cooldown', energy: clamp(Number(u.energy ?? 100), 0, 100), nextAt: Number(u.lastChargeAt) + DAY };
-  if (fast && !premium) return { ok: false, reason: 'fast-premium-only', energy: Number(u.energy ?? 100) };
-  u.energy = fast ? 100 : Math.min(100, Number(u.energy ?? 100) + 40); u.lastChargeAt = now; all[key] = u; await atomicJson(ENERGY_FILE, all);
-  return { ok: true, energy: u.energy, added: fast ? 100 : 40, fast, premium };
+  // Legacy API now starts a timed charge; fast mode is intentionally not instant.
+  if (fast) return { ok: false, reason: 'fast-charging-disabled', energy: (await getEnergy(userId)).energy };
+  return startCharging(userId, now);
 }
 async function grantPremiumUnlocked(userId, days = 30, now = Date.now()) {
   const d = clamp(Math.floor(Number(days) || 0), 1, 30), all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, commands: 0, totalSpent: 0, lastCommands: [] };
@@ -95,7 +153,7 @@ export function energyFooter(receipt) { return receipt ? `\n\n-${receipt.cost.to
 
 // Serialize read-modify-write transactions in-process so concurrent messages cannot overwrite one another.
 export const consumeEnergy = (...args) => withMutationLock(() => consumeEnergyUnlocked(...args));
-export const chargeEnergy = (...args) => withMutationLock(() => chargeEnergyUnlocked(...args));
+export const chargeEnergy = (...args) => startCharging(...args);
 export const grantPremium = (...args) => withMutationLock(() => grantPremiumUnlocked(...args));
 export const setRuntimeSwitch = (...args) => withMutationLock(() => setRuntimeSwitchUnlocked(...args));
 export const setPaymentConfig = (...args) => withMutationLock(() => setPaymentConfigUnlocked(...args));

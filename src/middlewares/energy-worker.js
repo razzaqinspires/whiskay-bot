@@ -1,4 +1,4 @@
-import { consumeEnergy, energyFooter, recordHit, getRuntimeSwitches } from '../lib/energy-worker.js';
+import { consumeEnergy, energyFooter, recordHit, getRuntimeSwitches, isCharging } from '../lib/energy-worker.js';
 function appendText(content, footer) {
   if (!footer) return content;
   if (typeof content === 'string') return content + footer;
@@ -10,6 +10,7 @@ function appendText(content, footer) {
 export default async function energyWorker(ctx, next) {
   if (!ctx.command || ctx.isBot) return next();
   const switches = await getRuntimeSwitches();
+  if (['raidboss','aigenerate'].includes(String(ctx.command||'').toLowerCase()) && await isCharging(ctx.sender || ctx.chat).catch(() => false)) { ctx.aborted = true; await ctx.reply('⚠️ Peringatan CPU: Cabut charger Anda terlebih dahulu untuk menjalankan tugas berat ini!').catch(() => {}); return; }
   // Runtime switches are deliberately fail-open: an energy ledger failure must not disable normal bot commands.
   let receipt = null;
   try { receipt = await consumeEnergy(ctx.sender || ctx.chat, `${ctx.command} ${(ctx.args || []).join(' ')}`, ctx.plugin?.energyMode === 'static' ? Number(ctx.plugin.energyCost ?? 0.35) : null); await recordHit(ctx.sender || ctx.chat, ctx.command); } catch (error) { console.error('[ENERGY WORKER]', error?.message || error); }
