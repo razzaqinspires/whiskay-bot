@@ -2,6 +2,7 @@ import { MiddlewareChain } from './Middleware.js';
 import Logger from './Logger.js';
 import config from '../config/index.js';
 import { recordCommandUsage } from '../lib/menu-settings.js';
+import { hasPremium } from '../lib/energy-worker.js';
 
 export class CommandHandler {
   constructor(pm) { this._pm = pm; this._base = new MiddlewareChain(); }
@@ -52,6 +53,7 @@ export class CommandHandler {
     if (p.owner && !ctx.isOwner) { await ctx.reply('🔒 Owner only'); return true; }
     if (p.group && !ctx.isGroup) { await ctx.reply('👥 Group only'); return true; }
     if (p.private && ctx.isGroup) { await ctx.reply('📩 Private only'); return true; }
+    if (p.premium && !await hasPremium(ctx.sender || ctx.chat).catch(() => false)) { await ctx.reply('💎 Perintah ini khusus pengguna Premium yang masih aktif.'); return true; }
 
     const ok = await chain.run(ctx);
     if (!ok || ctx.aborted) return true;

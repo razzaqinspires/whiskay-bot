@@ -25,8 +25,16 @@ export class Loader {
         const relative = path.relative(this.root, f).split(path.sep);
         const folderCategory = relative.length > 1 ? relative[0] : 'general';
         for (const x of arr) if (x.command) {
-          // Category fallback follows the actual plugin folder, fixing uncategorized menu rows.
-          if (!x.category || !String(x.category).trim()) x.category = folderCategory;
+          // Normalize legacy plugin metadata before the command registry/menu compiler sees it.
+          // Supported forms: category:'games', tags:['rpg'], category:['games','rpg'].
+          const rawCategory = x.category;
+          const rawTags = Array.isArray(x.tags) ? x.tags : [];
+          const candidates = [...(Array.isArray(rawCategory) ? rawCategory : [rawCategory]), ...rawTags]
+            .map(v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''))
+            .filter(Boolean);
+          x.category = candidates[0] || folderCategory;
+          x.categories = [...new Set(candidates.length ? candidates : [folderCategory])];
+          if (!Array.isArray(x.tags)) x.tags = x.categories;
           list.push(x);
         }
       } catch (err) { Logger.error({ f, err: err.message }, 'plugin fail'); }

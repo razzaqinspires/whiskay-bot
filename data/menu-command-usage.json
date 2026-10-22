@@ -13,8 +13,8 @@
       "lastUsed": 1792337902356
     },
     "leveling": {
-      "count": 33,
-      "lastUsed": 1792645399672
+      "count": 34,
+      "lastUsed": 1792646566609
     },
     "ping": {
       "count": 3,
@@ -61,12 +61,32 @@
       "lastUsed": 1792645203905
     },
     "charge": {
-      "count": 1,
-      "lastUsed": 1792645276942
+      "count": 2,
+      "lastUsed": 1792646586633
     },
     "inventory": {
       "count": 2,
       "lastUsed": 1792645608804
+    },
+    "rpgsync": {
+      "count": 1,
+      "lastUsed": 1792646614185
+    },
+    "s": {
+      "count": 1,
+      "lastUsed": 1792646659099
+    },
+    "worker": {
+      "count": 1,
+      "lastUsed": 1792646673928
+    },
+    "gacha": {
+      "count": 1,
+      "lastUsed": 1792646722291
+    },
+    "trade": {
+      "count": 1,
+      "lastUsed": 1792646740371
     }
   }
 }

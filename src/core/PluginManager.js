@@ -48,10 +48,14 @@ export class PluginManager {
   listByCategory() {
     const m = new Map();
     for (const p of this._all.values()) {
-      const c = p.category || 'general';
-      if (!m.has(c)) m.set(c, []);
-      m.get(c).push(p);
+      const candidates = [p.category, ...(Array.isArray(p.categories) ? p.categories : []), ...(Array.isArray(p.tags) ? p.tags : [])];
+      const categories = [...new Set(candidates.map(v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')).filter(Boolean))];
+      const resolved = categories.length ? categories : ['general'];
+      for (const category of resolved) {
+        if (!m.has(category)) m.set(category, []);
+        if (!m.get(category).includes(p)) m.get(category).push(p);
+      }
     }
-    return m;
+    return new Map([...m.entries()].sort(([a], [b]) => a.localeCompare(b)));
   }
 }

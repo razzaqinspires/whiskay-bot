@@ -1,0 +1,6 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { readFile } from 'node:fs/promises';
+const read = p => readFile(new URL(p, import.meta.url), 'utf8');
+test('Stage 17 group moderation commands are registered', async()=>{const s=await read('../src/plugins/general/group-moderation.js');for(const c of ['kick','add','promote','demote','linkgroup'])assert.ok(s.includes(c));assert.match(s,/ctx\.isAdmin/);assert.match(s,/groupParticipantsUpdate/);});
+test('Stage 17 exploration and checkpoint link are signed and expiring', async()=>{const s=await read('../src/plugins/games/rpg-explore.js');assert.match(s,/command:\['explore','enterdungeon'\]/);assert.match(s,/createHmac\('sha256'/);assert.match(s,/\+900/);assert.match(s,/energyCost:1\.5/);});
+test('Stage 17 meme utility uses bounded FFmpeg processing', async()=>{const s=await read('../src/plugins/media/meme.js');assert.match(s,/15\*1024\*1024/);assert.match(s,/30000/);assert.match(s,/category:'media'/);});
+test('RPG player load reads website snapshot and does not silently default on server failure', async()=>{const s=await read('../src/plugins/games/rpg.js');assert.match(s,/fetchAuthoritativePlayer/);assert.match(s,/RPG_DATABASE_UNAVAILABLE/);assert.match(s,/syncDashboardPlayer/);});

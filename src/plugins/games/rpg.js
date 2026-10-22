@@ -16,8 +16,40 @@ const keyFor = (ctx) => `${ctx.chat}|${ctx.sender}`;
 const defaults = () => ({ level: 1, xp: 0, hp: 100, maxHp: 100, gold: 0, potions: 2, weapon: 'Rusty Blade', weaponPower: 5, floor: 1, wins: 0, losses: 0, lastActionAt: 0 });
 async function readAll() { try { const d = JSON.parse(await readFile(DATA, 'utf8')); return d && typeof d === 'object' ? d : {}; } catch { return {}; } }
 async function writeAll(data) { await mkdir(path.dirname(DATA), { recursive: true }); const temp = DATA + '.tmp'; await writeFile(temp, JSON.stringify(data, null, 2)); await rename(temp, DATA); }
-async function getPlayer(ctx) { const d = await readAll(); return { all: d, player: { ...defaults(), ...(d[keyFor(ctx)] || {}) } }; }
-async function savePlayer(ctx, all, player) { all[keyFor(ctx)] = player; await writeAll(all); void syncDashboardPlayer(ctx.chat,ctx.sender,{name:ctx.pushName||'Adventurer',level:player.level,xp:player.xp,nextXp:needXp(player.level),hp:player.hp,maxHp:player.maxHp,gold:player.gold,weapon:player.weapon,weaponPower:player.weaponPower,potions:player.potions,wins:player.wins,losses:player.losses,floor:player.floor,inventory:[{name:player.weapon,slot:'weapon',power:player.weaponPower},{name:'Potion of Renewal',slot:'consumable',quantity:player.potions}]}); }
+async function fetchAuthoritativePlayer(ctx) {
+  const base = String(process.env.DUNGEON_WEBSITE_URL || '').replace(/\/+$/, '');
+  if (!base) return null; // Legacy/offline development mode only.
+  const playerId = (await import('../../services/dungeonWebsiteSync.js')).dashboardPlayerId(ctx.chat, ctx.sender);
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 6500);
+  try {
+    const response = await fetch(`${base}/api/player?player=${encodeURIComponent(playerId)}`, { cache:'no-store', headers:{accept:'application/json'}, signal:controller.signal });
+    if (response.status === 503 || response.status >= 500) throw new Error('RPG_DATABASE_UNAVAILABLE');
+    if (!response.ok) throw new Error(`RPG_DATABASE_READ_${response.status}`);
+    const result = await response.json();
+    return result?.player && typeof result.player === 'object' ? result.player : null;
+  } catch (error) { if (error.message?.startsWith('RPG_DATABASE_')) throw error; throw new Error('RPG_DATABASE_UNAVAILABLE'); }
+  finally { clearTimeout(timer); }
+}
+async function getPlayer(ctx) {
+  const d = await readAll();
+  const remote = await fetchAuthoritativePlayer(ctx);
+  if (remote) {
+    const player = { ...defaults(), ...(d[keyFor(ctx)] || {}), ...remote };
+    // The persistent server snapshot wins for every persisted RPG stat.
+    for (const field of ['level','xp','hp','maxHp','gold','potions','weapon','weaponPower','floor','wins','losses']) if (remote[field] !== undefined) player[field] = remote[field];
+    return { all:d, player };
+  }
+  return { all:d, player:{ ...defaults(), ...(d[keyFor(ctx)] || {}) } };
+}
+async function savePlayer(ctx, all, player) {
+  const payload = {name:ctx.pushName||'Adventurer',level:player.level,xp:player.xp,nextXp:needXp(player.level),hp:player.hp,maxHp:player.maxHp,gold:player.gold,weapon:player.weapon,weaponPower:player.weaponPower,potions:player.potions,wins:player.wins,losses:player.losses,floor:player.floor,inventory:Array.isArray(player.inventory)?player.inventory:[{name:player.weapon,slot:'weapon',power:player.weaponPower},{name:'Potion of Renewal',slot:'consumable',quantity:player.potions}]};
+  const base = String(process.env.DUNGEON_WEBSITE_URL || '').replace(/\/+$/, '');
+  if (base && process.env.DUNGEON_SYNC_TOKEN) {
+    const sync = await syncDashboardPlayer(ctx.chat,ctx.sender,payload);
+    if (!sync?.ok) throw new Error('RPG_DATABASE_WRITE_FAILED: perubahan belum dikonfirmasi oleh Supabase');
+  }
+  all[keyFor(ctx)] = player; await writeAll(all);
+}
 const needXp = level => Math.floor(70 + level * 42 + Math.pow(level, 1.35) * 9);
 const rank = level => level >= 30 ? 'MYTHIC' : level >= 20 ? 'DIAMOND' : level >= 12 ? 'PLATINUM' : level >= 7 ? 'GOLD' : level >= 3 ? 'SILVER' : 'ROOKIE';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));

@@ -22,21 +22,28 @@ async function atomicJson(file, value) {
 }
 const normUser = id => String(id || 'unknown').replace(/[^a-zA-Z0-9@._:-]/g, '').slice(0, 180) || 'unknown';
 export function complexityScore(command, previous = []) {
-  const text = String(command || '').slice(0, 1200).toLowerCase();
+  // Deterministic, bounded, low-allocation estimator. It is a heuristic cost model,
+  // not an LLM call: token shape, operators, text length, uniqueness and similarity
+  // all contribute. A small stable lexical term prevents one-word commands collapsing
+  // to the same rounded value while repeated identical prompts still receive a discount.
+  const text = String(command || '').slice(0, 1200).trim().toLowerCase();
   const tokens = text.match(/[\p{L}\p{N}_]+|[^\s]/gu) || [];
   const unique = new Set(tokens);
-  const math = (text.match(/[=+*/^<>]|\b(?:calculate|hitung|solve|integral|derivative|persamaan)\b/g) || []).length;
+  const math = (text.match(/[=+*/^<>%()-]|\b(?:calculate|hitung|solve|integral|derivative|persamaan|rumus|equation)\b/g) || []).length;
   const quoted = (text.match(/["'`]/g) || []).length;
   const tokenEntropy = tokens.length ? unique.size / tokens.length : 0;
+  const charClasses = new Set([...text].map(c => /[a-z]/.test(c) ? 'l' : /[0-9]/.test(c) ? 'n' : /\s/.test(c) ? 's' : 'p')).size;
   const similarity = previous.slice(-5).reduce((best, item) => Math.max(best, jaccard(tokens, String(item).toLowerCase().match(/[\p{L}\p{N}_]+|[^\s]/gu) || [])), 0);
-  // Low-allocation O(n) scoring: bounded input, token-set similarity, no model call or background worker.
-  const raw = 0.45 + Math.min(tokens.length, 160) * 0.012 + Math.min(math, 20) * 0.11 + Math.min(quoted, 12) * 0.025 + tokenEntropy * 0.45 - similarity * 0.22;
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  const lexical = ((hash >>> 0) % 19) / 100;
+  const raw = 0.38 + Math.min(tokens.length, 160) * 0.018 + Math.min(math, 20) * 0.105 + Math.min(quoted, 12) * 0.035 + tokenEntropy * 0.42 + charClasses * 0.045 + lexical - similarity * 0.24;
   return Math.round(clamp(raw, 0.25, 8.75) * 100) / 100;
 }
 function jaccard(a, b) { const aa = new Set(a), bb = new Set(b); if (!aa.size && !bb.size) return 1; let intersection = 0; for (const x of aa) if (bb.has(x)) intersection++; return intersection / Math.max(1, aa.size + bb.size - intersection); }
 export async function getEnergy(userId) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || {};
-  return { energy: clamp(Number(u.energy ?? 100), 0, 100), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [] };
+  return { energy: clamp(Number(u.energy ?? 100), 0, 100), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
 }
 async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
@@ -49,7 +56,7 @@ async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   const keys = Object.keys(all); if (keys.length > MAX_USERS) for (const old of keys.slice(0, keys.length - MAX_USERS)) delete all[old];
   await atomicJson(ENERGY_FILE, all);
   const premium = Number(u.premiumUntil || 0) > Date.now();
-  return { energy: u.energy, cost: actualCost, estimatedCost: cost, premium, commands: u.commands, totalSpent: u.totalSpent };
+  return { energy: u.energy, cost: actualCost, estimatedCost: cost, premium, commands: u.commands, totalSpent: u.totalSpent, limit: clamp(Number(u.limit ?? 20), 0, 100) };
 }
 async function chargeEnergyUnlocked(userId, now = Date.now(), fast = false) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
@@ -64,6 +71,18 @@ async function grantPremiumUnlocked(userId, days = 30, now = Date.now()) {
   const d = clamp(Math.floor(Number(days) || 0), 1, 30), all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, commands: 0, totalSpent: 0, lastCommands: [] };
   u.premiumUntil = Math.min(now + 30 * DAY, Math.max(now, Number(u.premiumUntil || 0)) + d * DAY); all[key] = u; await atomicJson(ENERGY_FILE, all); return u.premiumUntil;
 }
+export async function consumeLimit(userId, amount = 1, now = Date.now()) {
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), key = normUser(userId);
+    const u = all[key] || { energy: 100, limit: 20, limitResetAt: now + DAY, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
+    if (Number(u.limitResetAt || 0) <= now) { u.limit = 20; u.limitResetAt = now + DAY; }
+    const cost = clamp(Math.ceil(Number(amount) || 1), 1, 10);
+    if (Number(u.limit ?? 20) < cost) return { ok: false, reason: 'limit', limit: Number(u.limit ?? 20), cost };
+    u.limit = Number(u.limit ?? 20) - cost; all[key] = u; await atomicJson(ENERGY_FILE, all);
+    return { ok: true, limit: u.limit, cost, resetAt: u.limitResetAt };
+  });
+}
+export async function hasPremium(userId, now = Date.now()) { const e = await getEnergy(userId); return e.premiumUntil > now; }
 export async function getRuntimeSwitches() { const now=Date.now(); if(switchCache && now-switchCacheAt<2000)return {...switchCache}; switchCache={antiSpam:true,globalCooldown:true,...(await readJson(SETTINGS_FILE,{}))};switchCacheAt=now;return {...switchCache}; }
 async function setRuntimeSwitchUnlocked(name, enabled) { const current = await getRuntimeSwitches(); if (!['antiSpam','globalCooldown'].includes(name)) throw new Error('Unknown runtime switch'); current[name] = Boolean(enabled); await atomicJson(SETTINGS_FILE, current); switchCache={...current};switchCacheAt=Date.now();return current; }
 export async function getPaymentConfig() { return readJson(PAYMENT_FILE, { bank: [], ewallet: [], qrisPath: '', basePrice: 1000, dailyRate: 1.01, priceEpoch: Date.now() }); }

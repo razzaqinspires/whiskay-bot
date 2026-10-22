@@ -14,7 +14,7 @@ async function readPayment(){return getPaymentConfig();}
 async function getQuotedMedia(ctx){if(!ctx.quoted)return null;try{const buffer=await ctx.download(ctx.quoted);return buffer?.length?buffer:null;}catch{return null;}}
 export default {
  name:'energy-system', command:['charge','hit','setpayment','bukti','status','premium'], menuCommands:['charge','hit','setpayment','bukti','status','premium'], category:'system', cooldown:1200,
- description:'Smart Energy, dashboard hit, premium, pembayaran dan status worker', energyMode:'static', energyCost:0.35,
+ description:'Smart Energy, dashboard hit, premium, pembayaran dan status worker',
  async execute(ctx){
   const [a='',b='',c='']=(ctx.args||[]); const action=String(a).toLowerCase(); const uid=ctx.sender||ctx.chat;
   if(ctx.command==='charge'){

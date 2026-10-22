@@ -89,9 +89,12 @@ const WIDGETS = new Set(['category','count','prefix','new','owner','footer','hea
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
 function getCommandRows() {
   const rows=[];
-  for (const group of registry.plugins.listByCategory().values()) for (const plugin of group) {
+  const plugins = registry.plugins?.plugins instanceof Map ? [...registry.plugins.plugins.values()] : [];
+  for (const plugin of plugins) {
     const cmds = canonicalFor(plugin);
-    for (const cmd of cmds) if (typeof cmd==='string' && cmd.trim()) rows.push({command:cmd.toLowerCase(),category:String(plugin.category||'general').toLowerCase(),description:String(plugin.menuDescriptions?.[cmd]||plugin.description||plugin.menuDescription||'').trim(),owner:Boolean(plugin.owner)});
+    const categoryCandidates = [plugin.category, ...(Array.isArray(plugin.categories) ? plugin.categories : []), ...(Array.isArray(plugin.tags) ? plugin.tags : [])];
+    const category = categoryCandidates.map(v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')).find(Boolean) || 'general';
+    for (const cmd of cmds) if (typeof cmd==='string' && cmd.trim()) rows.push({command:cmd.toLowerCase(),category,description:String(plugin.menuDescriptions?.[cmd]||plugin.description||plugin.menuDescription||'').trim(),owner:Boolean(plugin.owner),limitCost:Number(plugin.limitCost||0),premium:Boolean(plugin.premium)});
   }
   const unique=new Map(); for(const row of rows) if(!unique.has(row.command)) unique.set(row.command,row);
   return [...unique.values()];
@@ -107,7 +110,7 @@ async function renderMenu(ctx) {
   const newSet=await getNewCommandSet(rows.map(r=>r.command));
   if(!settings.widgets.includes('owner')) rows=rows.filter(r=>!r.owner);
   if(settings.categories?.length) rows=rows.filter(r=>settings.categories.includes(r.category));
-  rows.sort((a,b)=> settings.order==='category' ? a.category.localeCompare(b.category)||a.command.localeCompare(b.command) : (settings.order==='za'?-1:1)*a.command.localeCompare(b.command));
+  rows.sort((a,b)=> { const grouped=settings.categoriesVisible!==false&&settings.widgets.includes('category'); if(grouped){const byCategory=a.category.localeCompare(b.category);if(byCategory)return byCategory;} return settings.order==='za'?-a.command.localeCompare(b.command):a.command.localeCompare(b.command); });
   const t=TEMPLATE[settings.template]||TEMPLATE.corporate;
   const lines=[];
   const energy=await getEnergy(ctx.sender||ctx.chat).catch(()=>({energy:100}));
@@ -129,15 +132,17 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('count')||settings.widgets.includes('prefix')||settings.widgets.includes('new')) lines.push('');
   let lastCategory='';
   rows.forEach((row,index)=>{
-    if(settings.categoriesVisible!==false&&settings.order==='category'&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
+    if(settings.categoriesVisible!==false&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push(line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
     const plugin=registry.plugins.resolve(row.command);
-    const energyMark=plugin?.energyMode==='static'?'📌': '⚡';
-    const energyText=settings.energyDetails?` ${energyMark}${Number(plugin?.energyCost ?? complexityScore(row.command)).toFixed(2).replace('.',',')}%`:'';
+    const energyMark=plugin?.energyMode==='static'?'📌':'⚡';
+    const energyText=(settings.energyDetails||settings.showEnergyNumbers)?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${settings.showEnergyNumbers?`${Number(plugin?.energyCost ?? complexityScore(`${row.command} ${row.description}`)).toFixed(2).replace('.',',')}%`:''}`:'';
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
-    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${energyMark} ${ctx.prefix}${row.command}${mark}${energyText}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
+    const accessMarks=`${row.limitCost>0?'🎟️ ':''}${row.premium?'💎 ':''}`;
+    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${settings.showEnergyEmoji===false?'':`${energyMark} `}${accessMarks}${ctx.prefix}${row.command}${mark}${energyText}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
   });
   if(settings.widgets.includes('footer')) lines.push('',line(settings,`Atur tampilan: ${ctx.prefix}setmenu`,'footer'));
+  if(settings.widgets.includes('footer')) lines.push('',line(settings,'Legenda: ⚡ Energi dinamis · 📌 Energi statis · 🔢 angka biaya · 🎟️ memakai Limit · 💎 Premium eksklusif','footer'));
   if(settings.bottomBorder!==false) lines.push(style(emphasized(settings,t.bottom,'border'),settings.font));
   const text=lines.join('\n');
   if(settings.mode==='text') return ctx.reply(text);

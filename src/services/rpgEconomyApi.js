@@ -34,6 +34,13 @@ export function economyErrorText(error) {
   if (code === 'ECONOMY_UNREACHABLE') return '📡 Server RPG tidak dapat dijangkau. Coba lagi nanti.';
   if (error?.status === 401) return '🔒 Autentikasi bot ditolak server. Samakan token bot dan website.';
   if (code === 'insufficient_gold') return `💰 Gold tidak cukup. Dibutuhkan ${Number(error.data?.price || 0).toLocaleString('id-ID')} Gold; saldo kamu ${Number(error.data?.gold || 0).toLocaleString('id-ID')} Gold.`;
+  if (code === 'already_in_guild') return '🏰 Kamu sudah menjadi anggota guild.';
+  if (code === 'guild_not_found') return '🏰 Guild tidak ditemukan. Periksa ID guild.';
+  if (code === 'guild_name_taken') return '🏰 Nama guild sudah digunakan. Pilih nama lain.';
+  if (code === 'not_guild_leader') return '🔒 Hanya leader guild yang dapat mengeluarkan anggota.';
+  if (code === 'not_guild_member') return '🏰 Kamu belum bergabung dengan guild.';
+  if (code === 'member_not_found') return '👤 Anggota tersebut tidak ditemukan dalam guild kamu.';
+  if (code === 'invalid_guild_name') return 'Nama guild harus terdiri dari 3–32 karakter.';
   if (code === 'insufficient_materials') return `🧱 Material belum cukup. ${error.data?.message || 'Periksa material yang diperlukan.'}`;
   if (code === 'insufficient_item') return '🎒 Item yang ingin ditransfer tidak tersedia dalam jumlah cukup.';
   if (code === 'recipient_not_found') return '👤 Snapshot pemain tujuan belum ditemukan. Pastikan pemain sudah pernah membuka RPG di grup ini.';

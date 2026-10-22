@@ -4,7 +4,7 @@ const esc = value => String(value ?? '-').replace(/[&<>"']/g, ch => ({ '&': '&am
 const fmt = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(2)} s`;
 
 export default {
-  command: ['ping', 'p'], category: 'general', cooldown: 2000,
+  command: ['ping', 'p'], category: 'general', cooldown: 2000, energyMode: 'static', energyCost: 0.25,
   async execute(ctx) {
     const started = performance.now();
     const sentAt = Date.now();
