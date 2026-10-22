@@ -34,6 +34,11 @@ export function economyErrorText(error) {
   if (code === 'ECONOMY_UNREACHABLE') return '📡 Server RPG tidak dapat dijangkau. Coba lagi nanti.';
   if (error?.status === 401) return '🔒 Autentikasi bot ditolak server. Samakan token bot dan website.';
   if (code === 'insufficient_gold') return `💰 Gold tidak cukup. Dibutuhkan ${Number(error.data?.price || 0).toLocaleString('id-ID')} Gold; saldo kamu ${Number(error.data?.gold || 0).toLocaleString('id-ID')} Gold.`;
+  if (code === 'insufficient_item') return '🎒 Item itu tidak tersedia di inventory.';
+  if (code === 'listing_not_found') return '🏷️ Listing tidak ditemukan atau sudah dibeli.';
+  if (code === 'cannot_buy_own_listing') return '🏷️ Kamu tidak bisa membeli listing milik sendiri.';
+  if (code === 'invalid_listing') return 'Format listing tidak valid. Gunakan .auction sell <item-id> <harga>.';
+  if (code === 'database_not_configured') return '⚠️ Database belum dikonfigurasi pada website RPG.';
   if (code === 'already_in_guild') return '🏰 Kamu sudah menjadi anggota guild.';
   if (code === 'guild_not_found') return '🏰 Guild tidak ditemukan. Periksa ID guild.';
   if (code === 'guild_name_taken') return '🏰 Nama guild sudah digunakan. Pilih nama lain.';
