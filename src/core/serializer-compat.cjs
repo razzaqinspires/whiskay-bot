@@ -1538,8 +1538,26 @@ function extendSocket(sock) {
   sock.handleCall = sock.handleIncomingCall;
 }
 
+/**
+ * Standard native-flow helper. Uses the socket's existing Baileys implementation,
+ * which builds the message with generateWAMessageFromContent and relays it.
+ * This does not bypass WhatsApp/Meta policy enforcement; callers should provide
+ * clear user-initiated choices and a plain-text fallback.
+ */
+async function sendInteractiveMessage(sock, jid, options = {}, quoted = null) {
+  if (!sock || typeof sock.sendInteractive !== 'function') {
+    if (sock && typeof sock.sendMessage === 'function') {
+      const labels = (options.buttons || []).map((b) => `• ${b.title || b.display_text || b.id || 'Pilihan'}`).join('\n');
+      return sock.sendMessage(jid, { text: [options.title, options.body, labels, options.footer].filter(Boolean).join('\n\n') });
+    }
+    throw new TypeError('Baileys socket tidak memiliki sendInteractive/sendMessage');
+  }
+  return sock.sendInteractive(jid, options, quoted);
+}
+
 module.exports = {
   toJid,
+  sendInteractiveMessage,
   serialize,
   serializeCall,
   extendSocket,

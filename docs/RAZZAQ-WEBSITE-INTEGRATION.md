@@ -72,3 +72,19 @@ The owner analytics endpoint currently summarizes recorded sales and expenses; i
 
 ## Whiskay RPG Next.js companion update
 Set `DUNGEON_WEBSITE_URL=https://whiskay-rpg-companion.vercel.app` and `DUNGEON_SYNC_TOKEN` in the bot environment. The website must be deployed from the supplied Next.js project root. Dungeon buttons use `/dungeon?floor=N&player=<opaque-id>` and profile/inventory buttons use `/inventory?player=<opaque-id>`. The website `/api/sync` accepts only authenticated bot snapshots; set the same `BOT_SYNC_TOKEN` in Vercel. The website floor data and bot `data/dungeon/floors.json` must remain identical (10 floors). Do not overwrite the real `.env` when updating the bot.
+
+
+## WHISKAY RPG sync (separate bot-side code)
+
+The RPG sync command belongs to this bot repository at `src/plugins/games/rpg-sync.js`.
+It follows this project's native plugin contract (`name`, `command`, `execute(ctx)`), not a
+generic Baileys `handler(m, { conn })` signature.
+
+- RPG plugins push snapshots to the companion website's `POST /api/sync` through
+  `src/services/dungeonWebsiteSync.js`, using an opaque SHA-256-derived player ID.
+- `.rpgsync` checks the matching snapshot through the website's `GET /api/player?player=...`
+  endpoint and prints a dashboard link.
+- Configure `DUNGEON_WEBSITE_URL` and `DUNGEON_SYNC_TOKEN` in the bot host; configure
+  `BOT_SYNC_TOKEN` and Supabase server-side credentials in the companion website.
+- Keep the bot and website as separate repositories/deployments. Do not copy bot plugins
+  into the website repository. Never distribute `.env` or `.env.local`.
