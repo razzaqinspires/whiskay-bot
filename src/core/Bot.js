@@ -56,6 +56,7 @@ export class Bot {
       onEvent: (e) => this._log.push(e)
     });
 
+    registry.bot = this;
     registry.plugins = this._pm;
     registry.config = config;
     registry.reloadQueue = this._reloadQueue;
