@@ -1,6 +1,7 @@
 import Logger from '../core/Logger.js';
-import { serializeMessage } from '../core/Serializer.js';
+import { serializeMessage } from '../core/serializer.js';
 import { awardMessageXP, getProfile } from '../lib/leveling.js';
+import { applyGroupGuard } from '../lib/group-guard.js';
 
 export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
   if (upsert.type !== 'notify') return;
@@ -10,6 +11,8 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
       eventBus.emit('message', ctx);
+      try { if (await applyGroupGuard(ctx)) continue; }
+      catch (guardError) { Logger.warn({ err: guardError.message }, 'group guard skipped'); }
       // XP progresses only in groups whose leveling mode is enabled.
       if (ctx.isGroup && !ctx.isBot && ctx.sender) {
         try {

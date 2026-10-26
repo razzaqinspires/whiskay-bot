@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed)
+![Version](https://img.shields.io/badge/Version-2.5.2-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -27,8 +27,12 @@
 - [Smart Energy Middleware](#-smart-energy-middleware)
 - [Worker status & runtime statistics](#-worker-status--runtime-statistics)
 - [Command catalog](#-command-catalog)
+- [Group tools & moderation](#-group-tools--moderation)
+- [Egg sales calculator](#-egg-sales-calculator)
 - [Global Auction House](#-global-auction-house)
 - [World Boss webhook](#-world-boss-webhook)
+- [Jadibot secure pairing portal](#-jadibot-secure-pairing-portal)
+- [GitHub metrics and automation](#-github-metrics-and-automation)
 - [Install & configure](#-install--configure)
 - [Security and operations](#-security-and-operations)
 - [📚 Documentation & Archives](#-documentation--archives)
@@ -118,7 +122,17 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 
 | Perintah | Fungsi |
 |---|---|
-| `.kick, .add, .promote, .demote, .linkgroup` | Moderasi grup WhatsApp: kick, add, promote, demote, linkgroup |
+| `.kick, .add, .promote, .demote, .linkgroup` | Moderasi anggota; tindakan membutuhkan admin grup dan hak admin bot |
+| `.grouphelp` | Panduan lengkap fitur grup |
+| `.groupinfo, .admins` | Informasi grup, jumlah anggota, daftar admin |
+| `.tagall [pesan], .hidetag [pesan]` | Mention seluruh anggota atau kirim pengumuman tanpa menampilkan mention |
+| `.revoke` | Cabut tautan undangan lama dan buat tautan baru |
+| `.setsubject [nama], .setdesc [deskripsi]` | Ubah nama dan deskripsi grup |
+| `.closegroup, .opengroup` | Batasi pesan hanya admin atau buka untuk seluruh anggota |
+| `.antilink on|off|status` | Hapus tautan dari anggota non-admin saat bot menjadi admin |
+| `.antispam on|off|status` | Deteksi pesan beruntun dan hapus pesan pelanggaran jika bot admin |
+| `.welcome on|off|status` | Pesan sambutan dan keluar saat event anggota grup |
+| `.setwelcometext [teks]` | Atur teks sambutan; placeholder `{user}` dan `{group}` tersedia |
 
 ### Media
 
@@ -132,12 +146,16 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 |---|---|
 | `.leveling, .profile, .rank, .rankmatrix, .levelnotify, .leaderboard, .setpp` | Level, XP, rank, profile card dan notifikasi kenaikan level |
 | `.menu, .help` | Font, widget, template, border, spasi, gambar, urutan dan ketebalan font |
-| `.ping, .p` | Lihat bantuan perintah |
+| `.ping, .p` | Lihat status / bantuan perintah |
+| `.telur, .kalkulatortelur, .hitungtelur` | Buka website kalkulator penjualan telur: jumlah butir, total, kembalian, dan kekurangan untuk membeli satu butir tambahan |
+| `.egghelp, .bantuantelur` | Panduan kalkulator penjualan telur |
 | `.dlselect` | Kirim format downloader yang dipilih |
 | `.fb` | Pilih format unduhan facebook melalui tombol interaktif |
 | `.ig` | Pilih format unduhan instagram melalui tombol interaktif |
 | `.tiktok` | Pilih format unduhan tiktok melalui tombol interaktif |
 | `.charge, .hit, .setpayment, .bukti, .status, .premium` | Smart Energy, dashboard hit, premium, pembayaran dan status worker |
+| `.jadibot, .jadibotstatus, .jadibotlogin, .jadibotlogout, .perpanjang` | Sewa sub-bot 30 hari, QR/Pairing Portal, status, login/logout, dan perpanjangan |
+| `.listjadibot, .jadibotapprove, .stopjadibot, .setjadibotharga, .setjadibotdurasi` | Kontrol jadibot khusus owner: daftar sesi, verifikasi perpanjangan, penghentian, harga dan durasi |
 
 ### Premium / Owner
 
@@ -164,6 +182,8 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 | `.scrape` | Ambil metadata dan teks utama dari halaman web publik |
 | `.s, .sticker` | Ubah gambar atau video pendek yang direply menjadi stiker WebP |
 | `.ytmp3` | Unduh audio YouTube menjadi MP3 |
+| `.github, .githubstats` | Statistik repository dan traffic GitHub (jika token berizin tersedia) |
+| `.github commits, .github issues, .github workflows` | Commit terakhir, issue terbuka, dan status GitHub Actions |
 
 
 ### Stage 18: auction commands
@@ -176,6 +196,30 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 | `.auction help` | Shows command format |
 
 Auction RPCs run server-side in Supabase. Listings are active until purchased; this stage does not yet provide cancellation, expiry, or a listing fee. Item IDs must match the inventory's `id`.
+
+## 👥 Group tools & moderation
+
+Group settings are stored per group in `data/group-settings.json` (created at runtime and ignored by Git). `.antilink`, `.antispam`, and `.welcome` are configurable independently for each group. The bot checks group metadata to determine admin privileges instead of trusting message-provided flags. For message deletion, changing the subject/description, invite rotation, or closing/opening the group, the bot must be a group admin. Anti-spam uses a bounded in-memory window, so its counters reset after restart and are not distributed across replicas.
+
+```mermaid
+flowchart TD
+  A[Incoming group message] --> B{Group setting enabled?}
+  B -- No --> C[Normal command pipeline]
+  B -- Yes --> D[Read group metadata]
+  D --> E{Sender is admin?}
+  E -- Yes --> C
+  E -- No --> F{Link or message burst?}
+  F -- No --> C
+  F -- Yes --> G{Bot is admin?}
+  G -- Yes --> H[Delete violating message and warn]
+  G -- No --> I[Warn; deletion unavailable]
+```
+
+## 🥚 Egg sales calculator
+
+Use `.telur`, `.kalkulatortelur`, or `.hitungtelur` to open the calculator website; `.egghelp` explains the whole-egg calculation. Set `EGG_CALCULATOR_URL` in `.env` to the exact public HTTPS website URL. The command refuses insecure public HTTP URLs and URLs containing embedded credentials. The website is a separate deployment, not bundled into this bot repository.
+
+The calculator's business rule is to use whole eggs only: `jumlah = floor(uang pembeli / harga per butir)`, `total = jumlah × harga`, `kembalian = uang pembeli − total`. Test coverage for the command serializer contract and invalid URLs is in `test/egg-calculator-plugin.test.js`.
 
 ## 🚨 World Boss webhook
 
@@ -199,7 +243,7 @@ npm test
 npm start
 ```
 
-Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. Keep `.env`, Baileys auth state, and any service-role key out of Git. The bot does not need the Supabase service-role key; the website API owns database access.
+Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. Set `EGG_CALCULATOR_URL` to the public HTTPS URL of the separately deployed egg-sales calculator website; `.telur` opens that URL in WhatsApp's webview CTA. The bot ZIP does not contain the calculator website source, only the command integration and tests. Keep `.env`, Baileys auth state, and any service-role key out of Git. If `.env` already exists, merge the new keys rather than overwriting your current values. The bot does not need the Supabase service-role key; the website API owns database access.
 
 ## 🛡️ Security and operations
 
@@ -243,7 +287,79 @@ Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, an
 
 Charging is modeled at 1 percentage point per 252 seconds (420 minutes from 0% to 100%). It completes automatically at 100%. Persist `data/energy-ledger.json` and `data/runtime-switches.json` between restarts. The optional native `canvas` module is used when installed; FFmpeg SVG rendering remains the fallback. See [Stage 19 Audit](docs/STAGE-19-AUDIT.md) for limitations and verification details.
 
+## 🤖 Jadibot secure pairing portal
+
+The `.jadibot` rental plugin supports QR and phone-number pairing, 30-day default access, status/logout/reconnect, manual payment review, and owner-controlled pricing/duration. The recommended `.jadibot pairing` path sends a time-limited CTA URL to a mini-web page. The page accepts an international-format phone number, then opens WhatsApp to the main bot with `.jadibotconfirm <one-time-token>` prefilled. The user must still press **Send** in WhatsApp; a website cannot silently send a WhatsApp message on the user's behalf. The pairing code is sent only by the bot in the original private chat, not rendered on the public web page.
+
+- `.jadibot` — choose QR or pairing.
+- `.jadibot pairing` — create a single-use portal link (10-minute expiry); `.jadibot pairing 628xxxxxxxxxx` remains as a manual fallback.
+- `.jadibotconfirm <token>` — verifies the ticket owner and starts pairing after the user sends the prefilled WhatsApp message.
+- `.jadibotstatus`, `.jadibotlogin`, `.jadibotlogout` — view status, reconnect saved auth, or clear the sub-bot session.
+- `.perpanjang [days]`, `.buktijadibot <ref>`, `.jadibotapprove <user-key>` — request renewal and have the owner manually verify payment before extending access.
+- `.setjadibotharga <IDR>`, `.setjadibotdurasi <days>`, `.listjadibot`, `.stopjadibot <user-key>` — owner controls.
+
+Settings are in `.env.example` under `JADIBOT_*`. Local development automatically tries to launch a temporary TryCloudflare quick tunnel if no known server/deployment marker or public URL is configured. If a public URL or deployment environment is detected, the tunnel is disabled; set `JADIBOT_PUBLIC_URL` to the HTTPS address routed to the configured `JADIBOT_PORT`. Quick tunnels are for testing/development, not production, and the URL changes when the tunnel is restarted. See [pairing portal deployment and security](docs/JADIBOT-MINI-PORTAL.md) and [implementation/testing report](docs/TEST-REPORT-2026-10-25.md).
+
+## 🐙 GitHub metrics and automation
+
+Use `.github` or `.githubstats` for repository stars, forks, open issues/PR, last push timestamp, and—when a repository traffic token is configured—page views, unique visitors and clones for the **last 14 days**. Additional commands: `.github commits`, `.github issues`, and `.github workflows`. Configure `WHISKAY_GITHUB_REPO`, and set `WHISKAY_GITHUB_TRAFFIC_TOKEN` if the running bot should read private traffic data. GitHub's traffic API does **not** provide a lifetime visitor total.
+
+The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refreshes repository metrics and README timestamp on a six-hour cadence, workflow dispatch, and relevant pushes. The existing repository update-history workflow appends source-update metadata with timestamps. History and snapshots live under `docs/metrics/` and `docs/history/`; check [GitHub metrics notes](docs/GITHUB-AUTOMATION.md). The generated README block is bounded by `GITHUB_METRICS_START/END`, so automation updates only that block and preserves the rest of the README.
+
+**Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
+
+<!-- GITHUB_METRICS_START -->
+> Snapshot terakhir: **2026-10-24T19:45:46+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
+
+| Metrik | Nilai |
+|---|---:|
+| Repository | [`razzaqinspires/whiskay-bot`](https://github.com/razzaqinspires/whiskay-bot) |
+| ⭐ Stars | 1 |
+| 🍴 Forks | 0 |
+| 🧩 Open issues / PR | 0 |
+| 👥 Pengunjung unik (14 hari terakhir) | Belum tersedia — token traffic belum punya akses |
+| 👁️ Tampilan halaman (14 hari terakhir) | Belum tersedia |
+| 📦 Clone (14 hari terakhir) | Belum tersedia |
+
+**Catatan:** data traffic GitHub hanya tersedia untuk 14 hari terakhir melalui API, bukan jumlah pengunjung sepanjang masa. Untuk statistik itu, berikan secret `WHISKAY_GITHUB_TRAFFIC_TOKEN` dengan permission *Administration: Read* pada repository. Jika token tidak tersedia/ditolak, README tidak mengarang angka. [Dokumentasi API traffic](https://docs.github.com/en/rest/metrics/traffic).
+
+### Grafik traffic dan laju pembaruan
+
+> Grafik **GitHub page views · rolling 14-day total** akan muncul setelah metrik tersedia dari GitHub Actions.
+
+```mermaid
+xychart-beta
+    title "Commit activity · last 14 days"
+    x-axis ["10-15", "10-16", "10-17", "10-18", "10-19", "10-20", "10-21", "10-22", "10-23", "10-24"]
+    y-axis "Count" 0 --> 9
+    line [0, 0, 0, 0, 0, 7, 4, 6, 0, 3]
+```
+
+Riwayat snapshot tersimpan: **1** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
+<!-- GITHUB_METRICS_END -->
+
+## 🛡️ Stage 2 — Pairing Portal Hardening (2026-10-26)
+
+- Pairing form submissions are limited to 8 attempts per 10 minutes per source address; excess attempts receive HTTP `429` and `Retry-After`.
+- The endpoint requires JSON and rejects declared bodies over 4 KiB before parsing; JSON responses include security headers (`nosniff`, frame protection, no-referrer, restrictive CSP).
+- A GitHub Actions CI workflow runs `npm ci`, JavaScript syntax checks, and the full regression suite on pushes and pull requests.
+- Rate limiting is process-local; multi-instance deployments should enforce shared throttling at the trusted reverse proxy. See [security hardening](docs/SECURITY-HARDENING-2026-10-26.md), [changelog](docs/CHANGELOG-2026-10-26.md), and [test report](docs/TEST-REPORT-2026-10-26.md).
+
 ## 📚 Documentation & Archives
+
+| Document | Path |
+|---|---|
+| [Egg sales calculator integration](docs/EGG-CALCULATOR.md) | `docs/EGG-CALCULATOR.md` |
+| [Group tools and moderation](docs/GROUP-FEATURES.md) | `docs/GROUP-FEATURES.md` |
+| [Jadibot mini-web pairing and deployment](docs/JADIBOT-MINI-PORTAL.md) | `docs/JADIBOT-MINI-PORTAL.md` |
+| [Stage 2 — Jadibot security hardening](docs/SECURITY-HARDENING-2026-10-26.md) | `docs/SECURITY-HARDENING-2026-10-26.md` |
+| [Changelog — 2026-10-26](docs/CHANGELOG-2026-10-26.md) | `docs/CHANGELOG-2026-10-26.md` |
+| [Test report — 2026-10-26](docs/TEST-REPORT-2026-10-26.md) | `docs/TEST-REPORT-2026-10-26.md` |
+| [GitHub metrics and automation](docs/GITHUB-AUTOMATION.md) | `docs/GITHUB-AUTOMATION.md` |
+| [Architecture map — pairing portal and GitHub flow](docs/ARCHITECTURE-MAP.md) | `docs/ARCHITECTURE-MAP.md` |
+| [Change log — 2026-10-25](docs/CHANGELOG-2026-10-25.md) | `docs/CHANGELOG-2026-10-25.md` |
+| [Testing and verification report — 2026-10-25](docs/TEST-REPORT-2026-10-25.md) | `docs/TEST-REPORT-2026-10-25.md` |
+
 
 The table below lists Markdown documentation present in this repository; paths are relative and GitHub-compatible.
 

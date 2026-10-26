@@ -4,6 +4,7 @@ import { Bot } from './core/Bot.js';
 import { CrashGuard } from './core/CrashGuard.js';
 import { registry } from './core/registry.js';
 import { createServer } from 'node:http';
+import { startPairingPortal, stopPairingPortal, setBotNumberProvider } from './services/jadibotPortal.js';
 
 const guard = new CrashGuard({
   maxCrashes: 5,
@@ -13,6 +14,11 @@ const guard = new CrashGuard({
 
 const bot = new Bot();
 registry.bot = bot;
+setBotNumberProvider(() => {
+  const jid = registry.sock?.user?.id || bot.sock?.user?.id || '';
+  const fromSession = String(jid).split(':')[0].split('@')[0].replace(/\D/g, '');
+  return fromSession || process.env.BOT_WHATSAPP_NUMBER || process.env.PAIRING_NUMBER || '';
+});
 
 let shuttingDown = false;
 const shutdown = async (signal) => {
@@ -20,6 +26,7 @@ const shutdown = async (signal) => {
   shuttingDown = true;
   Logger.info(`Received ${signal}, shutting down...`);
   await new Promise(resolve => webhookServer.close(resolve));
+  try { await stopPairingPortal(); } catch (e) { Logger.error(`Pairing portal shutdown: ${e.message}`); }
   try { await bot.stop(); } catch (e) { Logger.error(`Shutdown: ${e.message}`); }
   process.exit(0);
 };
@@ -54,6 +61,10 @@ webhookServer.on('error', error => Logger.error({ err: error.message }, 'world b
 webhookServer.listen(webhookPort, process.env.WHISKAY_BOT_WEBHOOK_HOST || '0.0.0.0', () => Logger.info(`World Boss webhook listening on ${webhookPort}`));
 
 try {
+  // Portal stays on the bot's Node process. Local developer environments may use
+  // a temporary TryCloudflare URL; server/deployment environments must supply a public URL.
+  const portal = await startPairingPortal().catch(error => { Logger.error(`Pairing portal failed to start: ${error.message}`); return { ok: false, mode: 'failed' }; });
+  Logger.info(`Jadibot pairing portal: ${portal.url || '(URL belum tersedia)'} [${portal.mode || 'unknown'}]`);
   await bot.start();
 } catch (e) {
   Logger.fatal(`Failed to start: ${e.message}`);

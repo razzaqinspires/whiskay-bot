@@ -1,5 +1,25 @@
 # Documentation index
 
+# Recent implementation records
+
+- [Stage 3 — Egg calculator and group tools (v2.5.2)](CHANGELOG-2026-10-26.md)
+- [Latest verification report — v2.5.2](TEST-REPORT-2026-10-26.md)
+- [Egg calculator integration](EGG-CALCULATOR.md)
+- [Group tools and moderation](GROUP-FEATURES.md)
+
+- [Stage 2 — Jadibot portal security hardening (2026-10-26)](SECURITY-HARDENING-2026-10-26.md)
+- [Changelog — 2026-10-26](CHANGELOG-2026-10-26.md)
+- [Testing report — 2026-10-26](TEST-REPORT-2026-10-26.md)
+
+- [Jadibot mini-web pairing and deployment](JADIBOT-MINI-PORTAL.md)
+- [GitHub metrics and automation](GITHUB-AUTOMATION.md)
+- [Architecture map — pairing portal and GitHub flow](ARCHITECTURE-MAP.md)
+- [Change log — 2026-10-25](CHANGELOG-2026-10-25.md)
+- [Testing and verification report — 2026-10-25](TEST-REPORT-2026-10-25.md)
+
+---
+
+
 - [STAGE-16-GUILD-AI-MEMORY.md](STAGE-16-GUILD-AI-MEMORY.md)
 - [archive/bot/README-MENU-UPDATE.md](archive/bot/README-MENU-UPDATE.md)
 - [archive/bot/README-REWORK.md](archive/bot/README-REWORK.md)

@@ -11,3 +11,7 @@ node_modules/
 
 # Runtime state, private user profiles, generated cards and download cache
 /data/
+
+# Jadibot portal tickets, settings and sub-bot credentials
+/data/jadibot/
+/data/bin/
