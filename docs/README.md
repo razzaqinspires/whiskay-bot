@@ -2,11 +2,9 @@
 
 # Recent implementation records
 
-- [Stage 3 — Egg calculator and group tools (v2.5.2)](CHANGELOG-2026-10-26.md)
-- [Latest verification report — v2.5.2](TEST-REPORT-2026-10-26.md)
-- [Egg calculator integration](EGG-CALCULATOR.md)
-- [Group tools and moderation](GROUP-FEATURES.md)
-
+- [Stage 3 — Group control and text safety (2026-10-26)](GROUP-CONTROL-AND-SAFETY.md)
+- [Cognitive AI and RPG Tactical Coach](COGNITIVE-AI-RPG-COACH.md)
+- [Test report — group safety upgrade](TEST-REPORT-2026-10-26-GROUP-SAFETY.md)
 - [Stage 2 — Jadibot portal security hardening (2026-10-26)](SECURITY-HARDENING-2026-10-26.md)
 - [Changelog — 2026-10-26](CHANGELOG-2026-10-26.md)
 - [Testing report — 2026-10-26](TEST-REPORT-2026-10-26.md)

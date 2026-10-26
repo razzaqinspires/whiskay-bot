@@ -113,7 +113,19 @@ export default {
     const sub = String(ctx.args?.[0] || 'status').toLowerCase();
     const { all, player: p } = await getPlayer(ctx);
     const actions = [btn(ctx,'Jelajah Dungeon','rpg explore'),btn(ctx,'Profil RPG','rpg status'),btn(ctx,'Gunakan Potion','rpg potion'),btn(ctx,'Istirahat','rpg rest'),btn(ctx,'Panduan','rpg help')];
-    if (sub === 'help') return ctx.sendInteractive({ title:'DUNGEON RPG · FIELD GUIDE', subtitle:'Turn-based adventure', body:'EXPLORE — lawan monster dan kumpulkan XP/gold.\nPOTION — pulihkan HP, jika potion tersedia.\nREST — pulihkan sebagian HP dengan biaya gold.\nSTATUS — lihat level, rank, senjata dan progres.\n\nTombol menjalankan aksi sebagai perintah WhatsApp. RPG bersifat hiburan dan datanya disimpan lokal di server.', buttons:[btn(ctx,'Mulai Petualangan','rpg explore'),btn(ctx,'Lihat Status','rpg status')] });
+    if (sub === 'help') return ctx.sendInteractive({ title:'DUNGEON RPG · FIELD GUIDE', subtitle:'Turn-based adventure', body:'EXPLORE — lawan monster dan kumpulkan XP/gold.\nPOTION — pulihkan HP, jika potion tersedia.\nREST — pulihkan sebagian HP dengan biaya gold.\nCOACH — rekomendasi strategi berdasarkan profil saat ini.\nSTATUS — lihat level, rank, senjata dan progres.\n\nTombol menjalankan aksi sebagai perintah WhatsApp. RPG bersifat hiburan dan datanya disimpan lokal di server.', buttons:[btn(ctx,'Mulai Petualangan','rpg explore'),btn(ctx,'Strategi RPG','rpg coach'),btn(ctx,'Lihat Status','rpg status')] });
+    if (sub === 'coach' || sub === 'strategy') {
+      const hpPct = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+      const advice = [];
+      if (hpPct < 0.35) advice.push(p.potions > 0 ? 'HP kritis: gunakan .rpg potion sebelum bertarung.' : `HP kritis dan potion habis: kumpulkan gold (${15 + p.level * 4}) lalu gunakan .rpg rest.`);
+      else if (hpPct < 0.65 && p.potions > 0) advice.push('HP menengah: pertimbangkan potion sebelum melawan monster kuat.');
+      if (p.weaponPower < p.level * 2 + 4) advice.push('Kekuatan senjata tertinggal dari level: periksa .inventory dan gunakan .equip weapon <id> jika ada senjata lebih baik.');
+      if (p.gold < 15 + p.level * 4 && hpPct < 0.8) advice.push('Gold belum cukup untuk istirahat; pilih pertarungan yang aman dan gunakan potion secara hemat.');
+      if (p.floor >= 8) advice.push('Lantai tinggi: pulihkan HP penuh, pastikan potion tersedia, dan periksa equipment sebelum lanjut.');
+      if (p.wins > 0 && p.wins % 3 !== 0) advice.push(`Kemenangan ${p.wins}: setiap 3 kemenangan dapat menaikkan progres lantai dalam mode ini.`);
+      if (!advice.length) advice.push('Kondisi relatif stabil. Jelajahi dungeon, simpan potion untuk keadaan darurat, dan cek inventory untuk equipment yang lebih kuat.');
+      return ctx.sendInteractive({ title:'🧠 RPG TACTICAL COACH', subtitle:`Level ${p.level} · Floor ${p.floor}`, body:`Profil: HP ${p.hp}/${p.maxHp} · Power ${p.weaponPower} · Gold ${p.gold} · Potion ${p.potions}\n\n${advice.map((x,i)=>`${i+1}. ${x}`).join('\n')}\n\nSaran berbasis statistik tersimpan; bukan jaminan hasil pertarungan.`, buttons:[btn(ctx,'Jelajah','rpg explore'),btn(ctx,'Potion','rpg potion'),btn(ctx,'Status','rpg status')] });
+    }
     if (sub === 'status' || sub === 'start') {
       await savePlayer(ctx, all, p);
       const body = `Rank: ${rank(p.level)}\nLevel: ${p.level}\nXP: ${p.xp}/${needXp(p.level)}\nHP: ${p.hp}/${p.maxHp}\nGold: ${p.gold}\nSenjata: ${p.weapon} (Power ${p.weaponPower})\nFloor: ${p.floor}\nKemenangan: ${p.wins} · Kekalahan: ${p.losses}\nPotion: ${p.potions}\n\nPilih aksi dari tombol di bawah.`;

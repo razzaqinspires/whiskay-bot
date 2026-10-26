@@ -9,13 +9,10 @@
 - Added a regression test for rate-limit behavior and documented deployment limits.
 - Preserved the previous QR/pairing flow, owner/premium access checks, pricing controls, GitHub command plugin, and existing documentation archive.
 
-## Stage 3: Egg calculator and group feature completion (2.5.2)
 
-- Documented `.telur`, `.kalkulatortelur`, `.hitungtelur`, `.egghelp`, and the `EGG_CALCULATOR_URL` deployment contract.
-- Updated `.env.example` with the calculator website URL setting and optional GitHub traffic configuration; removed duplicate Jadibot example entries.
-- Added per-group persistent settings for anti-link, anti-spam, and welcome/leave notices.
-- Added `.grouphelp`, `.groupinfo`, `.admins`, `.tagall`, `.hidetag`, `.revoke`, `.setsubject`, `.setdesc`, `.closegroup`, `.opengroup`, `.antilink`, `.antispam`, `.welcome`, and `.setwelcometext`.
-- Added group message guard and group participant event hook.
-- Hardened group moderation permission checks by reading actual group metadata rather than relying on an absent `ctx.isAdmin` flag.
-- Fixed case-sensitive serializer facade imports and exposed compatibility aliases `serializeMessage` / `attachSerializerRuntime`.
-- Updated the root README, documentation index, architecture map, and dedicated feature docs without removing historical archives.
+## Stage 3 — Group control and RPG/AI refinements
+- Added owner-only `.groupbot` controls with per-group mute, status/list, only-current-group mode, and reset buttons.
+- Added opt-in `.antitoxic`, `.antibanword`, and `.textguard` group filters with persistent group-scoped settings.
+- Added cached group metadata role resolution for admin/bot-admin checks.
+- Added `.rpg coach` tactical recommendations and bounded AI consistency/uncertainty guidance.
+- Full regression suite after this stage: 65 passed, 0 failed; syntax checks passed. Live WhatsApp integration remains to be verified on a test group. If group metadata cannot be fetched, automatic text moderation fails open to avoid false-positive deletion.

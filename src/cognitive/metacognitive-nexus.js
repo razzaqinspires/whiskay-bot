@@ -10,5 +10,5 @@ export function planCognitiveRequest(input) {
   const math = /[=+*/^]|\b(hitung|solve|integral|persamaan|rumus)\b/i.test(prompt);
   const multiStep = /\b(rencana|langkah|analisis|bandingkan|debug|implementasi|desain)\b/i.test(prompt) || tokens.length > 70;
   const mode = math ? 'structured-math' : multiStep ? 'multi-step' : 'conversational';
-  return { prompt, mode, tokenCount: Math.min(tokens.length, 500), systemSuffix: `\nMode kognitif: ${mode}. Periksa konsistensi jawaban, sebutkan asumsi penting, dan jangan mengklaim telah melakukan tindakan eksternal.` };
+  return { prompt, mode, tokenCount: Math.min(tokens.length, 500), systemSuffix: `\nMode kognitif: ${mode}. Susun rencana internal singkat untuk tugas multi-langkah, cek ulang konsistensi hasil, bedakan fakta dari asumsi, nyatakan ketidakpastian yang relevan, dan jangan mengklaim telah melakukan tindakan eksternal. Ini adalah heuristik perangkat lunak; jangan mengklaim memiliki kesadaran atau AGI yang telah terbukti.` };
 }

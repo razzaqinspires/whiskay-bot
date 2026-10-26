@@ -3,6 +3,7 @@ import Logger from './Logger.js';
 import config from '../config/index.js';
 import { recordCommandUsage } from '../lib/menu-settings.js';
 import { hasPremium } from '../lib/energy-worker.js';
+import { isGroupMuted } from '../lib/group-policy.js';
 
 export class CommandHandler {
   constructor(pm) { this._pm = pm; this._base = new MiddlewareChain(); }
@@ -48,6 +49,9 @@ export class CommandHandler {
     const chain = new MiddlewareChain();
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;
+
+    // Muted-group policy applies to all commands except owner recovery controls.
+    if (ctx.isGroup && isGroupMuted(ctx.chat) && !(ctx.isOwner && ctx.command === 'groupbot')) return true;
 
     // Owner check now uses serializer's LID-aware flag
     if (p.owner && !ctx.isOwner) { await ctx.reply('🔒 Owner only'); return true; }

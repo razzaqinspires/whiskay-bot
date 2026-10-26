@@ -8,7 +8,7 @@ import qrcode from 'qrcode-terminal';
 import path from 'node:path';
 import Logger from './Logger.js';
 import EventBus from './EventBus.js';
-import { attachSerializerRuntime } from './serializer.js';
+import { attachSerializerRuntime } from './Serializer.js';
 import { PluginManager } from './PluginManager.js';
 import { AutoCleaner } from './AutoCleaner.js';
 import { CommandHandler } from './CommandHandler.js';
@@ -19,7 +19,6 @@ import { SourceWatcher } from './SourceWatcher.js';
 import { RestartManager } from './RestartManager.js';
 import { WatcherLog } from './WatcherLog.js';
 import { createMessageHandler } from '../handlers/message.js';
-import { sendGroupParticipantNotice } from '../lib/group-guard.js';
 import { baseMiddlewares } from '../middlewares/index.js';
 import { registry } from './registry.js';
 import config from '../config/index.js';
@@ -383,10 +382,6 @@ export class Bot {
       commandHandler: this._cmd,
       eventBus: EventBus
     }));
-
-    sock.ev.on('group-participants.update', update => {
-      sendGroupParticipantNotice(sock, update).catch(error => Logger.warn({ err: error.message }, 'group participant notice skipped'));
-    });
 
     return sock;
   }

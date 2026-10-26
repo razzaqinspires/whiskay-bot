@@ -1,38 +1,31 @@
-# Test report — 2026-10-26 (v2.5.2)
+# Test Report — 2026-10-26
 
-## Result
+## Local test run
 
-- Full local test suite: **58 passed, 0 failed, 0 skipped**.
-- Targeted egg calculator + group feature tests: **10 passed, 0 failed**.
-- The first group-feature test run exposed two issues (stale metadata cache across test sockets and welcome event metadata reuse); both were fixed before the full passing run.
-- The existing Stage 17 assertion was updated to reflect the safer metadata-based permission check rather than the old `ctx.isAdmin` flag.
+Command: `npm test`  
+Runtime: Node.js 20+  
+Result: **48 passed, 0 failed, 0 skipped**.
 
-## Coverage added
+Coverage includes:
 
-1. Egg calculator CTA contract, HTTPS validation, and whole-egg help content.
-2. Per-group settings defaults, persistence, invalid group IDs, and allowlisted setting keys.
-3. Anti-link deletion for a non-admin when the bot is admin.
-4. Admin exemption from anti-link.
-5. Welcome template placeholder replacement and mention list.
-6. Registration of all documented group tools.
+- Pairing phone normalization and international-format validation.
+- Host-mode detection for local tunnel, configured public URL, and deployment environments.
+- Pairing portal form, WhatsApp confirmation deep link, one-time ticket consumption, and the rate-limit threshold/expiry behavior.
+- Existing RPG transactions, sync, economy, gacha, downloader, energy, guild-memory, moderation, and menu regressions.
+- GitHub stats/commits behavior without fabricating traffic values.
 
-## Other verification
+Additional checks:
 
-- `node --test` — passed 57/57.
-- JavaScript syntax checks — performed after changes (see release packaging command).
-- ZIP integrity check and secret-file exclusion — performed before release.
+- `node --check src/services/jadibotPortal.js`: passed.
+- `node --check test/jadibot-portal.test.js`: passed.
+- Full-source syntax check is defined in `.github/workflows/ci.yml`.
+- ZIP integrity and secret-file exclusion are checked during packaging.
 
-## Not verified in this environment
+## Not tested in this environment
 
-- Live pairing against a real WhatsApp account.
-- Live group moderation against a real WhatsApp group.
-- Whether the external calculator URL is currently deployed and reachable from WhatsApp WebView.
-- GitHub Actions execution on the remote repository.
-- A clean `npm ci` from a fresh network fetch; the install attempt timed out, although the available local dependency tree supported the full passing test run.
+- Live Baileys pairing with a real second WhatsApp account.
+- Reachability through a real TryCloudflare tunnel or a deployed reverse proxy.
+- Remote GitHub Actions execution after pushing this archive.
+- Production load testing or multi-process rate limiting.
 
-## Operational caveats
-
-- Anti-spam counters are in-memory and reset on restart.
-- Group settings persist in `data/group-settings.json`; keep that file backed up if settings matter.
-- Anti-link/anti-spam deletion requires bot-admin privileges. If the bot is not admin, it warns but cannot delete.
-- `EGG_CALCULATOR_URL` points to a separately hosted website; the website source is not part of this bot archive.
+A local green test suite does not guarantee production readiness; verify the deployment URL and test with a secondary WhatsApp account before enabling the feature for customers.

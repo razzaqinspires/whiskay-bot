@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.5.2-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.5.4-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -27,11 +27,11 @@
 - [Smart Energy Middleware](#-smart-energy-middleware)
 - [Worker status & runtime statistics](#-worker-status--runtime-statistics)
 - [Command catalog](#-command-catalog)
-- [Group tools & moderation](#-group-tools--moderation)
-- [Egg sales calculator](#-egg-sales-calculator)
 - [Global Auction House](#-global-auction-house)
 - [World Boss webhook](#-world-boss-webhook)
 - [Jadibot secure pairing portal](#-jadibot-secure-pairing-portal)
+- [Group control and anti-flood safety](#-group-control-and-anti-flood-safety)
+- [Cognitive AI and RPG Tactical Coach](#-cognitive-ai-and-rpg-tactical-coach)
 - [GitHub metrics and automation](#-github-metrics-and-automation)
 - [Install & configure](#-install--configure)
 - [Security and operations](#-security-and-operations)
@@ -116,23 +116,16 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 | `.guild` | Buat guild, bergabung, mengeluarkan anggota, dan donasi Gold |
 | `.rpgsync` | Periksa koneksi dashboard WHISKAY RPG |
 | `.trade` | Transfer Gold atau item kepada pemain lain di grup |
-| `.rpg, .dungeon, .adventure` | Aksi RPG |
+| `.rpg, .dungeon, .adventure` | Aksi RPG; `.rpg coach` memberi saran taktis berdasarkan HP, gold, potion, level, dan lantai |
 
 ### Group
 
 | Perintah | Fungsi |
 |---|---|
-| `.kick, .add, .promote, .demote, .linkgroup` | Moderasi anggota; tindakan membutuhkan admin grup dan hak admin bot |
-| `.grouphelp` | Panduan lengkap fitur grup |
-| `.groupinfo, .admins` | Informasi grup, jumlah anggota, daftar admin |
-| `.tagall [pesan], .hidetag [pesan]` | Mention seluruh anggota atau kirim pengumuman tanpa menampilkan mention |
-| `.revoke` | Cabut tautan undangan lama dan buat tautan baru |
-| `.setsubject [nama], .setdesc [deskripsi]` | Ubah nama dan deskripsi grup |
-| `.closegroup, .opengroup` | Batasi pesan hanya admin atau buka untuk seluruh anggota |
-| `.antilink on|off|status` | Hapus tautan dari anggota non-admin saat bot menjadi admin |
-| `.antispam on|off|status` | Deteksi pesan beruntun dan hapus pesan pelanggaran jika bot admin |
-| `.welcome on|off|status` | Pesan sambutan dan keluar saat event anggota grup |
-| `.setwelcometext [teks]` | Atur teks sambutan; placeholder `{user}` dan `{group}` tersedia |
+| `.kick, .add, .promote, .demote, .linkgroup` | Moderasi grup WhatsApp: kick, add, promote, demote, linkgroup |
+| `.groupbot panel|list|status|mute|unmute|onlyhere|reset` | Owner mengatur grup yang dibisukan; `onlyhere` mematikan bot di semua grup kecuali grup saat ini |
+| `.antitoxic`, `.antibanword`, `.textguard` | Admin grup mengatur filter kata toxic, frasa terlarang, dan teks flood/lag |
+| `.groupstatus`, `.grouphelp` | Status dan panduan keamanan grup |
 
 ### Media
 
@@ -146,9 +139,7 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 |---|---|
 | `.leveling, .profile, .rank, .rankmatrix, .levelnotify, .leaderboard, .setpp` | Level, XP, rank, profile card dan notifikasi kenaikan level |
 | `.menu, .help` | Font, widget, template, border, spasi, gambar, urutan dan ketebalan font |
-| `.ping, .p` | Lihat status / bantuan perintah |
-| `.telur, .kalkulatortelur, .hitungtelur` | Buka website kalkulator penjualan telur: jumlah butir, total, kembalian, dan kekurangan untuk membeli satu butir tambahan |
-| `.egghelp, .bantuantelur` | Panduan kalkulator penjualan telur |
+| `.ping, .p` | Lihat bantuan perintah |
 | `.dlselect` | Kirim format downloader yang dipilih |
 | `.fb` | Pilih format unduhan facebook melalui tombol interaktif |
 | `.ig` | Pilih format unduhan instagram melalui tombol interaktif |
@@ -197,30 +188,6 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 
 Auction RPCs run server-side in Supabase. Listings are active until purchased; this stage does not yet provide cancellation, expiry, or a listing fee. Item IDs must match the inventory's `id`.
 
-## 👥 Group tools & moderation
-
-Group settings are stored per group in `data/group-settings.json` (created at runtime and ignored by Git). `.antilink`, `.antispam`, and `.welcome` are configurable independently for each group. The bot checks group metadata to determine admin privileges instead of trusting message-provided flags. For message deletion, changing the subject/description, invite rotation, or closing/opening the group, the bot must be a group admin. Anti-spam uses a bounded in-memory window, so its counters reset after restart and are not distributed across replicas.
-
-```mermaid
-flowchart TD
-  A[Incoming group message] --> B{Group setting enabled?}
-  B -- No --> C[Normal command pipeline]
-  B -- Yes --> D[Read group metadata]
-  D --> E{Sender is admin?}
-  E -- Yes --> C
-  E -- No --> F{Link or message burst?}
-  F -- No --> C
-  F -- Yes --> G{Bot is admin?}
-  G -- Yes --> H[Delete violating message and warn]
-  G -- No --> I[Warn; deletion unavailable]
-```
-
-## 🥚 Egg sales calculator
-
-Use `.telur`, `.kalkulatortelur`, or `.hitungtelur` to open the calculator website; `.egghelp` explains the whole-egg calculation. Set `EGG_CALCULATOR_URL` in `.env` to the exact public HTTPS website URL. The command refuses insecure public HTTP URLs and URLs containing embedded credentials. The website is a separate deployment, not bundled into this bot repository.
-
-The calculator's business rule is to use whole eggs only: `jumlah = floor(uang pembeli / harga per butir)`, `total = jumlah × harga`, `kembalian = uang pembeli − total`. Test coverage for the command serializer contract and invalid URLs is in `test/egg-calculator-plugin.test.js`.
-
 ## 🚨 World Boss webhook
 
 The bot exposes `POST /webhooks/world-boss` on `WHISKAY_BOT_WEBHOOK_PORT` (default `8787`). The website's `/api/world-boss/announce` route verifies the signed game access token and forwards a fixed event to the bot. The bot checks the shared bearer secret, validates `event: world_boss_spawned`, then sends the fixed announcement to groups the bot currently participates in.
@@ -243,7 +210,7 @@ npm test
 npm start
 ```
 
-Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. Set `EGG_CALCULATOR_URL` to the public HTTPS URL of the separately deployed egg-sales calculator website; `.telur` opens that URL in WhatsApp's webview CTA. The bot ZIP does not contain the calculator website source, only the command integration and tests. Keep `.env`, Baileys auth state, and any service-role key out of Git. If `.env` already exists, merge the new keys rather than overwriting your current values. The bot does not need the Supabase service-role key; the website API owns database access.
+Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. Keep `.env`, Baileys auth state, and any service-role key out of Git. The bot does not need the Supabase service-role key; the website API owns database access.
 
 ## 🛡️ Security and operations
 
@@ -345,13 +312,42 @@ Riwayat snapshot tersimpan: **1** (maksimum 90 snapshot lokal di berkas metrik).
 - A GitHub Actions CI workflow runs `npm ci`, JavaScript syntax checks, and the full regression suite on pushes and pull requests.
 - Rate limiting is process-local; multi-instance deployments should enforce shared throttling at the trusted reverse proxy. See [security hardening](docs/SECURITY-HARDENING-2026-10-26.md), [changelog](docs/CHANGELOG-2026-10-26.md), and [test report](docs/TEST-REPORT-2026-10-26.md).
 
+## 🛡️ Group control and anti-flood safety
+
+- `.groupbot panel` displays interactive controls for the current group; owner-only `.groupbot onlyhere` mutes the bot in every group except the current one. `.groupbot list` lists muted IDs and the allow-only group. `.groupbot reset` resets the global mute policy without deleting per-group safety settings.
+- `.antitoxic on|off|add <word>|remove <word>|list`, `.antibanword on|off|add <phrase>|remove <phrase>|list`, and `.textguard on|off|status` are group-admin controls.
+- Group policy is persisted in `data/group-policy.json`. The bot fetches and caches group metadata to resolve sender and bot admin roles; deletion requires the bot to be a group admin. Filters are opt-in. Word filters can have false positives, so test custom terms before enabling them in a busy group.
+- Text Guard detects extremely long messages, repeated-character/word floods, and excessive invisible Unicode controls. It is a bounded text filter, not a general antivirus and it does not inspect executable files.
+
+## 🧠 Cognitive AI and RPG Tactical Coach
+
+- `.rpg coach` provides deterministic tactical guidance from the saved RPG profile (HP, potions, weapon power, gold, floor and level).
+- WHISKAY AI adds bounded task classification, short-term conversation context, consistency checking instructions and uncertainty guidance. This is an engineering scaffold for a more capable assistant, **not evidence of artificial general intelligence or artificial consciousness**.
+
+```mermaid
+flowchart TD
+  A[Incoming group message] --> B[Serializer + PN/LID identities]
+  B --> C[Cached group role metadata]
+  C --> D{Group muted?}
+  D -- Yes --> E{Owner groupbot recovery?}
+  E -- No --> F[Ignore message]
+  E -- Yes --> G[Owner control command]
+  D -- No --> H[Opt-in toxic / ban-word / text guard]
+  H --> I{Unsafe text?}
+  I -- Yes --> J{Bot admin?}
+  J -- Yes --> K[Delete message + rate-limited notice]
+  J -- No --> L[Do not delete; continue safely]
+  I -- No --> M[Command handler / regular message]
+```
+
 ## 📚 Documentation & Archives
 
 | Document | Path |
 |---|---|
-| [Egg sales calculator integration](docs/EGG-CALCULATOR.md) | `docs/EGG-CALCULATOR.md` |
-| [Group tools and moderation](docs/GROUP-FEATURES.md) | `docs/GROUP-FEATURES.md` |
 | [Jadibot mini-web pairing and deployment](docs/JADIBOT-MINI-PORTAL.md) | `docs/JADIBOT-MINI-PORTAL.md` |
+| [Group control, toxic filter and text guard](docs/GROUP-CONTROL-AND-SAFETY.md) | `docs/GROUP-CONTROL-AND-SAFETY.md` |
+| [Cognitive AI and RPG Tactical Coach](docs/COGNITIVE-AI-RPG-COACH.md) | `docs/COGNITIVE-AI-RPG-COACH.md` |
+| [Test report — 2026-10-26 group safety upgrade](docs/TEST-REPORT-2026-10-26-GROUP-SAFETY.md) | `docs/TEST-REPORT-2026-10-26-GROUP-SAFETY.md` |
 | [Stage 2 — Jadibot security hardening](docs/SECURITY-HARDENING-2026-10-26.md) | `docs/SECURITY-HARDENING-2026-10-26.md` |
 | [Changelog — 2026-10-26](docs/CHANGELOG-2026-10-26.md) | `docs/CHANGELOG-2026-10-26.md` |
 | [Test report — 2026-10-26](docs/TEST-REPORT-2026-10-26.md) | `docs/TEST-REPORT-2026-10-26.md` |
@@ -509,3 +505,29 @@ The table below lists Markdown documentation present in this repository; paths a
 **WHISKAYBOT · Your command bridge to the world.**
 
 </div>
+
+
+## 🔐 Baileys 7 LID/PN owner resolution
+
+Baileys 7 may deliver a LID in `key.remoteJid` / `key.participant`. The serializer adapter now prefers a known phone-number JID from `remoteJidPn`, `remoteJidAlt`, `participantPn`, or `participantAlt`, while preserving `@g.us`, `@broadcast`, and `@newsletter` addresses. Owner checks compare canonical JIDs by namespace; LID digits are never treated as phone numbers. Configure `OWNERS=628xxxxxxxxxx` and, when necessary, `OWNER_LIDS=<actual-lid>@lid`. PN aliases are used when Baileys exposes them; the library cannot always reverse-resolve an unknown LID to a phone number.
+
+## 📣 Owner-only WhatsApp Channel commands
+
+| Command | Description |
+|---|---|
+| `.saluran` | Show channel help |
+| `.saluran buat Nama \| Deskripsi` | Create a channel using `newsletterCreate` if available |
+| `.saluran info <id@newsletter or invite link>` | Read channel metadata |
+| `.saluran kirim <id@newsletter> \| pesan` | Submit text using `sock.sendMessage` |
+| `.saluran nama <id@newsletter> \| nama baru` | Rename a channel if supported |
+| `.saluran deskripsi <id@newsletter> \| deskripsi baru` | Update description if supported |
+| `.saluran follow/unfollow <id@newsletter>` | Follow/unfollow if supported |
+
+Newsletter support varies by Baileys release and WhatsApp server behavior. In particular, text/media sending to `@newsletter` has been reported as unstable; a returned message ID does not prove that the post became visible. Verify from the WhatsApp client. The commands are owner-only and do not mass-send to subscribers automatically.
+
+### Testing notes — 2026-10-26
+
+Added `test/lid-owner-newsletter.test.js` covering namespace-safe owner matching, PN/LID identity separation, serializer coverage for Baileys alternate/Pn fields, and owner-only newsletter command wiring. Unit tests do not establish successful live channel creation or posting. See `docs/BAILEYS-LID-PN-NEWSLETTER.md` for implementation details and upstream references.
+
+
+Detailed test record: [`docs/TEST-REPORT-2026-10-26-LID-PN-NEWSLETTER.md`](docs/TEST-REPORT-2026-10-26-LID-PN-NEWSLETTER.md).

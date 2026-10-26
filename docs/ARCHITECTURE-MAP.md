@@ -52,24 +52,3 @@ flowchart TD
 | Sub-bot socket | Its own Baileys connection and credentials | Main bot's primary session |
 | Rental JSON | Owner/user rental state, price, expiry, pending manual payments | Bank transfer verification via a payment provider |
 | GitHub Actions | Timestamped repository snapshot and generated documentation block | Private visitor identity; lifetime page visitor count |
-
-
-## Group moderation and egg calculator (v2.5.2)
-
-```mermaid
-flowchart LR
-  A[WhatsApp group message] --> B[Serializer]
-  B --> C[Group Guard]
-  C --> D{Anti-link / anti-spam enabled?}
-  D -- No --> E[Command pipeline]
-  D -- Yes --> F[Group metadata + admin check]
-  F --> G{Violation?}
-  G -- No --> E
-  G -- Yes --> H[Delete if bot admin; warn]
-  I[Group participant event] --> J[Welcome/leave handler]
-  J --> K[Per-group settings JSON]
-  L[.telur command] --> M[EGG_CALCULATOR_URL]
-  M --> N[External HTTPS calculator website]
-```
-
-`data/group-settings.json` is local runtime state, not source-controlled configuration. The egg calculator website is deployed independently; this repository contains only the WhatsApp command integration.

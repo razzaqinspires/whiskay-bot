@@ -10,9 +10,9 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
     try {
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
+      const guard = await applyGroupGuard(ctx);
+      if (guard.action === 'muted' || guard.action === 'block' || guard.action === 'delete_failed' || guard.action === 'cannot_delete') continue;
       eventBus.emit('message', ctx);
-      try { if (await applyGroupGuard(ctx)) continue; }
-      catch (guardError) { Logger.warn({ err: guardError.message }, 'group guard skipped'); }
       // XP progresses only in groups whose leveling mode is enabled.
       if (ctx.isGroup && !ctx.isBot && ctx.sender) {
         try {
