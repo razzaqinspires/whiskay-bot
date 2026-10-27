@@ -10,6 +10,7 @@ const HITS_FILE = path.join(DATA_DIR, 'command-hits.json');
 const DAY = 86_400_000;
 const MAX_USERS = 5000;
 let writeQueue = Promise.resolve();
+let pendingWriteCount = 0;
 let mutationQueue = Promise.resolve();
 let switchCache = null;
 let switchCacheAt = 0;
@@ -18,7 +19,9 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 async function readJson(file, fallback) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } }
 async function atomicJson(file, value) {
   const task = async () => { await mkdir(DATA_DIR, { recursive: true }); const tmp = `${file}.${process.pid}.tmp`; await writeFile(tmp, JSON.stringify(value, null, 2)); await rename(tmp, file); };
-  writeQueue = writeQueue.then(task, task); return writeQueue;
+  pendingWriteCount++;
+  writeQueue = writeQueue.then(task, task).finally(() => { pendingWriteCount = Math.max(0, pendingWriteCount - 1); });
+  return writeQueue;
 }
 const normUser = id => String(id || 'unknown').replace(/[^a-zA-Z0-9@._:-]/g, '').slice(0, 180) || 'unknown';
 export function complexityScore(command, previous = []) {
@@ -83,6 +86,7 @@ export async function stopCharging(userId, now = Date.now()) {
   });
 }
 let regenTimer = null;
+let regenTickRunning = false;
 export async function setAutoRegen(enabled) {
   await withMutationLock(async () => { const switches = await readJson(SETTINGS_FILE, {}); switches.autoRegen = Boolean(enabled); await atomicJson(SETTINGS_FILE, switches); switchCache = { antiSpam: true, globalCooldown: true, ...switches }; switchCacheAt = Date.now(); });
   if (enabled) startAutoRegenWorker(); else stopAutoRegenWorker();
@@ -91,6 +95,9 @@ export async function setAutoRegen(enabled) {
 export function startAutoRegenWorker() {
   if (regenTimer) return;
   regenTimer = setInterval(async () => {
+    // setInterval must not enqueue another database scan while the prior one is still running.
+    if (regenTickRunning) return;
+    regenTickRunning = true;
     try {
       await withMutationLock(async () => {
         const all = await readJson(ENERGY_FILE, {}); let changed = false;
@@ -102,6 +109,7 @@ export function startAutoRegenWorker() {
         if (changed) await atomicJson(ENERGY_FILE, all);
       });
     } catch (e) { console.error('[AUTO REGEN]', e?.message || e); }
+    finally { regenTickRunning = false; }
   }, 1000);
   regenTimer.unref?.();
 }
@@ -148,7 +156,7 @@ export async function getPremiumPrice(now = Date.now()) { const c = await getPay
 async function setPaymentConfigUnlocked(patch) { const current = await getPaymentConfig(); const next = { ...current, ...patch }; await atomicJson(PAYMENT_FILE, next); return next; }
 async function recordHitUnlocked(userId, command) { const all = await readJson(HITS_FILE, { total: 0, commands: {}, users: {} }), u = normUser(userId), c = String(command || 'unknown').toLowerCase().slice(0, 64); all.total++; all.commands[c] = Number(all.commands[c] || 0) + 1; if (!all.users[u]) all.users[u] = { total: 0, commands: {} }; all.users[u].total++; all.users[u].commands[c] = Number(all.users[u].commands[c] || 0) + 1; await atomicJson(HITS_FILE, all); return all; }
 export async function getHits() { return readJson(HITS_FILE, { total: 0, commands: {}, users: {} }); }
-export async function getEnergyRuntimeInfo() { const m = process.memoryUsage(); return { rssMB: Math.round(m.rss / 1048576), heapUsedMB: Math.round(m.heapUsed / 1048576), platform: `${os.platform()} ${os.arch()}`, node: process.versions.node, worker: 'inline-bounded-O(n)', pendingWrites: writeQueue === Promise.resolve() ? 0 : 1 }; }
+export async function getEnergyRuntimeInfo() { const m = process.memoryUsage(); return { rssMB: Math.round(m.rss / 1048576), heapUsedMB: Math.round(m.heapUsed / 1048576), platform: `${os.platform()} ${os.arch()}`, node: process.versions.node, worker: 'inline-bounded-O(n)', pendingWrites: pendingWriteCount }; }
 export function energyFooter(receipt) { return receipt ? `\n\n-${receipt.cost.toFixed(2).replace('.', ',')}% baterai digunakan. 🔋 ${receipt.energy.toFixed(2).replace('.', ',')}% tersisa.` : ''; }
 
 // Serialize read-modify-write transactions in-process so concurrent messages cannot overwrite one another.

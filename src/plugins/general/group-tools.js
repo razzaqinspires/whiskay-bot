@@ -1,4 +1,5 @@
 import { getGroupSettings, updateGroupSettings } from '../../lib/group-settings.js';
+import { sameUser } from '../../lib/security.js';
 
 const isAdminParticipant = (p) => p?.admin === 'admin' || p?.admin === 'superadmin';
 const digits = (jid) => String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
@@ -11,10 +12,11 @@ async function groupContext(ctx, requireAdmin = false, requireBotAdmin = false) 
   }
   const metadata = await ctx.sock.groupMetadata(ctx.chat);
   const participants = Array.isArray(metadata?.participants) ? metadata.participants : [];
-  const caller = participants.find(p => p.id === ctx.sender || p.phoneNumber === ctx.sender);
-  const me = ctx.sock.user?.id;
-  const bot = participants.find(p => p.id === me || digits(p.id) && digits(p.id) === digits(me));
-  const callerAdmin = Boolean(ctx.isOwner || isAdminParticipant(caller));
+  const callerIds = [ctx.sender, ctx.raw?.key?.participant, ctx.raw?.key?.participantAlt, ctx.raw?.key?.participantPn].filter(Boolean).map(String);
+  const caller = participants.find(p => [p.id, p.jid, p.lid, p.phoneNumber].filter(Boolean).some(id => callerIds.some(candidate => sameUser(id, candidate))));
+  const botIds = [ctx.sock.user?.id, ctx.sock.user?.lid].filter(Boolean).map(String);
+  const bot = participants.find(p => [p.id, p.jid, p.lid, p.phoneNumber].filter(Boolean).some(id => botIds.some(candidate => sameUser(id, candidate))));
+  const callerAdmin = Boolean(ctx.isOwner || ctx.isAdmin || isAdminParticipant(caller));
   const botAdmin = isAdminParticipant(bot);
   if (requireAdmin && !callerAdmin) {
     await ctx.reply('🔒 Hanya admin grup atau owner bot yang dapat menggunakan perintah ini.');

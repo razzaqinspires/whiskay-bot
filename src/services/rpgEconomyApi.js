@@ -34,6 +34,11 @@ export function economyErrorText(error) {
   if (code === 'ECONOMY_UNREACHABLE') return '📡 Server RPG tidak dapat dijangkau. Coba lagi nanti.';
   if (error?.status === 401) return '🔒 Autentikasi bot ditolak server. Samakan token bot dan website.';
   if (code === 'insufficient_gold') return `💰 Gold tidak cukup. Dibutuhkan ${Number(error.data?.price || 0).toLocaleString('id-ID')} Gold; saldo kamu ${Number(error.data?.gold || 0).toLocaleString('id-ID')} Gold.`;
+  if (code === 'pet_not_found') return '🐾 Kamu belum memiliki pet aktif. Gunakan .hatch untuk menetaskan telur.';
+  if (code === 'pet_already_active') return '🐾 Kamu sudah memiliki pet aktif. Gunakan .mypet untuk melihat statusnya.';
+  if (code === 'hatch_cooldown') return `🥚 Pet belum bisa ditetaskan lagi. Coba setelah ${error.data?.nextHatchAt ? new Date(error.data.nextHatchAt).toLocaleString('id-ID') : 'cooldown selesai'}.`;
+  if (code === 'pet_food_not_in_inventory') return `🍖 Pet Food belum ada di inventory. Beli lewat .buy pet-food, lalu coba .feed pet-food.`;
+  if (code === 'invalid_food_item') return '🍖 Jenis makanan tidak dikenali. Gunakan .feed pet-food setelah membeli makanan dari toko RPG.';
   if (code === 'insufficient_item') return '🎒 Item itu tidak tersedia di inventory.';
   if (code === 'listing_not_found') return '🏷️ Listing tidak ditemukan atau sudah dibeli.';
   if (code === 'cannot_buy_own_listing') return '🏷️ Kamu tidak bisa membeli listing milik sendiri.';

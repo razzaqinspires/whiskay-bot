@@ -45,3 +45,51 @@ export async function renderEggResultCardV2({ uang = 0, harga = 0, jumlah = 0, t
   x.fillStyle = palette.muted; x.font = '14px Sans'; x.fillText('Kartu kalkulasi lokal, bukan bukti pembayaran.', 76, 590);
   return c.toBuffer('image/png');
 }
+
+
+/** Render a dynamic, no-stakes slot mini-game card. Requires canvas or FFmpeg for PNG output. */
+export async function renderSlotMachineV2({ symbols = ['🍀','💎','⭐'], won = false, points = 0, playerName = 'PLAYER' } = {}) {
+  const reels = symbols.slice(0, 3).map(v => String(v || '⭐').slice(0, 8));
+  while (reels.length < 3) reels.push('⭐');
+  if (createCanvas) {
+    const c = createCanvas(1200, 675), x = c.getContext('2d');
+    background(x, 1200, 675); rounded(x, 42, 42, 1116, 591, 30, 'rgba(7,17,31,.92)', 'rgba(169,189,207,.4)');
+    x.fillStyle = palette.cyan; x.font = 'bold 20px Sans'; x.fillText('WHISKAY ARCADE  /  VISUAL MINI-GAME', 82, 106);
+    x.fillStyle = palette.text; x.font = 'bold 48px Sans'; x.fillText('LUCKY SPIRIT SLOTS', 82, 174);
+    x.fillStyle = palette.muted; x.font = '20px Sans'; x.fillText(String(playerName).slice(0, 24), 84, 213);
+    for (let i = 0; i < 3; i++) { rounded(x, 250 + i * 240, 250, 190, 175, 20, '#14283d', palette.gold); x.fillStyle = palette.text; x.font = 'bold 65px Sans'; x.textAlign = 'center'; x.fillText(reels[i], 345 + i * 240, 360); }
+    x.textAlign = 'left'; x.fillStyle = won ? palette.cyan : palette.gold; x.font = 'bold 34px Sans'; x.fillText(won ? `JACKPOT! +${points} POINTS` : 'TRY AGAIN · NO STAKE', 82, 515);
+    x.fillStyle = palette.muted; x.font = '17px Sans'; x.fillText('Entertainment only · Tidak menggunakan uang sungguhan atau saldo top-up', 82, 565);
+    return c.toBuffer('image/png');
+  }
+  const safe = v => esc(v);
+  const boxes = reels.map((v, i) => `<rect x="${250 + i*240}" y="250" width="190" height="175" rx="20" fill="#14283d" stroke="#e9c982" stroke-width="3"/><text x="${345 + i*240}" y="362" text-anchor="middle" font-family="Arial,sans-serif" font-size="62" font-weight="bold" fill="#f3f5f8">${safe(v)}</text>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#06101e"/><stop offset="1" stop-color="#30203c"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><rect x="42" y="42" width="1116" height="591" rx="30" fill="#07111f" stroke="#45617a"/><text x="82" y="106" fill="#75e6d0" font-size="20">WHISKAY ARCADE / VISUAL MINI-GAME</text><text x="82" y="174" fill="#f3f5f8" font-size="48" font-weight="bold">LUCKY SPIRIT SLOTS</text><text x="84" y="213" fill="#a9bdcf" font-size="20">${safe(playerName).slice(0,24)}</text>${boxes}<text x="82" y="515" fill="${won?'#75e6d0':'#e9c982'}" font-size="34" font-weight="bold">${won?`JACKPOT! +${Number(points)||0} POINTS`:'TRY AGAIN · NO STAKE'}</text><text x="82" y="565" fill="#a9bdcf" font-size="17">Entertainment only · Tidak menggunakan uang sungguhan atau saldo top-up</text></svg>`;
+  return svgToPng(svg);
+}
+
+/** Render an image card for group join/leave events; avatarBuffer is optional and private to this request. */
+export async function renderGroupMemberCardV2({ type = 'welcome', groupName = 'WhatsApp Group', memberName = 'Petualang', avatarBuffer = null, avatarMime = 'image/jpeg' } = {}) {
+  const isWelcome = type === 'welcome';
+  if (createCanvas) {
+    const c = createCanvas(1200, 675), x = c.getContext('2d'); background(x, 1200, 675);
+    rounded(x, 42, 42, 1116, 591, 30, 'rgba(7,17,31,.92)', 'rgba(169,189,207,.4)');
+    x.fillStyle = palette.cyan; x.font = 'bold 18px Sans'; x.fillText('WHISKAY COMMUNITY · CANVAS V2', 82, 105);
+    x.fillStyle = palette.text; x.font = 'bold 42px Sans'; x.fillText(isWelcome ? 'WELCOME, ADVENTURER!' : 'UNTIL NEXT TIME', 82, 183);
+    x.fillStyle = palette.muted; x.font = '24px Sans'; x.fillText(String(memberName).slice(0, 40), 82, 233);
+    x.font = '18px Sans'; x.fillText(String(groupName).slice(0, 48), 82, 276);
+    rounded(x, 800, 165, 250, 300, '#102035', palette.gold);
+    if (avatarBuffer?.length) { try { const av = await loadImage(avatarBuffer); x.save(); x.beginPath(); x.arc(925, 292, 82, 0, Math.PI*2); x.clip(); const scale = Math.max(164/av.width,164/av.height); x.drawImage(av,925-av.width*scale/2,292-av.height*scale/2,av.width*scale,av.height*scale); x.restore(); } catch {} }
+    x.strokeStyle = palette.cyan; x.lineWidth = 4; x.beginPath(); x.arc(925, 292, 86, 0, Math.PI*2); x.stroke();
+    x.fillStyle = palette.gold; x.font = 'bold 23px Sans'; x.fillText(isWelcome ? 'MAKE YOURSELF AT HOME' : 'THANKS FOR BEING HERE', 82, 390);
+    x.fillStyle = palette.muted; x.font = '17px Sans'; x.fillText(isWelcome ? 'Check the group description and keep the community kind.' : 'Your journey continues beyond this chat.', 82, 430);
+    return c.toBuffer('image/png');
+  }
+  let avatar = '';
+  if (avatarBuffer?.length) avatar = `<defs><clipPath id="av"><circle cx="925" cy="292" r="82"/></clipPath></defs><image href="data:${safeMime(avatarMime)};base64,${Buffer.from(avatarBuffer).toString('base64')}" x="843" y="210" width="164" height="164" preserveAspectRatio="xMidYMid slice" clip-path="url(#av)"/>`;
+  const title = isWelcome ? 'WELCOME, ADVENTURER!' : 'UNTIL NEXT TIME';
+  const sub = isWelcome ? 'MAKE YOURSELF AT HOME' : 'THANKS FOR BEING HERE';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#06101e"/><stop offset="1" stop-color="#30203c"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><rect x="42" y="42" width="1116" height="591" rx="30" fill="#07111f" stroke="#45617a"/><text x="82" y="105" fill="#75e6d0" font-size="18">WHISKAY COMMUNITY · CANVAS V2</text><text x="82" y="183" fill="#f3f5f8" font-size="42" font-weight="bold">${esc(title)}</text><text x="82" y="233" fill="#a9bdcf" font-size="24">${esc(memberName).slice(0,40)}</text><text x="82" y="276" fill="#a9bdcf" font-size="18">${esc(groupName).slice(0,48)}</text><rect x="800" y="165" width="250" height="300" rx="24" fill="#102035" stroke="#e9c982" stroke-width="3"/><circle cx="925" cy="292" r="86" fill="#14283d" stroke="#75e6d0" stroke-width="4"/>${avatar}<text x="82" y="390" fill="#e9c982" font-size="23" font-weight="bold">${esc(sub)}</text><text x="82" y="430" fill="#a9bdcf" font-size="17">${isWelcome?'Check the group description and keep the community kind.':'Your journey continues beyond this chat.'}</text></svg>`;
+  return svgToPng(svg);
+}
+function safeMime(value) { return ['image/jpeg','image/png','image/webp'].includes(String(value)) ? String(value) : 'image/jpeg'; }

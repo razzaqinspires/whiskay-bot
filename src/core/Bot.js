@@ -22,6 +22,8 @@ import { createMessageHandler } from '../handlers/message.js';
 import { baseMiddlewares } from '../middlewares/index.js';
 import { registry } from './registry.js';
 import config from '../config/index.js';
+import { getGroupSettings } from '../lib/group-settings.js';
+import { renderGroupMemberCardV2 } from '../services/canvas-v2.js';
 
 export class Bot {
   constructor() {
@@ -382,6 +384,44 @@ export class Bot {
       commandHandler: this._cmd,
       eventBus: EventBus
     }));
+
+    // Canvas V2 join/leave cards are opt-in per group through .welcome on.
+    sock.ev.on('group-participants.update', async update => {
+      const groupId = String(update?.id || '');
+      if (!groupId.endsWith('@g.us') || !Array.isArray(update?.participants)) return;
+      const action = String(update.action || '').toLowerCase();
+      if (!['add', 'remove', 'leave'].includes(action)) return;
+      const settings = await getGroupSettings(groupId).catch(() => ({ welcome: false }));
+      if (!settings.welcome) return;
+      let groupName = 'WhatsApp Group';
+      try { groupName = String((await sock.groupMetadata(groupId))?.subject || groupName); } catch {}
+      for (const item of update.participants.slice(0, 10)) {
+        const jid = String(typeof item === 'string' ? item : item?.id || item?.jid || '');
+        if (!jid || !jid.includes('@') || jid.endsWith('@g.us')) continue;
+        const joining = action === 'add';
+        const memberName = `@${jid.split('@')[0].split(':')[0]}`;
+        let avatarBuffer = null, avatarMime = 'image/jpeg';
+        try {
+          const url = await sock.profilePictureUrl(jid, 'image');
+          if (url) {
+            const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
+            if (res.ok) {
+              const mime = String(res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+              const ab = await res.arrayBuffer();
+              if (ab.byteLength > 0 && ab.byteLength <= 2_000_000) {
+                avatarBuffer = Buffer.from(ab);
+                if (['image/jpeg', 'image/png', 'image/webp'].includes(mime)) avatarMime = mime;
+              }
+            }
+          }
+        } catch {}
+        try {
+          const image = await renderGroupMemberCardV2({ type: joining ? 'welcome' : 'leave', groupName, memberName, avatarBuffer, avatarMime });
+          const text = joining ? String(settings.welcomeText || '👋 Selamat datang {user} di {group}!').replaceAll('{user}', memberName).replaceAll('{group}', groupName) : String(settings.leaveText || '👋 {user} telah meninggalkan grup.').replaceAll('{user}', memberName).replaceAll('{group}', groupName);
+          await sock.sendMessage(groupId, { image, caption: text, mentions: [jid] });
+        } catch (error) { Logger.warn({ err: error?.message || String(error), groupId }, 'group member canvas card skipped'); }
+      }
+    });
 
     return sock;
   }

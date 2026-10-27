@@ -4,6 +4,8 @@ import { awardMessageXP, getProfile } from '../lib/leveling.js';
 import { observeUser, getUser } from '../lib/app-database.js';
 import aiChatPlugin from '../plugins/tools/ai-chat.js';
 import { relayAnonymousMessage } from '../plugins/general/anonymous.js';
+import { getGroupSettings } from '../lib/group-settings.js';
+import { updateUser } from '../lib/app-database.js';
 
 export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
   if (upsert.type !== 'notify') return;
@@ -13,6 +15,26 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
       eventBus.emit('message', ctx);
+      // Anti-link targets only WhatsApp group invite links; ordinary website URLs are allowed.
+      if (ctx.isGroup && !ctx.isBot && ctx.sender && !ctx.isAdmin && !ctx.isOwner && /chat\.whatsapp\.com\/[\w-]{10,}/i.test(String(ctx.body || ''))) {
+        const groupSettings = await getGroupSettings(ctx.chat).catch(() => ({ antilink: false }));
+        if (groupSettings.antilink) {
+          let deleted = false;
+          if (ctx.isBotAdmin && typeof ctx.delete === 'function') { try { await ctx.delete(); deleted = true; } catch {} }
+          const observed = await getUser(ctx.sender).catch(() => null);
+          const warnings = Math.max(0, Number(observed?.warnings || 0)) + 1;
+          await updateUser(ctx.sender, { warnings, lastAntiLinkAt: Date.now() }).catch(() => {});
+          const kickEnabled = String(process.env.ANTILINK_AUTO_KICK || 'false').toLowerCase() === 'true';
+          if (kickEnabled && warnings >= Math.max(2, Number(process.env.ANTILINK_KICK_AFTER || 3)) && ctx.isBotAdmin && typeof ctx.sock?.groupParticipantsUpdate === 'function') {
+            try { await ctx.sock.groupParticipantsUpdate(ctx.chat, [ctx.sender], 'remove'); } catch {}
+          } else if (ctx.isBotAdmin) {
+            await ctx.sock.sendMessage(ctx.chat, { text: `🛡️ @${String(ctx.sender).split('@')[0]} tautan undangan grup dihapus. Peringatan ${warnings}.`, mentions: [ctx.sender] }).catch(() => {});
+          } else {
+            await ctx.sock.sendMessage(ctx.chat, { text: '⚠️ Anti-link mendeteksi tautan undangan, tetapi bot perlu menjadi admin untuk menghapus pesan.' }).catch(() => {});
+          }
+          if (deleted) continue;
+        }
+      }
       // Record every observed sender (DM or group) without silently registering them.
       if (ctx.sender && !ctx.isBot) {
         await observeUser({ jid: ctx.sender, pushName: ctx.pushName, chat: ctx.chat, isGroup: ctx.isGroup }).catch(err => Logger.warn({ err: err.message }, 'user observation skipped'));

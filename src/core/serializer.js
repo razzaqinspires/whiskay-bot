@@ -3,6 +3,7 @@ import compat from './serializer-compat.cjs';
 export const sendInteractiveMessage = compat.sendInteractiveMessage;
 export const serialize = compat.serialize;
 import configDefault from '../config/index.js';
+import { isOwner } from '../lib/security.js';
 const groupMetaCache = new Map();
 export async function serializeMessage(sock, raw, config = configDefault, bot = null) {
   const ctx = compat.serialize(sock, raw);
@@ -11,17 +12,12 @@ export async function serializeMessage(sock, raw, config = configDefault, bot = 
   ctx.bot = bot;
   ctx.config = config;
   ctx.isBot = Boolean(ctx.fromMe || raw?.key?.fromMe);
-  const ownerIds = new Set([...(config.owners || []), ...(config.ownerLids || [])].map(String));
   const candidates = [
     ctx.sender, raw?.key?.participant, raw?.key?.participantAlt, raw?.key?.participantPn,
     raw?.key?.remoteJid, raw?.key?.remoteJidAlt, raw?.key?.remoteJidPn
   ].filter(Boolean).map(String);
-  const digits = value => value.split('@')[0].split(':')[0].replace(/\D/g, '');
-  ctx.isOwner = candidates.some(candidate => {
-    if (ownerIds.has(candidate)) return true;
-    const candidateDigits = digits(candidate);
-    return candidateDigits.length >= 8 && [...ownerIds].some(owner => digits(owner) === candidateDigits);
-  });
+  const ownerCheck = isOwner(candidates, config);
+  ctx.isOwner = ownerCheck;
   ctx.isAdmin = false;
   ctx.isBotAdmin = false;
   if (ctx.isGroup && typeof sock?.groupMetadata === 'function') {
@@ -49,6 +45,8 @@ export async function serializeMessage(sock, raw, config = configDefault, bot = 
   return ctx;
 }
 export const extendSocket = compat.extendSocket;
+// Bot.js uses this compatibility name during socket initialization.
+export const attachSerializerRuntime = compat.extendSocket;
 export const unwrapMessage = compat.unwrapMessage;
 export const downloadMedia = compat.downloadMedia;
 export default compat;
