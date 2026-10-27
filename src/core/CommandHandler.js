@@ -3,7 +3,7 @@ import Logger from './Logger.js';
 import config from '../config/index.js';
 import { recordCommandUsage } from '../lib/menu-settings.js';
 import { hasPremium } from '../lib/energy-worker.js';
-import { isGroupMuted } from '../lib/group-policy.js';
+import { getUser } from '../lib/app-database.js';
 
 export class CommandHandler {
   constructor(pm) { this._pm = pm; this._base = new MiddlewareChain(); }
@@ -50,8 +50,20 @@ export class CommandHandler {
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;
 
-    // Muted-group policy applies to all commands except owner recovery controls.
-    if (ctx.isGroup && isGroupMuted(ctx.chat) && !(ctx.isOwner && ctx.command === 'groupbot')) return true;
+    // Central registration gate: avoids editing every plugin. Message handler observes users
+    // with registered=false; only explicit .daftar changes that state to true.
+    const allowBeforeRegistration = new Set(['daftar','register','statusdaftar','menu','help','owner','ping','start']);
+    if (String(process.env.REQUIRE_USER_REGISTRATION || 'true').toLowerCase() !== 'false') {
+      const user = await getUser(ctx.sender || ctx.chat).catch(() => null);
+      if (!user?.registered && !allowBeforeRegistration.has(String(ctx.command || '').toLowerCase()) && !ctx.isOwner) {
+        await ctx.reply('🔐 Kamu belum terdaftar. Gunakan .daftar terlebih dahulu. Pesanmu sudah tercatat sebagai pengguna belum terdaftar; registrasi tidak dilakukan otomatis.');
+        return true;
+      }
+      if (user?.banned && !ctx.isOwner && !['daftar','statusdaftar','owner'].includes(String(ctx.command || '').toLowerCase())) {
+        await ctx.reply('⛔ Akun kamu diblokir dari penggunaan command. Hubungi owner jika ini keliru.');
+        return true;
+      }
+    }
 
     // Owner check now uses serializer's LID-aware flag
     if (p.owner && !ctx.isOwner) { await ctx.reply('🔒 Owner only'); return true; }

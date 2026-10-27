@@ -44,6 +44,19 @@ jobs:
           from datetime import datetime, timezone
           path = 'docs/history/updates.jsonl'
           raw_time = os.environ.get('SERVER_TIME', '').strip()
+          # workflow_dispatch and some push payloads do not provide head_commit.timestamp.
+          # Fall back to the pushed commit timestamp before using runner UTC time.
+          if not raw_time:
+              import subprocess
+              sha = os.environ.get('SHA', '')
+              if sha:
+                  try:
+                      raw_time = subprocess.check_output(
+                          ['git', 'show', '-s', '--format=%cI', sha],
+                          text=True, stderr=subprocess.DEVNULL, timeout=5
+                      ).strip()
+                  except Exception:
+                      raw_time = ''
           timestamp = raw_time or datetime.now(timezone.utc).isoformat()
           record = {
               'timestamp': timestamp,

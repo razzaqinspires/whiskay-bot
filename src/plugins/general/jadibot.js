@@ -7,6 +7,7 @@ import config from '../../config/index.js';
 import { serializeMessage } from '../../core/serializer.js';
 import { registry } from '../../core/registry.js';
 import { hasPremium } from '../../lib/energy-worker.js';
+import { getUser, chargeBalance } from '../../lib/app-database.js';
 import { createPairingTicket, consumePairingTicket, waitForPortalUrl, getPortalMode } from '../../services/jadibotPortal.js';
 
 const DAY = 86400000;
@@ -76,7 +77,13 @@ async function start(ctx, mode, phone = '') {
   if (row && row.expiresAt <= Date.now()) throw new Error('Masa aktif habis. Gunakan .perpanjang.');
   if (sockets.has(key)) throw new Error('Sesi sudah berjalan. Gunakan .jadibotstatus.');
   if (!row) {
-    row = { user, startedAt: Date.now(), expiresAt: Date.now() + DAYS * DAY, connected: false, phone: '', mode };
+    if (!owner(ctx)) {
+      const account = await getUser(user);
+      if (!account?.registered) throw new Error('Daftar terlebih dahulu dengan .daftar.');
+      if ((Number(account.balance) || 0) < PRICE) throw new Error(`Saldo tidak cukup. Harga sewa Rp${money(PRICE)} untuk ${DAYS} hari. Gunakan .topup ${PRICE}, selesaikan pembayaran, lalu coba lagi.`);
+      await chargeBalance(user, PRICE, 'jadibot-sewa-awal');
+    }
+    row = { user, startedAt: Date.now(), expiresAt: Date.now() + DAYS * DAY, connected: false, phone: '', mode, chargedAmount: owner(ctx) ? 0 : PRICE };
     await dbChange(d => { d[key] = row; });
   } else {
     await dbChange(d => { if (d[key]) { d[key].mode = mode; d[key].needsPairing = false; } });
@@ -212,9 +219,14 @@ export default {
     if (cmd === 'jadibot') {
       if (!await allowed(ctx)) return ctx.reply('💎 Fitur jadibot hanya untuk owner dan pengguna Premium aktif.');
       const mode = String(a[0] || '').toLowerCase();
-      if (!mode) return ctx.sendInteractive({ title: '🤖 WHISKAY JADIBOT', subtitle: `${DAYS} hari · Rp${money(PRICE)}`, body: 'Pilih metode login. Gunakan hanya akun WhatsApp milik sendiri.', buttons: [{ name: 'quick_reply', title: '📷 QR Code', id: '.jadibot qr' }, { name: 'quick_reply', title: '🔐 Pairing Code', id: '.jadibot pairing' }, { name: 'quick_reply', title: '💳 Harga & perpanjang', id: '.perpanjang' }] });
+      if (!mode) return ctx.sendInteractive({ title: '🤖 WHISKAY JADIBOT', subtitle: `${DAYS} hari · Rp${money(PRICE)}`, body: `Pilih metode login. Gunakan hanya akun WhatsApp milik sendiri.\n\n${owner(ctx) ? 'Akses owner: biaya sewa dilewati.' : `Harga: Rp${money(PRICE)} untuk ${DAYS} hari. Selesaikan top-up dan pastikan saldo cukup sebelum pairing.`}\nSetelah mengirim konfirmasi, cek chat WhatsApp ini untuk status dan kode pairing.`, buttons: [{ name: 'quick_reply', title: '📷 QR Code', id: '.jadibot qr' }, { name: 'quick_reply', title: '🔐 Pairing Code', id: '.jadibot pairing' }, { name: 'quick_reply', title: '💳 Harga & perpanjang', id: '.perpanjang' }] });
       if (mode === 'qr' || mode === 'qrcode') return start(ctx, 'qr');
       if (mode === 'pairing' || mode === 'code') {
+        if (!owner(ctx)) {
+          const account = await getUser(user);
+          if (!account?.registered) return ctx.reply('🔐 Daftar terlebih dahulu dengan .daftar.');
+          if ((Number(account.balance) || 0) < PRICE) return ctx.reply(`💳 Pembayaran belum selesai atau saldo tidak cukup. Harga sewa Rp${money(PRICE)} untuk ${DAYS} hari.\n1. Gunakan .topup ${PRICE}\n2. Selesaikan pembayaran dan tunggu owner menyetujui top-up.\n3. Cek .saldo lalu ulangi .jadibot pairing.`);
+        }
         if (!a[1]) return showPairingPortal(ctx, key);
         // Backwards-compatible manual path for owner/admin troubleshooting.
         return start(ctx, 'pairing', a[1]);
@@ -245,11 +257,14 @@ export default {
     if (cmd === 'perpanjang') {
       const days = Math.max(1, Math.min(365, Number(a[0] || DAYS) || DAYS));
       const amount = Math.round(PRICE * days / DAYS);
-      const ref = `JB${Date.now().toString(36).toUpperCase()}`;
-      await dbChange(d => { d[key] ??= { user, startedAt: Date.now(), expiresAt: 0, connected: false }; d[key].pendingPayment = { ref, days, amount, status: 'pending', createdAt: Date.now() }; });
-      const pay = await paymentConfig();
-      await ownersNotify(ctx, `💳 PERMINTAAN JADIBOT\nUser: ${user}\nKey: ${key}\nRef: ${ref}\nDurasi: ${days} hari\nNominal: Rp${money(amount)}\nApprove setelah dana diverifikasi: .jadibotapprove ${key}`);
-      return ctx.reply(`💳 *PERPANJANGAN JADIBOT*\nRef: ${ref}\nDurasi: ${days} hari\nTotal: *Rp${money(amount)}*\n\n${methods(pay)}\n\nKirim bukti dengan .buktijadibot ${ref} sambil reply gambar. Masa aktif belum bertambah sebelum owner memverifikasi pembayaran.`);
+      const existing = (await dbRead())[key];
+      if (!owner(ctx)) {
+        try { await chargeBalance(user, amount, 'jadibot-perpanjangan'); }
+        catch (e) { return ctx.reply(`💳 Saldo belum cukup untuk perpanjangan ${days} hari (Rp${money(amount)}).\n${e.message}\n\nGunakan .topup ${amount}, selesaikan pembayaran dan tunggu persetujuan owner.`); }
+      }
+      const expiresAt = Math.max(Date.now(), Number(existing?.expiresAt) || 0) + days * DAY;
+      await dbChange(d => { d[key] ??= { user, startedAt: Date.now(), connected: false }; d[key].expiresAt = expiresAt; d[key].pendingPayment = null; d[key].expirationHandledAt = null; });
+      return ctx.reply(`✅ *PERPANJANGAN JADIBOT BERHASIL*\nDurasi tambahan: ${days} hari\nBiaya: ${owner(ctx) ? 'Gratis (owner)' : `Rp${money(amount)}`}\nMasa aktif sampai: ${new Date(expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB\n\nCek status: .jadibotstatus`);
     }
     if (cmd === 'buktijadibot') {
       const ref = String(a[0] || ''), row = (await dbRead())[key];

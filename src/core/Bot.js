@@ -8,7 +8,7 @@ import qrcode from 'qrcode-terminal';
 import path from 'node:path';
 import Logger from './Logger.js';
 import EventBus from './EventBus.js';
-import { attachSerializerRuntime } from './Serializer.js';
+import { attachSerializerRuntime } from './serializer.js';
 import { PluginManager } from './PluginManager.js';
 import { AutoCleaner } from './AutoCleaner.js';
 import { CommandHandler } from './CommandHandler.js';

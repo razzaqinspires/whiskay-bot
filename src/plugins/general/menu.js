@@ -11,9 +11,10 @@ import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
 import { getEnergy, complexityScore, getHits } from '../../lib/energy-worker.js';
 import { getProfile, getLeaderboard } from '../../lib/leveling.js';
 import { renderMenuCardV2 } from '../../services/canvas-v2.js';
+import { getUser, getUserStats } from '../../lib/app-database.js';
 
 
-async function renderOfficialCanvas(kind, botName) { return renderMenuCardV2({ botName, subtitle: kind === 'rpg' ? 'PLAYER PROFILE / LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER' }); }
+async function renderOfficialCanvas(kind, botName, avatarPath = null) { return renderMenuCardV2({ botName, avatarPath, subtitle: kind === 'rpg' ? 'PLAYER PROFILE / LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER' }); }
 
 function mapChars(text, upper, lower, digits = null) {
   return String(text).replace(/[A-Za-z0-9]/g, c => {
@@ -70,7 +71,13 @@ const TEMPLATE = {
   compact: { top: '〔', mid: '›', bottom: '┈┈┈┈┈┈┈┈┈' },
   minimalist: { top: '┌─', mid: '·', bottom: '└────────────' },
   cyberpunk: { top: '╔═[', mid: '▸', bottom: '╚════════════' },
-  fantasy: { top: '✧༺', mid: '✦', bottom: '༻✧━━━━━━━━━━' }
+  fantasy: { top: '✧༺', mid: '✦', bottom: '༻✧━━━━━━━━━━' },
+  ocean: { top: '🌊 ━〔', mid: '≈', bottom: '🌊 ━━━━━━━━━' },
+  sunset: { top: '🌇 ╭〔', mid: '☀', bottom: '╰━━━━━━━━🌇' },
+  emerald: { top: '❖ ╭〔', mid: '◆', bottom: '╰━━━━━━━━❖' },
+  sakura: { top: '🌸 ╭〔', mid: '✿', bottom: '╰━━━━━━━━🌸' },
+  monochrome: { top: '▰▰〔', mid: '│', bottom: '▰▰▰▰▰▰▰' },
+  royal: { top: '♛ ╔〔', mid: '♜', bottom: '╚════════♛' }
 };
 const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank','rpgstatus','leaderboard','commandhits']);
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
@@ -91,6 +98,7 @@ const titleCase=s=>String(s||'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpp
 function isBold(settings,part){return (settings.boldParts||[]).includes(part);}
 function emphasized(settings,text,part){return isBold(settings,part)?`*${text}*`:text;}
 function line(settings, text, part='meta') { const raw=emphasized(settings,text,part); return `${settings.linePrefix ? (TEMPLATE[settings.template]||TEMPLATE.corporate).mid+' ' : ''}${style(raw,settings.font)}`; }
+function widgetLine(settings, text, part='meta') { const before=String(settings.widgetSymbolBefore||'').slice(0,12), after=String(settings.widgetSymbolAfter||'').slice(0,12); return line(settings, `${before}${text}${after}`, part); }
 async function renderMenu(ctx) {
   const settings=await getMenuSettings(ctx.sender||ctx.chat);
   let rows=getCommandRows();
@@ -110,16 +118,18 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('intro')) lines.push(style(emphasized(settings,`${settings.order==='category'?'Daftar perintah berdasarkan kategori lalu A–Z':settings.order==='za'?'Daftar perintah Z–A':'Daftar perintah A–Z'}\n`,'intro'),settings.font));
   const gap='\n'.repeat(Math.max(0,Math.min(3,Number(settings.spacing)||0)));
   const widgetLines = {};
-  if(settings.widgets.includes('count')) widgetLines.count=line(settings,`Total perintah: ${rows.length}`);
-  if(settings.widgets.includes('prefix')) widgetLines.prefix=line(settings,`Prefix: ${config.prefixes.join(' ')}`);
-  if(settings.widgets.includes('new')) widgetLines.new=line(settings,'🆕 = perintah baru selama 7 hari');
-  if(settings.widgets.includes('website')) widgetLines.website=line(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`);
-  if(settings.widgets.includes('info')) widgetLines.info=line(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`);
-  if(settings.widgets.includes('rank')) widgetLines.rank=line(settings,`Profile / rank / engagement: ${ctx.prefix}profile`);
-  if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=line(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')} · XP ${p.xp||0}`); } catch { widgetLines.rpgstatus=line(settings,'RPG: data karakter belum tersedia'); } }
-  if(settings.widgets.includes('leaderboard')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.leaderboard=line(settings,`Leaderboard: ${board.length?board.map((p,i)=>`${i+1}.${String(p.user||'player').split('@')[0]} Lv.${p.level||1}`).join(' · '):'belum ada data'}`); } catch { widgetLines.leaderboard=line(settings,'Leaderboard: data belum tersedia'); } }
-  if(settings.widgets.includes('commandhits')) { try { const hits=await getHits(); widgetLines.commandhits=line(settings,`Total hit command: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.commandhits=line(settings,'Total hit command: tidak tersedia'); } }
-  if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; widgetLines.websiteProducts=line(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`); } catch { widgetLines.websiteProducts=line(settings,'Produk website: data live tidak tersedia'); } }
+  if(settings.widgets.includes('count')) widgetLines.count=widgetLine(settings,`Total perintah: ${rows.length}`);
+  if(settings.widgets.includes('prefix')) widgetLines.prefix=widgetLine(settings,`Prefix: ${config.prefixes.join(' ')}`);
+  if(settings.widgets.includes('new')) widgetLines.new=widgetLine(settings,'🆕 = perintah baru selama 7 hari');
+  if(settings.widgets.includes('website')) widgetLines.website=widgetLine(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`);
+  if(settings.widgets.includes('info')) widgetLines.info=widgetLine(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`);
+  if(settings.widgets.includes('rank')) widgetLines.rank=widgetLine(settings,`Profile / rank / engagement: ${ctx.prefix}profile`);
+  if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=widgetLine(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')} · XP ${p.xp||0}`); } catch { widgetLines.rpgstatus=widgetLine(settings,'RPG: data karakter belum tersedia'); } }
+  if(settings.widgets.includes('leaderboard')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.leaderboard=widgetLine(settings,`Leaderboard: ${board.length?board.map((p,i)=>`${i+1}.${String(p.user||'player').split('@')[0]} Lv.${p.level||1}`).join(' · '):'belum ada data'}`); } catch { widgetLines.leaderboard=widgetLine(settings,'Leaderboard: data belum tersedia'); } }
+  if(settings.widgets.includes('commandhits')) { try { const hits=await getHits(); widgetLines.commandhits=widgetLine(settings,`Total hit command: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.commandhits=widgetLine(settings,'Total hit command: tidak tersedia'); } }
+  if(settings.widgets.includes('balance')) { try { const user=await getUser(ctx.sender); widgetLines.balance=widgetLine(settings,`Saldo: Rp${Number(user?.balance||0).toLocaleString('id-ID')}`); } catch { widgetLines.balance=widgetLine(settings,'Saldo: data belum tersedia'); } }
+  if(settings.widgets.includes('totalusers') || settings.widgets.includes('registeredusers')) { try { const stats=await getUserStats(); if(settings.widgets.includes('totalusers')) widgetLines.totalusers=widgetLine(settings,`Total pengguna terpantau: ${stats.total}`); if(settings.widgets.includes('registeredusers')) widgetLines.registeredusers=widgetLine(settings,`Pengguna terdaftar: ${stats.registered}`); } catch {} }
+  if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; widgetLines.websiteProducts=widgetLine(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`); } catch { widgetLines.websiteProducts=widgetLine(settings,'Produk website: data live tidak tersedia'); } }
   const widgetOrder = [...new Set([...(settings.widgetOrder||[]), ...Object.keys(widgetLines)])].filter(id => widgetLines[id]);
   for (const id of widgetOrder) lines.push(widgetLines[id]);
   if(['count','prefix','new'].some(id=>widgetLines[id])) lines.push('');
@@ -158,7 +168,9 @@ async function renderMenu(ctx) {
     let validUrl=false;try{const parsed=new URL(officialUrl);validUrl=['http:','https:'].includes(parsed.protocol);}catch{}
     if(validUrl) image={url:officialUrl};
     else {
-      const canvas = await renderOfficialCanvas(settings.imageMode==='official-rpg'?'rpg':'menu', config.botName);
+      let avatarPath = null;
+      try { const profile = await getProfile(ctx.chat, ctx.sender); if (profile?.profileImageMode === 'manual' && profile?.profileImagePath) avatarPath = profile.profileImagePath; } catch {}
+      const canvas = await renderOfficialCanvas(settings.imageMode==='official-rpg'?'rpg':'menu', config.botName, avatarPath);
       if(canvas) image=canvas;
       else imageWarning='Kanvas official gagal dibuat pada host ini. Pastikan FFmpeg tersedia; menu teks tetap dapat digunakan.';
     }
@@ -166,7 +178,7 @@ async function renderMenu(ctx) {
   // Attach the canvas directly to the same interactive message so the image,
   // command list, and embedded settings button are delivered together.
   const finalText=imageWarning?`${text}\n\n⚠️ ${imageWarning}`:text;
-  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons}); }
+  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default'}); }
   catch { return ctx.reply(`${finalText}\n\nGunakan ${ctx.prefix}setmenu untuk mengatur menu.`); }
 }
 export default {name:'menu',command:['menu','help'],menuCommands:['menu'],description:'Tampilkan daftar perintah dan pengaturan menu pribadi',category:'general',cooldown:3000,async execute(ctx){return renderMenu(ctx);}};

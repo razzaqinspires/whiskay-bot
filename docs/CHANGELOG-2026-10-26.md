@@ -10,9 +10,9 @@
 - Preserved the previous QR/pairing flow, owner/premium access checks, pricing controls, GitHub command plugin, and existing documentation archive.
 
 
-## Stage 3 — Group control and RPG/AI refinements
-- Added owner-only `.groupbot` controls with per-group mute, status/list, only-current-group mode, and reset buttons.
-- Added opt-in `.antitoxic`, `.antibanword`, and `.textguard` group filters with persistent group-scoped settings.
-- Added cached group metadata role resolution for admin/bot-admin checks.
-- Added `.rpg coach` tactical recommendations and bounded AI consistency/uncertainty guidance.
-- Full regression suite after this stage: 65 passed, 0 failed; syntax checks passed. Live WhatsApp integration remains to be verified on a test group. If group metadata cannot be fetched, automatic text moderation fails open to avoid false-positive deletion.
+## v2.5.5 — Egg calculator, menu presets and serializer compatibility
+- Added a single-select transaction preset list, manual input and Canvas result receipt to the egg calculator.
+- Added six menu themes with explicit confirmation before presentation settings are replaced.
+- Reorganized menu settings into named categories, added widget symbols and safe quote modes.
+- Extended native-flow response parsing and added Baileys issue review documentation.
+- Updated README and added unit tests for calculations and menu structure.

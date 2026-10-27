@@ -22,10 +22,13 @@ const DEFAULTS = Object.freeze({
   topBorder: true,
   bottomBorder: true,
   spacing: 1,
-  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits'],
+  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits','balance','totalusers','registeredusers'],
   imageMode: 'none',
   imagePath: '',
-  boldParts: []
+  boldParts: [],
+  widgetSymbolBefore: '',
+  widgetSymbolAfter: '',
+  quoteMode: 'default'
 });
 
 async function readJson(file, fallback) {

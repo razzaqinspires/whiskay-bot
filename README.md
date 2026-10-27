@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.5.4-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.5.5-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -30,8 +30,6 @@
 - [Global Auction House](#-global-auction-house)
 - [World Boss webhook](#-world-boss-webhook)
 - [Jadibot secure pairing portal](#-jadibot-secure-pairing-portal)
-- [Group control and anti-flood safety](#-group-control-and-anti-flood-safety)
-- [Cognitive AI and RPG Tactical Coach](#-cognitive-ai-and-rpg-tactical-coach)
 - [GitHub metrics and automation](#-github-metrics-and-automation)
 - [Install & configure](#-install--configure)
 - [Security and operations](#-security-and-operations)
@@ -116,16 +114,13 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 | `.guild` | Buat guild, bergabung, mengeluarkan anggota, dan donasi Gold |
 | `.rpgsync` | Periksa koneksi dashboard WHISKAY RPG |
 | `.trade` | Transfer Gold atau item kepada pemain lain di grup |
-| `.rpg, .dungeon, .adventure` | Aksi RPG; `.rpg coach` memberi saran taktis berdasarkan HP, gold, potion, level, dan lantai |
+| `.rpg, .dungeon, .adventure` | Aksi RPG |
 
 ### Group
 
 | Perintah | Fungsi |
 |---|---|
 | `.kick, .add, .promote, .demote, .linkgroup` | Moderasi grup WhatsApp: kick, add, promote, demote, linkgroup |
-| `.groupbot panel|list|status|mute|unmute|onlyhere|reset` | Owner mengatur grup yang dibisukan; `onlyhere` mematikan bot di semua grup kecuali grup saat ini |
-| `.antitoxic`, `.antibanword`, `.textguard` | Admin grup mengatur filter kata toxic, frasa terlarang, dan teks flood/lag |
-| `.groupstatus`, `.grouphelp` | Status dan panduan keamanan grup |
 
 ### Media
 
@@ -139,6 +134,8 @@ Commands are sourced from plugin metadata under `src/plugins/`. Prefix defaults 
 |---|---|
 | `.leveling, .profile, .rank, .rankmatrix, .levelnotify, .leaderboard, .setpp` | Level, XP, rank, profile card dan notifikasi kenaikan level |
 | `.menu, .help` | Font, widget, template, border, spasi, gambar, urutan dan ketebalan font |
+| `.setmenu` | Pengaturan kategori: template (16 tema + random dengan konfirmasi), font, widget, simbol, kutipan, gambar/kanvas dan reset tampilan |
+| `.telur, .kalkulatortelur, .hitungtelur` | Kalkulator telur via daftar preset, input manual, kartu hasil Canvas dan tautan website |
 | `.ping, .p` | Lihat bantuan perintah |
 | `.dlselect` | Kirim format downloader yang dipilih |
 | `.fb` | Pilih format unduhan facebook melalui tombol interaktif |
@@ -276,7 +273,7 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 **Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
 
 <!-- GITHUB_METRICS_START -->
-> Snapshot terakhir: **2026-10-26T21:56:50+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
+> Snapshot terakhir: **2026-10-24T19:45:46+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
 
 | Metrik | Nilai |
 |---|---:|
@@ -297,12 +294,12 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 ```mermaid
 xychart-beta
     title "Commit activity · last 14 days"
-    x-axis ["10-17", "10-18", "10-19", "10-20", "10-21", "10-22", "10-23", "10-24", "10-25", "10-26"]
+    x-axis ["10-15", "10-16", "10-17", "10-18", "10-19", "10-20", "10-21", "10-22", "10-23", "10-24"]
     y-axis "Count" 0 --> 9
-    line [0, 0, 0, 7, 4, 6, 0, 2, 1, 4]
+    line [0, 0, 0, 0, 0, 7, 4, 6, 0, 3]
 ```
 
-Riwayat snapshot tersimpan: **3** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
+Riwayat snapshot tersimpan: **1** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
 <!-- GITHUB_METRICS_END -->
 
 ## 🛡️ Stage 2 — Pairing Portal Hardening (2026-10-26)
@@ -312,42 +309,11 @@ Riwayat snapshot tersimpan: **3** (maksimum 90 snapshot lokal di berkas metrik).
 - A GitHub Actions CI workflow runs `npm ci`, JavaScript syntax checks, and the full regression suite on pushes and pull requests.
 - Rate limiting is process-local; multi-instance deployments should enforce shared throttling at the trusted reverse proxy. See [security hardening](docs/SECURITY-HARDENING-2026-10-26.md), [changelog](docs/CHANGELOG-2026-10-26.md), and [test report](docs/TEST-REPORT-2026-10-26.md).
 
-## 🛡️ Group control and anti-flood safety
-
-- `.groupbot panel` displays interactive controls for the current group; owner-only `.groupbot onlyhere` mutes the bot in every group except the current one. `.groupbot list` lists muted IDs and the allow-only group. `.groupbot reset` resets the global mute policy without deleting per-group safety settings.
-- `.antitoxic on|off|add <word>|remove <word>|list`, `.antibanword on|off|add <phrase>|remove <phrase>|list`, and `.textguard on|off|status` are group-admin controls.
-- Group policy is persisted in `data/group-policy.json`. The bot fetches and caches group metadata to resolve sender and bot admin roles; deletion requires the bot to be a group admin. Filters are opt-in. Word filters can have false positives, so test custom terms before enabling them in a busy group.
-- Text Guard detects extremely long messages, repeated-character/word floods, and excessive invisible Unicode controls. It is a bounded text filter, not a general antivirus and it does not inspect executable files.
-
-## 🧠 Cognitive AI and RPG Tactical Coach
-
-- `.rpg coach` provides deterministic tactical guidance from the saved RPG profile (HP, potions, weapon power, gold, floor and level).
-- WHISKAY AI adds bounded task classification, short-term conversation context, consistency checking instructions and uncertainty guidance. This is an engineering scaffold for a more capable assistant, **not evidence of artificial general intelligence or artificial consciousness**.
-
-```mermaid
-flowchart TD
-  A[Incoming group message] --> B[Serializer + PN/LID identities]
-  B --> C[Cached group role metadata]
-  C --> D{Group muted?}
-  D -- Yes --> E{Owner groupbot recovery?}
-  E -- No --> F[Ignore message]
-  E -- Yes --> G[Owner control command]
-  D -- No --> H[Opt-in toxic / ban-word / text guard]
-  H --> I{Unsafe text?}
-  I -- Yes --> J{Bot admin?}
-  J -- Yes --> K[Delete message + rate-limited notice]
-  J -- No --> L[Do not delete; continue safely]
-  I -- No --> M[Command handler / regular message]
-```
-
 ## 📚 Documentation & Archives
 
 | Document | Path |
 |---|---|
 | [Jadibot mini-web pairing and deployment](docs/JADIBOT-MINI-PORTAL.md) | `docs/JADIBOT-MINI-PORTAL.md` |
-| [Group control, toxic filter and text guard](docs/GROUP-CONTROL-AND-SAFETY.md) | `docs/GROUP-CONTROL-AND-SAFETY.md` |
-| [Cognitive AI and RPG Tactical Coach](docs/COGNITIVE-AI-RPG-COACH.md) | `docs/COGNITIVE-AI-RPG-COACH.md` |
-| [Test report — 2026-10-26 group safety upgrade](docs/TEST-REPORT-2026-10-26-GROUP-SAFETY.md) | `docs/TEST-REPORT-2026-10-26-GROUP-SAFETY.md` |
 | [Stage 2 — Jadibot security hardening](docs/SECURITY-HARDENING-2026-10-26.md) | `docs/SECURITY-HARDENING-2026-10-26.md` |
 | [Changelog — 2026-10-26](docs/CHANGELOG-2026-10-26.md) | `docs/CHANGELOG-2026-10-26.md` |
 | [Test report — 2026-10-26](docs/TEST-REPORT-2026-10-26.md) | `docs/TEST-REPORT-2026-10-26.md` |
@@ -507,27 +473,63 @@ The table below lists Markdown documentation present in this repository; paths a
 </div>
 
 
-## 🔐 Baileys 7 LID/PN owner resolution
+## 🆕 v2.5.5 — Calculator Canvas, Menu Presets & Serializer Compatibility
 
-Baileys 7 may deliver a LID in `key.remoteJid` / `key.participant`. The serializer adapter now prefers a known phone-number JID from `remoteJidPn`, `remoteJidAlt`, `participantPn`, or `participantAlt`, while preserving `@g.us`, `@broadcast`, and `@newsletter` addresses. Owner checks compare canonical JIDs by namespace; LID digits are never treated as phone numbers. Configure `OWNERS=628xxxxxxxxxx` and, when necessary, `OWNER_LIDS=<actual-lid>@lid`. PN aliases are used when Baileys exposes them; the library cannot always reverse-resolve an unknown LID to a phone number.
+### Egg calculator
+- `.telur` opens a native-flow single-select list of common cash/price combinations.
+- `Input Manual` shows `.telur hitung <uang> <harga>`; example: `.telur hitung 10000 1700`.
+- Results include whole eggs, total, change/shortfall and an optional Canvas receipt image.
+- `EGG_CALCULATOR_URL` controls the optional HTTPS website CTA. The bot-side calculation remains usable if the Canvas renderer is unavailable.
 
-## 📣 Owner-only WhatsApp Channel commands
+### Structured menu settings
+- `.setmenu` now groups options into explicit categories: templates, typography/symbols, widgets/content, energy/layout, image/canvas and maintenance.
+- Six additional themes: `ocean`, `sunset`, `emerald`, `sakura`, `monochrome`, `royal`.
+- Selecting a template or Random opens a confirmation step. Confirming replaces presentation settings only; it does not erase account, payment, or RPG data.
+- Widget symbols can be controlled through `.setmenu symbols` and the menu quote mode through `.setmenu quote`.
+- `bot-preview` quotes are labelled as bot previews and never impersonate another user.
 
-| Command | Description |
-|---|---|
-| `.saluran` | Show channel help |
-| `.saluran buat Nama \| Deskripsi` | Create a channel using `newsletterCreate` if available |
-| `.saluran info <id@newsletter or invite link>` | Read channel metadata |
-| `.saluran kirim <id@newsletter> \| pesan` | Submit text using `sock.sendMessage` |
-| `.saluran nama <id@newsletter> \| nama baru` | Rename a channel if supported |
-| `.saluran deskripsi <id@newsletter> \| deskripsi baru` | Update description if supported |
-| `.saluran follow/unfollow <id@newsletter>` | Follow/unfollow if supported |
+### Baileys compatibility notes
+- Serializer records `responseType` and `selectedButtonData` for native-flow responses, with tolerant parsing of `paramsJson` key variants.
+- Interactive list support is not guaranteed across all WhatsApp clients/releases. Keep the plain-text fallback path enabled.
+- See [Baileys issue #2465](https://github.com/WhiskeySockets/Baileys/issues/2465) for a 2026 report about list messages not being delivered/rendered consistently and the [current upstream README](https://github.com/WhiskeySockets/Baileys/blob/master/README.md) for the documented `sendMessage(..., { quoted })` contract.
 
-Newsletter support varies by Baileys release and WhatsApp server behavior. In particular, text/media sending to `@newsletter` has been reported as unstable; a returned message ID does not prove that the post became visible. Verify from the WhatsApp client. The commands are owner-only and do not mass-send to subscribers automatically.
-
-### Testing notes — 2026-10-26
-
-Added `test/lid-owner-newsletter.test.js` covering namespace-safe owner matching, PN/LID identity separation, serializer coverage for Baileys alternate/Pn fields, and owner-only newsletter command wiring. Unit tests do not establish successful live channel creation or posting. See `docs/BAILEYS-LID-PN-NEWSLETTER.md` for implementation details and upstream references.
+### Verification
+- Added `test/egg-calculator-calculation.test.js` and `test/setmenu-templates-structure.test.js`.
+- The final test report must distinguish local unit/syntax checks from WhatsApp live-client tests; no live WhatsApp send is claimed by this release.
 
 
-Detailed test record: [`docs/TEST-REPORT-2026-10-26-LID-PN-NEWSLETTER.md`](docs/TEST-REPORT-2026-10-26-LID-PN-NEWSLETTER.md).
+### v2.5.5 verification record
+
+See [`docs/TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md`](docs/TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md) for exact local checks, the dependency-install timeout, and live-client tests not performed.
+
+
+## v2.6 — Nexora, Anonymous Chat, User Registry & Balance
+
+- **Nexora AI layer:** non-prefixed private messages can reach the AI after registration; group replies require a bot mention or reply by default. Configure `AI_CHAT_MODE`.
+- **Anonymous chat:** `.anon start|next|status|stop`; pairs only registered users, forwards messages without intentionally exposing partner JIDs, and ends both sides when stopped.
+- **Registration gate:** users are observed automatically but `registered` stays `false` until `.daftar`. The central `CommandHandler` gates commands, avoiding edits to every plugin.
+- **Balance and top-up:** `.saldo`, `.topup 10000`; owner commands `.topuppending` and `.topupapprove REF`. Pending top-up is not credited until verified.
+- **Jadibot billing:** non-owner premium users need enough balance before a new rental; renewals charge balance. Pairing portal now explains `Failed to fetch` and requires the configured URL to route `/pair/*` and `/api/pair/*` to the bot process.
+- **Fun games:** `.truth`, `.dare`, `.tod`; `.catur @opponent` starts an experimental button-driven chess session. Chess engine limitations are documented.
+- **Persistence:** `data/app-database.json` uses serialized writes, temp-file + rename, and `.bak` recovery. Keep `data/` on persistent disk.
+- **Menu widgets:** balance, all observed users, and registered users are independently toggleable in `.setmenu widget`.
+- **Validation:** new tests are under `test/app-database-anonymous.test.js`, `test/ai-trigger-and-registration.test.js`, and `test/chess-rules.test.js`.
+
+Detailed notes: [`docs/ANONYMOUS-NEXORA-REGISTRATION-BALANCE.md`](docs/ANONYMOUS-NEXORA-REGISTRATION-BALANCE.md).
+
+### Known limitations in v2.6
+
+- Chess is an experimental training mode with basic piece movement and button ownership validation; it is not a complete chess engine.
+- Anonymous chat is opt-in and requires registered accounts; do not share personal information with strangers.
+- Nexora is an AI assistant, not evidence of artificial consciousness or self-training.
+- The pairing portal requires an HTTPS reverse proxy to the Node portal process on hosted deployments.
+- The JSON database is designed for one running bot process and persistent local storage; multi-instance deployments should use a transactional database.
+
+## Media downloader requirements
+
+- YouTube commands use the external `yt-dlp` executable or Python module (`python3 -m yt_dlp`) and require FFmpeg for audio conversion. Install/update `yt-dlp` and FFmpeg on the host; they are system tools, not bundled npm dependencies.
+- TikTok, Instagram, and Facebook commands use `MEDIA_DOWNLOADER_API_URL`. Configure one or more providers with `MEDIA_DOWNLOADER_API_URLS` (comma-separated fallback list) and/or `MEDIA_DOWNLOADER_API_URL`; the first successful provider is used. Each must return JSON with `videoHD`, `videoSD`, `audio`, and optional `thumbnail` URLs. The bot validates HTTP(S) media URLs and binds format selection tokens to the requesting sender/chat.
+- Do not use these tools to download private, paywalled, or copyrighted media without permission.
+- Upstream Baileys issue #2850 warns about bulk-message account restrictions; avoid stealthy bulk messaging or automation intended to evade platform anti-spam controls.
+
+- GitHub update history: `.github/workflows/repo-update-history.yml` now reads the commit timestamp for workflow dispatches when the event payload lacks a timestamp, then falls back to UTC runner time.

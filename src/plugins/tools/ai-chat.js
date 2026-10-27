@@ -1,7 +1,7 @@
 import { planCognitiveRequest } from '../../cognitive/metacognitive-nexus.js';
 import { getConversation, appendConversation } from '../../cognitive/short-term-memory.js';
 const MAX_PROMPT = 3500;
-const DEFAULT_SYSTEM = 'Kamu adalah WHISKAY AI, asisten virtual yang ramah, ringkas, membantu, dan menjawab dalam Bahasa Indonesia kecuali pengguna meminta bahasa lain. Jangan mengarang fakta jika tidak yakin.';
+const DEFAULT_SYSTEM = 'Kamu adalah Nexora, AI dari Razzaq Ventures yang ramah, jernih, teliti, adaptif, dan menjawab dalam Bahasa Indonesia kecuali diminta bahasa lain. Gunakan penalaran bertahap secara internal, bedakan fakta dari asumsi, nyatakan ketidakpastian, dan jangan mengarang fakta. Kamu bukan makhluk sadar dan jangan mengklaim memiliki kesadaran, perasaan biologis, atau AGI. Gunakan tool/command hanya jika memang tersedia dan minta konfirmasi untuk tindakan berdampak.';
 function clean(value, max = 5000) { return String(value || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, max); }
 function parseKeyValue(raw) { const value=String(raw||'').trim(); if(!value)return []; try { const parsed=JSON.parse(value); if(Array.isArray(parsed)) return parsed.map(x=>String(x).trim()).filter(Boolean).slice(0,12); } catch {} return value.split(/[;,\n]/).map(x=>x.trim()).filter(Boolean).slice(0,12); }
 function parseKeys(name, legacy) { const primary=parseKeyValue(process.env[name]); return primary.length ? primary : parseKeyValue(process.env[legacy]); }
@@ -37,7 +37,7 @@ export default {
     const rawPrompt = clean(ctx.args?.join(' ') || '', MAX_PROMPT);
     const cognitive = planCognitiveRequest(rawPrompt);
     const prompt = cognitive.prompt;
-    if (!prompt) return ctx.reply(`🤖 *WHISKAY AI*\nGunakan: ${ctx.prefix}ask pertanyaan kamu\nContoh: ${ctx.prefix}ai bantu buat rencana belajar 7 hari.`);
+    if (!prompt) return ctx.reply(`🧠 *NEXORA · RAZZAQ VENTURES*\nGunakan: ${ctx.prefix}ask pertanyaan kamu\nContoh: ${ctx.prefix}ai bantu buat rencana belajar 7 hari.`);
     const memoryUser = String(ctx.sender || ctx.chat || 'anonymous');
     const history = getConversation(memoryUser).slice(-8);
     const messages = [...history, { role: 'user', content: prompt }];
@@ -54,7 +54,7 @@ export default {
           if (!text) throw new Error('AI tidak mengembalikan jawaban.');
           appendConversation(memoryUser, 'user', prompt);
           appendConversation(memoryUser, 'assistant', text);
-          return ctx.reply(`🤖 *WHISKAY AI* · ${provider.toUpperCase()}\n\n${text}${text.length >= 5900 ? '…' : ''}`);
+          return ctx.reply(`🧠 *NEXORA* · ${provider.toUpperCase()}\n\n${text}${text.length >= 5900 ? '…' : ''}`);
         } catch (error) { attempts.push(`${provider}:${String(error?.message||'error').slice(0,90)}`); }
       }
     }

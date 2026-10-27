@@ -440,23 +440,34 @@ function serialize(sock, m) {
       m.body = m.message.documentMessage?.caption || '';
     } else if (m.type === 'interactiveResponseMessage') {
       const interactiveMsg = m.message.interactiveResponseMessage;
-      if (interactiveMsg?.nativeFlowResponseMessage) {
+      const native = interactiveMsg?.nativeFlowResponseMessage;
+      if (native) {
+        // Baileys v7 native-flow replies commonly put the selected ID inside paramsJson.
+        // Be tolerant of alternate key names seen in different WhatsApp clients.
+        let params = {};
         try {
-          const params = JSON.parse(interactiveMsg.nativeFlowResponseMessage.paramsJson || '{}');
-          m.selectedButtonId = params.id || params.row_id || params.selected_id || params.selectedRowId || interactiveMsg.nativeFlowResponseMessage.name;
-          m.body = m.selectedButtonId || '';
-        } catch {
-          m.body = interactiveMsg.nativeFlowResponseMessage.name || '';
-        }
+          const rawParams = native.paramsJson;
+          params = rawParams && typeof rawParams === 'object' ? rawParams : JSON.parse(String(rawParams || '{}'));
+        } catch {}
+        m.selectedButtonData = params;
+        m.selectedButtonId = params.id || params.row_id || params.rowId || params.selected_id ||
+          params.selectedId || params.selectedRowId || params.buttonId || native.name || '';
+        m.responseType = 'native-flow';
+        m.body = String(m.selectedButtonId || '');
+      } else {
+        m.body = '';
       }
     } else if (m.type === 'templateButtonReplyMessage') {
       m.selectedButtonId = m.message.templateButtonReplyMessage.selectedId;
+      m.responseType = 'template-button';
       m.body = m.selectedButtonId || '';
     } else if (m.type === 'buttonsResponseMessage') {
       m.selectedButtonId = m.message.buttonsResponseMessage.selectedButtonId;
+      m.responseType = 'button';
       m.body = m.selectedButtonId || '';
     } else if (m.type === 'listResponseMessage') {
       m.selectedButtonId = m.message.listResponseMessage.singleSelectReply?.selectedRowId;
+      m.responseType = 'list-select';
       m.body = m.selectedButtonId || '';
     } else if (m.type === 'richResponseMessage') {
       const rich = m.message.richResponseMessage || m.message;
@@ -808,7 +819,19 @@ function extendSocket(sock) {
     }
 
     let cleanQuoted = null;
-    if (quoted && quoted.key) {
+    if (options.quoteMode === 'none') {
+      cleanQuoted = null;
+    } else if (options.quoteMode === 'bot-preview') {
+      // Explicitly labelled bot-authored preview. Never impersonate a real user.
+      const botJid = sock.decodeJid(sock.user?.id || sock.authState?.creds?.me?.id || '') || undefined;
+      const fake = freply.fakeText(`[WHISKAY BOT PREVIEW]\n${String(body || title || 'Menu').slice(0, 500)}`, {
+        remoteJid: targetJid, participant: botJid, fromMe: true
+      });
+      cleanQuoted = {
+        key: { remoteJid: targetJid, id: fake.key.id, fromMe: true, participant: botJid },
+        message: fake.message
+      };
+    } else if (quoted && quoted.key) {
       let qPart = quoted.key.participant || quoted.sender;
       if (targetJid.endsWith('@g.us')) {
         if (quoted.key.fromMe) {

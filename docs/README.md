@@ -1,10 +1,12 @@
+- [Release 2.5.5 — Menu, Egg Canvas & Serializer Compatibility](RELEASE-2.5.5-MENU-EGG-CANVAS.md)
+- [Baileys interactive compatibility notes](BAILEYS-INTERACTIVE-COMPATIBILITY.md)
+- [Test report — 2026-10-27 menu/egg/canvas](TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md)
+- [Release 2.5.5 — Menu, Egg Canvas & Serializer Compatibility](RELEASE-2.5.5-MENU-EGG-CANVAS.md)
+- [Baileys interactive compatibility notes](BAILEYS-INTERACTIVE-COMPATIBILITY.md)
 # Documentation index
 
 # Recent implementation records
 
-- [Stage 3 — Group control and text safety (2026-10-26)](GROUP-CONTROL-AND-SAFETY.md)
-- [Cognitive AI and RPG Tactical Coach](COGNITIVE-AI-RPG-COACH.md)
-- [Test report — group safety upgrade](TEST-REPORT-2026-10-26-GROUP-SAFETY.md)
 - [Stage 2 — Jadibot portal security hardening (2026-10-26)](SECURITY-HARDENING-2026-10-26.md)
 - [Changelog — 2026-10-26](CHANGELOG-2026-10-26.md)
 - [Testing report — 2026-10-26](TEST-REPORT-2026-10-26.md)
@@ -156,3 +158,6 @@
 ## Stage 19
 
 - [Stage 19 — Menu, Canvas V2, and Charging Audit](STAGE-19-AUDIT.md)
+
+- [Nexora, anonymous chat, registration, balance & pairing diagnostics](ANONYMOUS-NEXORA-REGISTRATION-BALANCE.md)
+- [Nexora/anonymous/registration test report (2026-10-27)](TEST-REPORT-2026-10-27-NEXORA-ANON-REGISTRATION.md)
