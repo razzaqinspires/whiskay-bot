@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.6.0",
+  "version": "2.8.0",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "tunnel:check": "node --input-type=module -e \"import('./src/services/worldBossTunnel.js').then(m=>console.log(m.getWorldBossTunnelStatus()))\"",
+    "verify:ops": "node scripts/verify-ops.mjs"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
