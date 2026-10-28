@@ -12,11 +12,13 @@ export function wasEventSeen(id) {
   if (seen.has(id)) { counters.duplicates++; return true; }
   return false;
 }
+
 export function markEventSeen(id) {
   if (!id) return;
   seen.set(id, Date.now());
   while (seen.size > MAX_SEEN) seen.delete(seen.keys().next().value);
 }
+
 export function getWebhookRuntimeStats() {
   return { uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000), ...counters, dedupeEntries: seen.size, targetMode: String(process.env.WHISKAY_BOSS_TARGET_GROUPS || '').trim() ? 'allowlist' : 'all-participating-groups' };
 }
