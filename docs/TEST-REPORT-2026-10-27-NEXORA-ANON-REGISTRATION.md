@@ -19,3 +19,9 @@
 - Pairing portal `JADIBOT_PUBLIC_URL` must serve/proxy `GET /pair/*`, `POST /api/pair/*`, and `/healthz` to the portal Node process. A generic frontend domain alone is insufficient.
 - Top-up is manual verification; pending payment never increases balance until owner approves after confirming funds.
 - Nexora is an AI assistant and does not claim real artificial consciousness or self-training.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

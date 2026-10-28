@@ -39,3 +39,9 @@ GitHub's traffic endpoint returns view and clone totals broken down over **the l
 - Workflow run summaries: `GET /repos/{owner}/{repo}/actions/runs`.
 
 The existing `.github/workflows/repo-update-history.yml` is preserved. It appends source-update metadata to `docs/history/updates.jsonl` after eligible pushes; that log describes code updates and is separate from website analytics or repository traffic metrics.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

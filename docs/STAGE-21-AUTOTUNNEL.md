@@ -20,3 +20,9 @@
 - Updating a local `.env` does not automatically update Vercel's Environment Variables. To make a Vercel deployment follow a changing Quick Tunnel URL, configure Vercel API automation separately or use a stable named Cloudflare Tunnel/custom hostname. Free Quick Tunnels are temporary and not guaranteed stable for production.
 - Keep the webhook secret identical between the bot and RPG/Vercel environment. Never put it in the manifest or GitHub.
 - A valid `world_boss_spawned` event broadcasts to every WhatsApp group the bot participates in. Do not use a valid event for connection-only testing.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

@@ -26,3 +26,9 @@ Use `.setmenu` and choose settings with the embedded list. For images:
 - The Vercel battle interface is a front-end prototype. It has animated UI and client-side combat actions, but it is not yet authoritative multiplayer combat and does not persist each web turn. Production combat should move turn validation to authenticated server APIs.
 - The forecast worker estimates expected turns and incoming damage from current stats; its win percentage/confidence are heuristics, not a guarantee or trained predictive model.
 - Audio is not included in this initial web prototype because reliable audio asset licensing, mobile autoplay rules, and 3D asset delivery require dedicated assets and testing. The current scene uses procedural CSS effects rather than a full real-time 3D engine.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

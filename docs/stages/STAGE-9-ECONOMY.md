@@ -8,3 +8,9 @@ Added native Whiskay command plugins:
 Legacy spirit gacha is retained as `.spiritgacha` so the new equipment gacha does not collide with the older plugin. The website must have the Stage 9 API/schema deployed first.
 
 Set `DUNGEON_WEBSITE_URL` and `DUNGEON_SYNC_TOKEN` (same secret as website `BOT_SYNC_TOKEN`).
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

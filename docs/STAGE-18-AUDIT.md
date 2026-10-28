@@ -10,3 +10,9 @@ Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, an
 
 ## Verification boundaries
 Node syntax checks and unit tests validate code structure and plugin behavior only. Live Baileys broadcast requires a logged-in bot with group membership; auction requires the website deployment and Stage 18 SQL applied. The energy ledger remains local JSON and is not the RPG player snapshot.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

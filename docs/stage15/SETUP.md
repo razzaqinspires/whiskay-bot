@@ -12,3 +12,9 @@
 3. Test water, Spirit Seed, patrol monsters, joystick and camera bounds on real target phones.
 
 The worker is a lightweight heuristic, not sentience or a measurement of actual CPU/token cost. JSON ledgers are not distributed locks for multiple replicas.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

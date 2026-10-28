@@ -27,3 +27,9 @@
 ## Operational notes
 
 For native Canvas rendering, install `canvas` in an environment with its required native build libraries. The FFmpeg fallback remains available when `canvas` is not installed. `data/energy-ledger.json` and `data/runtime-switches.json` must be persistent across deployments/restarts. Avoid running multiple bot replicas against the same local JSON ledger; use a database-backed ledger for multi-instance production.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

@@ -62,6 +62,7 @@ function formatYtError(error) {
   const raw = String(error?.stderr || error?.message || 'proses yt-dlp gagal');
   if (/ffmpeg.*not found|ffmpeg is not installed/i.test(raw)) return 'FFmpeg belum terpasang. Install FFmpeg agar konversi MP3 bisa dilakukan.';
   if (/private video|sign in|members-only|age-restricted|login required/i.test(raw)) return 'Video privat, dibatasi usia/login, atau tidak bisa diakses publik.';
+  if (/requested format is not available|no video formats found|format .* not available/i.test(raw)) return 'Format video yang diminta tidak tersedia. Coba video publik lain atau perbarui yt-dlp; downloader sudah mencoba format gabungan dan fallback.';
   if (/unsupported url/i.test(raw)) return 'URL tidak didukung oleh yt-dlp.';
   if (/timed out|killed|timeout/i.test(raw)) return 'Proses terlalu lama dan dihentikan. Coba lagi nanti.';
   return clean(raw, 420) || 'Unduhan gagal. Coba URL lain atau perbarui yt-dlp.';
@@ -173,6 +174,23 @@ async function sendVideoPreview(ctx, rawUrl) {
   });
 }
 
+export function buildMp4FormatArgs() {
+  // Prefer separate video+audio streams up to 720p, then fall back to a combined
+  // MP4 or any available format. YouTube frequently has no single-file MP4 at 720p.
+  return ['-f', 'bv*[height<=720]+ba/b[height<=720]/b', '--merge-output-format', 'mp4'];
+}
+
+export async function sendDownloadedMedia(ctx, mode, buffer, caption) {
+  const sock = ctx?.sock || ctx?.client;
+  if (!sock || typeof sock.sendMessage !== 'function') throw new Error('Koneksi WhatsApp tidak tersedia (sock.sendMessage).');
+  const jid = ctx.chat || ctx.sender;
+  if (!jid) throw new Error('Tujuan chat WhatsApp tidak tersedia.');
+  const content = mode === 'mp3' || mode === 'play'
+    ? { audio: buffer, mimetype: 'audio/mpeg', fileName: 'whiskay-audio.mp3', ptt: false }
+    : { video: buffer, mimetype: 'video/mp4', fileName: 'whiskay-video.mp4', caption };
+  return sock.sendMessage(jid, content, ctx.raw ? { quoted: ctx.raw } : {});
+}
+
 async function downloadAndSend(ctx, rawUrl, mode) {
   const url = normalizeVideoUrl(rawUrl);
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'whiskay-yt-'));
@@ -183,7 +201,7 @@ async function downloadAndSend(ctx, rawUrl, mode) {
     if (mode === 'mp3' || mode === 'play') {
       await runYtDlp([...common, '-x', '--audio-format', 'mp3', '--audio-quality', '5', url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
     } else {
-      await runYtDlp([...common, '-f', 'best[ext=mp4][height<=720]/best[height<=720][ext=mp4]/best[height<=720]', '--merge-output-format', 'mp4', url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
+      await runYtDlp([...common, ...buildMp4FormatArgs(), url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
     }
     const files = (await readdir(tempDir)).filter(f => !f.endsWith('.part') && !f.endsWith('.ytdl'));
     if (!files.length) throw new Error('File hasil tidak ditemukan. Video mungkin melebihi batas ukuran 48 MB atau formatnya tidak tersedia.');
@@ -192,11 +210,7 @@ async function downloadAndSend(ctx, rawUrl, mode) {
     if (info.size > MAX_UPLOAD_BYTES) throw new Error('File melebihi batas pengiriman 48 MB. Pilih video/audio yang lebih pendek.');
     const buffer = await readFile(filePath);
     const caption = `🎬 ${clean(path.basename(filePath).replace(/-[^-]+\.[^.]+$/, '').replace(/_/g, ' '), 180)}\nSumber: YouTube`;
-    if (mode === 'mp3' || mode === 'play') {
-      await ctx.send({ audio: buffer, mimetype: 'audio/mpeg', fileName: 'whiskay-audio.mp3', ptt: false });
-    } else {
-      await ctx.send({ video: buffer, mimetype: 'video/mp4', fileName: 'whiskay-video.mp4', caption });
-    }
+    await sendDownloadedMedia(ctx, mode, buffer, caption);
   } catch (error) {
     await ctx.reply(`❌ YouTube downloader gagal: ${clean(error?.message || error, 450)}`).catch(() => {});
   } finally {

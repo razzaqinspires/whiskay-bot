@@ -11,6 +11,8 @@ const DEFAULTS = Object.freeze({
   template: 'corporate',
   energyDetails: false,
   font: 'normal',
+  batteryDisplayStyle: 'match_menu',
+  batteryNotification: 'merge',
   description: true,
   categoriesVisible: true,
   order: 'category',
@@ -22,13 +24,16 @@ const DEFAULTS = Object.freeze({
   topBorder: true,
   bottomBorder: true,
   spacing: 1,
-  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits','balance','totalusers','registeredusers'],
-  imageMode: 'none',
+  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits','balance','totalusers','registeredusers','biocore','events','messages','uptime','database'],
+  imageMode: 'official',
   imagePath: '',
   boldParts: [],
   widgetSymbolBefore: '',
   widgetSymbolAfter: '',
-  quoteMode: 'default'
+  widgetNumbering: false,
+  quoteMode: 'default',
+  quoteExperiment: '',
+  commandPageSize: 100
 });
 
 async function readJson(file, fallback) {
@@ -44,7 +49,10 @@ async function writeJson(file, value) {
 export function defaultMenuSettings() { return structuredClone(DEFAULTS); }
 export async function getMenuSettings(userId) {
   const all = await readJson(SETTINGS_FILE, {});
-  return { ...defaultMenuSettings(), ...(all[String(userId || 'unknown')] || {}) };
+  const settings = { ...defaultMenuSettings(), ...(all[String(userId || 'unknown')] || {}) };
+  if (!['match_menu','default'].includes(settings.batteryDisplayStyle)) settings.batteryDisplayStyle = 'match_menu';
+  if (!['hide','merge','separate'].includes(settings.batteryNotification)) settings.batteryNotification = 'merge';
+  return settings;
 }
 export async function updateMenuSettings(userId, patch) {
   const all = await readJson(SETTINGS_FILE, {});

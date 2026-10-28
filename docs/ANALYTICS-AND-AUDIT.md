@@ -22,3 +22,9 @@
 ## Update ledger workflow
 
 The workflow runs after source pushes and ignores commits that only change `docs/history/updates.jsonl`, preventing a commit loop. GitHub repository settings may still block `GITHUB_TOKEN` pushes; if so, the workflow will fail visibly and needs an approved permission change. Do not silently add a personal access token to the repository.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

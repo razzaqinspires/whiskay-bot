@@ -28,3 +28,9 @@ Metode pembayaran menggunakan konfigurasi `.setpayment` yang sudah ada. Pembayar
 - Sub-bot memakai plugin command yang sama. Uji dahulu dengan akun WhatsApp kedua. Gunakan hanya akun yang kamu miliki/berwenang mengelolanya dan patuhi ketentuan WhatsApp.
 - Sesi yang sudah tersimpan disambungkan kembali secara manual lewat `.jadibotlogin`; ini menghindari pembukaan banyak socket otomatis ketika server restart.
 - Gunakan server dengan disk persisten. Storage serverless/ephemeral tidak cocok untuk menyimpan sesi Baileys jangka panjang.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

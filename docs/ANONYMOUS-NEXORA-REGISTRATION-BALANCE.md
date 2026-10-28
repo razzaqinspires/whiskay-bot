@@ -42,3 +42,9 @@ Manual tests still required: live Baileys login, multi-device button rendering, 
 
 ## GitHub update timestamp
 The `repo-update-history.yml` workflow now falls back to the pushed commit's committer timestamp when the event payload has no `head_commit.timestamp` (e.g. manual workflow dispatch), and uses runner UTC only as a final fallback.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

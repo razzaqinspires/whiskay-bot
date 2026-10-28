@@ -13,3 +13,9 @@ Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN` and the matching website `BOT_SY
 - Existing RPG combat still contains a JSON-file migration/fallback path for environments without `DUNGEON_WEBSITE_URL`; full authoritative economy requires moving each combat reward/spend to server-side Supabase RPCs. The existing snapshot endpoint intentionally preserves some server-authoritative fields, so do not treat this stage as proof of fully atomic two-way economy transactions.
 - Group moderation is subject to WhatsApp's admin permissions and Baileys runtime support.
 - Meme conversion requires a system FFmpeg binary; there is no bundled binary.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

@@ -31,3 +31,9 @@ Ganti contoh URL dengan tautan gambar yang benar-benar milik owner dan dapat dia
 
 ## Catatan pengujian
 Pemeriksaan sintaks dan integritas ZIP dijalankan saat paket dibuat. Belum dilakukan pengujian langsung pada sesi WhatsApp atau pada URL gambar server owner. Scrape menolak redirect dan membatasi ukuran respons, tetapi tetap sebaiknya digunakan hanya pada situs publik tepercaya.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

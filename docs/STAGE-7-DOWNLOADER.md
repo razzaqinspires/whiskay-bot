@@ -5,3 +5,9 @@ Commands: `.tiktok <url>`, `.ig <url>`, `.fb <url>`. The bot previews metadata a
 Configure `MEDIA_DOWNLOADER_API_URL` to a trusted JSON provider that accepts `platform` and `url` query parameters and returns `{ "title": "...", "thumbnail": "https://...", "videoHD": "https://...", "videoSD": "https://...", "audio": "https://..." }`. The bot does not include or bypass a downloader provider; use a provider you are authorized to use and comply with Meta policies, copyright, privacy and each platform's terms. Native-flow support and delivery depend on the current WhatsApp/Baileys version; a text fallback is provided.
 
 `src/core/serializer.js` is the ESM facade; `src/core/serializer-compat.cjs` retains existing compatibility methods and exports `sendInteractiveMessage`.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

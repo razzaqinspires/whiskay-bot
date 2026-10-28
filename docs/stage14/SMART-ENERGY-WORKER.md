@@ -18,3 +18,9 @@ Kompleksitas algoritma per command O(n) dengan batas panjang input; operasi disk
 - `.charge` mengisi +40% dengan cooldown 24 jam. `.charge fast` hanya Premium aktif dan mengisi hingga 100%.
 - Premium dapat diberikan owner maksimal 30 hari per pemberian. Bukti pembayaran dikirim ke owner untuk verifikasi manual; sistem tidak menyatakan pembayaran otomatis terverifikasi.
 - Harga harian dihitung dari harga dasar dan rate yang dapat disetel owner. Integrasi payment gateway otomatis belum termasuk.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

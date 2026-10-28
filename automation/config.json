@@ -1,0 +1,7 @@
+{
+  "audit_interval_hours": 6,
+  "traffic_drop_threshold_pct": 30,
+  "watch_paths": ["src", "plugins", "lib", ".github/workflows"],
+  "verbosity": "normal",
+  "deep_audit": false
+}

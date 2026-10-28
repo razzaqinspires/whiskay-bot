@@ -46,12 +46,14 @@ export function complexityScore(command, previous = []) {
 function jaccard(a, b) { const aa = new Set(a), bb = new Set(b); if (!aa.size && !bb.size) return 1; let intersection = 0; for (const x of aa) if (bb.has(x)) intersection++; return intersection / Math.max(1, aa.size + bb.size - intersection); }
 function resolveCharging(u, now = Date.now()) {
   if (!u?.isCharging) return false;
-  const started = Number(u.chargingStartedAt || now), startEnergy = clamp(Number(u.chargingStartEnergy ?? u.energy ?? 0), 0, 100);
-  const elapsed = Math.max(0, now - started), duration = Math.max(0, 100 - startEnergy) * 252000;
-  u.energy = Math.round(clamp(startEnergy + elapsed / 252000, 0, 100) * 100) / 100;
+  const cap = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000), volts = clamp(Number(u.currentVoltSpeed || 5), 5, 33);
+  const started = Number(u.chargingStartedAt || now), startEnergy = clamp(Number(u.chargingStartEnergy ?? u.energy ?? 0), 0, cap);
+  const rate = (volts / 5) / 252000;
+  const elapsed = Math.max(0, now - started), duration = Math.max(0, cap - startEnergy) / rate;
+  u.energy = Math.round(clamp(startEnergy + elapsed * rate, 0, cap) * 100) / 100;
   u.chargingEndsAt = started + duration;
-  if (u.energy >= 100 || now >= u.chargingEndsAt) {
-    u.energy = 100; u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = 100; u.chargingEndsAt = 0; u.lastChargeAt = now;
+  if (u.energy >= cap || now >= u.chargingEndsAt) {
+    u.energy = cap; u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = cap; u.chargingEndsAt = 0; u.lastChargeAt = now;
     return true;
   }
   return false;
@@ -60,29 +62,60 @@ export async function getEnergy(userId) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || {};
   const completed = resolveCharging(u);
   if (completed) await atomicJson(ENERGY_FILE, all);
-  const energy = clamp(Number(u.energy ?? 100), 0, 100);
-  return { energy, isCharging: Boolean(u.isCharging), chargingEndsAt: Number(u.chargingEndsAt || 0), chargingStartedAt: Number(u.chargingStartedAt || 0), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
+  const maxBatteryCapacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+  const energy = clamp(Number(u.energy ?? 100), 0, maxBatteryCapacity);
+  return { energy, maxBatteryCapacity, currentVoltSpeed: clamp(Number(u.currentVoltSpeed || 5), 5, 33), modCoins: Math.max(0, Math.floor(Number(u.modCoins || 0))), isCharging: Boolean(u.isCharging), chargingEndsAt: Number(u.chargingEndsAt || 0), chargingStartedAt: Number(u.chargingStartedAt || 0), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
 }
 export async function isCharging(userId) { return (await getEnergy(userId)).isCharging; }
-export async function startCharging(userId, now = Date.now()) {
+export async function startCharging(userId, now = Date.now(), options = {}) {
   return withMutationLock(async () => {
     const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
     resolveCharging(u, now);
     if (u.isCharging) return { ok: false, reason: 'already-charging', energy: Number(u.energy || 0), endsAt: Number(u.chargingEndsAt || 0) };
-    const energy = clamp(Number(u.energy ?? 100), 0, 100);
-    if (energy >= 100) return { ok: false, reason: 'full', energy: 100 };
-    const duration = Math.ceil((100 - energy) * 252000);
+    const volts = clamp(Number(options.volts || 5), 5, 33);
+    const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+    if (volts > 5 && Number(u.premiumUntil || 0) <= now) return { ok: false, reason: 'premium-required', energy: Number(u.energy || 0) };
+    const energy = clamp(Number(u.energy ?? 100), 0, capacity);
+    if (energy >= capacity) return { ok: false, reason: 'full', energy: capacity };
+    u.currentVoltSpeed = volts;
+    const duration = Math.ceil((capacity - energy) * 252000 * (5 / volts));
     u.isCharging = true; u.chargingStartedAt = now; u.chargingStartEnergy = energy; u.chargingEndsAt = now + duration;
     all[key] = u; await atomicJson(ENERGY_FILE, all);
-    return { ok: true, energy, endsAt: u.chargingEndsAt, durationMs: duration };
+    return { ok: true, energy, capacity, volts, endsAt: u.chargingEndsAt, durationMs: duration };
   });
+}
+export async function addModCoins(userId, amount) {
+  const value = Math.floor(Number(amount)); if (!Number.isFinite(value) || value < 1 || value > 1000000000) return { ok:false, reason:'invalid-amount' };
+  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; u.modCoins=Math.max(0,Math.floor(Number(u.modCoins||0)))+value; all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins}; });
+}
+export async function spendModCoins(userId, amount) {
+  const value = Math.floor(Number(amount)); if (!Number.isFinite(value) || value < 1) return {ok:false,reason:'invalid-amount'};
+  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))); if(coins<value)return {ok:false,reason:'insufficient-coins',modCoins:coins}; u.modCoins=coins-value; all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins}; });
+}
+export async function upgradeBatteryCapacity(userId, increment=50, cost=100) {
+  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))), price=Math.max(1,Math.floor(Number(cost)||100)); if(coins<price)return {ok:false,reason:'insufficient-coins',modCoins:coins}; const current=clamp(Number(u.maxBatteryCapacity||100),100,10000), next=Math.min(10000,current+Math.max(50,Math.floor(Number(increment)||50))); if(next===current)return {ok:false,reason:'capacity-limit',capacity:current}; u.modCoins=coins-price;u.maxBatteryCapacity=next;all[key]=u;await atomicJson(ENERGY_FILE,all);return {ok:true,capacity:next,modCoins:u.modCoins}; });
+}
+export async function resetBattery(userId, energy = 100) {
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), key = normUser(userId);
+    const u = all[key] || { energy: 100 };
+    const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+    u.energy = clamp(Number(energy), 0, capacity);
+    u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = u.energy; u.chargingEndsAt = 0;
+    u.currentVoltSpeed = 5; all[key] = u; await atomicJson(ENERGY_FILE, all);
+    return { ok: true, user: key, energy: u.energy, capacity, modCoins: Math.max(0, Math.floor(Number(u.modCoins || 0))) };
+  });
+}
+export async function listEnergyUsers(limit=100, offset=0) {
+  const all=await readJson(ENERGY_FILE,{}); const rows=Object.entries(all).map(([user,u])=>({user,energy:clamp(Number(u.energy??100),0,clamp(Number(u.maxBatteryCapacity||100),100,10000)),capacity:clamp(Number(u.maxBatteryCapacity||100),100,10000),volts:clamp(Number(u.currentVoltSpeed||5),5,33),isCharging:Boolean(u.isCharging),premiumUntil:Number(u.premiumUntil||0)}));
+  return { total:rows.length, users:rows.slice(Math.max(0,offset),Math.max(0,offset)+Math.min(100,Math.max(1,limit))) };
 }
 export async function stopCharging(userId, now = Date.now()) {
   return withMutationLock(async () => {
     const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key];
-    if (!u?.isCharging) return { ok: false, reason: 'not-charging', energy: clamp(Number(u?.energy ?? 100), 0, 100) };
+    if (!u?.isCharging) return { ok: false, reason: 'not-charging', energy: clamp(Number(u?.energy ?? 100), 0, clamp(Number(u?.maxBatteryCapacity || 100),100,10000)) };
     resolveCharging(u, now); u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = Number(u.energy || 0); u.chargingEndsAt = 0; all[key] = u; await atomicJson(ENERGY_FILE, all);
-    return { ok: true, energy: clamp(Number(u.energy || 0), 0, 100) };
+    return { ok: true, energy: clamp(Number(u.energy || 0), 0, clamp(Number(u.maxBatteryCapacity || 100),100,10000)) };
   });
 }
 let regenTimer = null;
@@ -103,7 +136,7 @@ export function startAutoRegenWorker() {
         const all = await readJson(ENERGY_FILE, {}); let changed = false;
         for (const u of Object.values(all)) {
           if (u?.isCharging) { changed = resolveCharging(u) || changed; continue; }
-          const before = clamp(Number(u.energy ?? 100), 0, 100), after = Math.min(100, Math.round((before + 0.01) * 100) / 100);
+          const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000); const before = clamp(Number(u.energy ?? 100), 0, capacity), after = Math.min(capacity, Math.round((before + 0.01) * 100) / 100);
           if (after !== before) { u.energy = after; changed = true; }
         }
         if (changed) await atomicJson(ENERGY_FILE, all);
@@ -118,8 +151,9 @@ readJson(SETTINGS_FILE, {}).then(s => { if (s?.autoRegen) startAutoRegenWorker()
 async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
   const cost = fixedCost !== null && fixedCost !== undefined && Number.isFinite(Number(fixedCost)) ? Math.round(clamp(Number(fixedCost), 0.05, 10) * 100) / 100 : complexityScore(commandText, u.lastCommands || []);
-  const actualCost = Math.round(Math.min(clamp(Number(u.energy ?? 100), 0, 100), cost) * 100) / 100;
-  u.energy = Math.round(clamp(Number(u.energy ?? 100) - actualCost, 0, 100) * 100) / 100;
+  const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+  const actualCost = Math.round(Math.min(clamp(Number(u.energy ?? 100), 0, capacity), cost) * 100) / 100;
+  u.energy = Math.round(clamp(Number(u.energy ?? 100) - actualCost, 0, capacity) * 100) / 100;
   u.commands = Number(u.commands || 0) + 1; u.totalSpent = Math.round((Number(u.totalSpent || 0) + actualCost) * 100) / 100;
   u.lastCommands = [...(u.lastCommands || []).slice(-4), String(commandText || '').slice(0, 120)];
   all[key] = u;

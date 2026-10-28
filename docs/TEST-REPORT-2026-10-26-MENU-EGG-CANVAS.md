@@ -26,3 +26,9 @@ Date: 2026-10-26 (Asia/Jakarta)
 Baileys issue #2465 reports inconsistent delivery/rendering of list messages on some recent versions. The feature retains a direct text command and normal text fallback; interactive lists should be verified with a test account on the target WhatsApp client.
 
 The report distinguishes checks actually performed from checks that require a connected WhatsApp account or a completed dependency install.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

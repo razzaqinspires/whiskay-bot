@@ -309,6 +309,15 @@ Riwayat snapshot tersimpan: **1** (maksimum 90 snapshot lokal di berkas metrik).
 - A GitHub Actions CI workflow runs `npm ci`, JavaScript syntax checks, and the full regression suite on pushes and pull requests.
 - Rate limiting is process-local; multi-instance deployments should enforce shared throttling at the trusted reverse proxy. See [security hardening](docs/SECURITY-HARDENING-2026-10-26.md), [changelog](docs/CHANGELOG-2026-10-26.md), and [test report](docs/TEST-REPORT-2026-10-26.md).
 
+
+## 🚀 Stage 26 — Reliability & Event Integrity
+
+Stage 26 adds per-message correlation metadata and privacy-safe event counters. `src/core/serializer.js` attaches `ctx.event`, `ctx.correlationId`, and `ctx.receivedAt`; `src/handlers/message.js` emits typed `message:received` and `command:recognized` events. The compatibility serializer remains unchanged.
+
+- Stage plan: [`docs/stages/STAGE-26.md`](docs/stages/STAGE-26.md)
+- Verification: `npm run verify:stage26`
+- Scope: telemetry/event foundations only; live webhook delivery and distributed persistence require separate integration tests.
+
 ## 📚 Documentation & Archives
 
 | Document | Path |
@@ -542,3 +551,100 @@ Detailed notes: [`docs/ANONYMOUS-NEXORA-REGISTRATION-BALANCE.md`](docs/ANONYMOUS
 - Visual slot: `.slot` or `.casino`; it is a no-stakes mini-game and sends a generated image when `canvas` or FFmpeg is available.
 - `.welcome on` enables Canvas V2 member cards for joins/leaves. `.antilink on` checks WhatsApp group invite links only. Default behavior is warning; automatic kick is opt-in and disabled by default.
 - See [`docs/STAGE-20-MILESTONE.md`](docs/STAGE-20-MILESTONE.md) for deployment notes. Never distribute `.env`, session credentials, or `data/`.
+
+
+## Update 2.8.1 — Setmenu, Menu Card V2 & Owner Command Tester
+
+- `.testcommands` / `.testcmds` is an owner-only diagnostic command. It inventories registered plugin commands and runs the Node.js test suite, then returns a WhatsApp interactive response with **Simpan & Update README** and **Jangan Simpan** buttons.
+- Saving the audit creates `test/owner-command-audit-<id>.test.js` and appends the report summary to this README. The full temporary report is stored under `data/test-reports/`. Command plugins are not blindly invoked: some commands send messages, mutate balances/data, or trigger external side effects.
+- `.setmenu order` now opens an interactive selector for `category`, `az`, and `za`.
+- Two templates added: `neon` and `zen`.
+- Added five optional operational widgets: `biocore` (runtime/plugin registry status), `events` (recorded command-hit counter), `messages` (sum of locally recorded user message counts), `uptime`, and `database` (local user count and last update time). The bio-core label is a runtime status label, not a claim that the bot is conscious.
+- Widget symbols can be set before/after each widget, and `.setmenu symbols count` toggles sequential numbering for widget lines.
+- Command rows now render as `1. /command 🎟️ ⚡ 1,30%`: count first, command next, access/premium symbols after the command, and at most one energy symbol at the end before the optional percentage.
+- Quote menu now exposes standard quote, no quote, bot preview, and synthetic fake-quote experiments. Synthetic previews are labelled as bot-authored and do not select a fake third-party/verified persona. WhatsApp rendering can vary by client and Baileys version.
+- Menu Card V2 uses a landscape 1200×675 (16:9) canvas fallback and attaches it to the interactive message when Baileys media upload is available.
+- Added structural regression tests in `test/setmenu-owner-audit-and-energy-order.test.js`.
+
+
+See also: [Setmenu, Quoted Messages, Card V2, and Owner Command Tester](docs/SETMENU-QUOTED-CARD-TESTER.md).
+
+## 2026-10-29 — YouTube downloader reliability and documentation archive
+
+The YouTube MP3/MP4 sender now uses the project's Baileys serializer contract (`ctx.sock.sendMessage`) rather than the nonexistent `ctx.send` method. MP4 extraction supports separate video/audio streams, a 720p ceiling and generic format fallback. The reported `Requested format is not available` condition now has a clearer diagnostic. See [YouTube downloader fix](docs/YOUTUBE-DOWNLOADER-FIX-2026-10-29.md) and [unit test report](docs/TEST-REPORT-2026-10-29-YOUTUBE.md).
+
+Run `npm test` to include the new tests for format selection and media sending. They are unit tests; they do not claim that arbitrary YouTube URLs or live WhatsApp uploads were tested.
+
+## Documentation archive — stages 1–22
+
+The original setup reports, audit reports, release notes and archived README copies remain preserved. The [master stage archive](docs/STAGE-1-22-MASTER-ARCHIVE.md) provides a chronological register and explains which systems are prototypes versus production-verified. The [documentation index](docs/README.md) lists active and archived Markdown files. The documentation maintenance rule is additive: append corrections and new reports; do not delete historical records or overwrite unrelated README sections.
+
+
+
+### Test environment note — 2026-10-29
+
+The focused YouTube unit tests pass (3/3), and syntax checks pass for all JavaScript files under `src/`, `test/`, and `scripts/`. The complete `npm test` run found 90 tests: 86 passed and 4 errored because the workspace does not have installed dependencies (`dotenv` missing). Install dependencies and rerun before treating the full suite as green.
+
+## Stage 23 — Integration foundation (2026-10-29)
+- See `docs/STAGE-23-IMPLEMENTATION-2026-10-29.md` for scope, command syntax, security caveats, tests, and deferred live-integration items.
+- Preserve previous stage notes and archives; Stage 23 supplements rather than replaces historical documentation.
+### Stage 23 commands
+- `.setmenu battery match_menu|default` — battery display font.
+- `.setmenu notification hide|merge|separate` — energy footer behavior.
+- `.charge` — choose standard 5V or Premium fast-charge voltages.
+- `.charge upgrade` — capacity +50 for 100 Mod Coins.
+- `.statusbaterai` — energy progress, voltage and Mod Coin status.
+- `.buy modcoin 100` — quote an invoice; owner must verify payment before crediting coins.
+- `.modcoin add <nomor/JID> <jumlah>` — owner-only manual credit after payment verification.
+- `.newcmd`, `.batterydashboard [page]`, `.menu [page]` — new-command countdown and 100-row pagination.
+
+Payment verification and Web Companion snapshot synchronization must be configured and verified separately; do not treat an invoice or webhook response alone as proof of payment.
+
+Documentation archive: `docs/STAGE-1-23-MASTER-ARCHIVE.md` and `docs/README.md`. Historical stage documents remain preserved.
+
+## Stage 23+ Rev. 2 (29 Oktober 2026)
+- `ctx.reply(text)` khusus teks; `ctx.send(options)` untuk text/media/interactive/list/rich/table. Compatibility layer `serializer-compat.cjs` tetap tidak diubah.
+- Preferensi `.setmenu battery match_menu|default` hanya mengubah status energi pada menu, bukan font command lain. `.setmenu notification hide|merge|separate` mengatur bubble status energi.
+- Pilihan gambar mencakup Menu V1/V2 dan Profile RPG V1/V2. Owner dapat menjalankan `.setenergy reset [nomor-user/@tag]`; tanpa target mengarah ke akun owner yang menjalankan.
+- Detail dan batasan: `docs/STAGE-23-LITERACY-UPDATE-2026-10-29-REV2.md`.
+
+## Stage 24 — Terminal & RPG World Depth
+
+- Terminal theme engine: `src/utils/logger.js`; owner command `.setlog 1-5`.
+- Stage 24 design/test record: `docs/stages/STAGE-24.md`.
+- Five log themes and typed event methods; no added color dependency.
+- Web Companion companion package includes seeded world generation, combat FX overlay, loading screen and world-coordinate schema.
+- Stage 24 structural verification: `npm run verify:stage24`.
+- Some large systems (live WebSocket relay, production post-processing, dynamic AI events, auction escrow, gacha ticketing and economy ledger) remain integration work; see stage docs. Do not treat design contracts as deployed services.
+
+
+## Stage 25 — Repository Identity, Menfess & World Integration
+
+- Stage 25 implementation notes: [`docs/stages/STAGE-25.md`](docs/stages/STAGE-25.md).
+- Optional PM2: `npm run start:pm2`, `npm run logs:pm2`, `npm run restart:pm2`, `npm run stop:pm2`. PM2 must be installed on the host.
+- Menfess foundation: `.menfess help`, `.menfess send <nomor> <pesan>`, `.menfess end <id-sesi>`. Automatic quoted-reply interception is not claimed complete until central middleware wiring is verified.
+- Tests: `npm run verify:stage25`.
+- Never commit `.env`, GitHub tokens, WhatsApp sessions, or Supabase service-role credentials. Configure repository identity placeholders before release.
+
+
+## Stage 27 — Durable Event Outbox & Idempotent Processing
+
+- Version: 2.13.0
+- Stage 27 specification: `docs/stages/STAGE-27.md`.
+- Bot event processing now has a durable/idempotent foundation: bounded event types, event IDs, retries, and duplicate suppression.
+- Verification: `npm run verify:stage27`; full configured checks: `npm run verify:all`.
+- The Bot file-backed queue is single-process/persistent-disk only. For replicas or serverless deployments, use a database-backed transactional outbox.
+- Event ingestion is not a completed business-effect worker: currency/inventory mutations still require atomic transactions, and live Supabase deployment/testing must be performed separately.
+- Preserve Stage 1–26 documentation and historical records; Stage 27 supplements rather than replaces them.
+
+- Master archive index through Stage 27: `docs/stages/STAGE-1-27-MASTER-ARCHIVE.md`.
+
+
+## Stage 28 — Durable Event Processing & Transaction Safety
+
+- Version: 2.14.0
+- Scope: event envelope validation, idempotency primitives, retry strategy, and transaction-safety requirements.
+- Stage documentation: `docs/stages/STAGE-28.md`.
+- Verification: `npm run verify:stage28` and `npm run verify:all`.
+- Archive policy: all prior stage documentation is retained; this section extends rather than replaces the history.
+- Production caveat: multi-instance deduplication and atomic business transactions require database-backed implementation and integration testing.

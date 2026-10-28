@@ -27,3 +27,9 @@ If pip reports an externally-managed environment, install yt-dlp in a virtual en
 - The bot sends actual downloaded media; the server needs enough temporary disk space and network bandwidth.
 - YouTube can change its delivery mechanisms; keep yt-dlp updated.
 - Syntax checks passed, but live WhatsApp download/search has not been tested in this environment. Validate on the actual server after installing yt-dlp and FFmpeg.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

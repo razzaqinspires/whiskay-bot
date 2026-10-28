@@ -1,0 +1,7 @@
+{
+  "developer": "Arifi Razzaq",
+  "contactEmail": "SET_DEVELOPER_EMAIL_IN_ENV",
+  "botRepository": "SET_WHISKAY_BOT_REPOSITORY_URL",
+  "webRepository": "SET_WHISKAY_WEB_REPOSITORY_URL",
+  "versionPolicy": "exact-lockfile-reviewed"
+}

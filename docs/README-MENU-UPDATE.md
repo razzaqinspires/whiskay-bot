@@ -50,3 +50,9 @@ The package remains on `@whiskeysockets/baileys` `7.0.0-rc14`. The serializer fa
 - Mode official menolak URL kosong/tidak valid dan tidak lagi melaporkan sukses palsu.
 - Gambar menu dikirim sebagai pesan media WhatsApp terpisah sebelum menu interaktif agar tidak bergantung pada dukungan media di header interactive.
 - Jika gambar gagal dimuat/dikirim, menu menampilkan peringatan yang bisa ditindaklanjuti.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

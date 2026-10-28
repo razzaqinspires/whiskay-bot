@@ -11,7 +11,7 @@ import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
 import { getEnergy, complexityScore, getHits } from '../../lib/energy-worker.js';
 import { getProfile, getLeaderboard } from '../../lib/leveling.js';
 import { renderMenuCardV2 } from '../../services/canvas-v2.js';
-import { getUser, getUserStats } from '../../lib/app-database.js';
+import { getUser, getUserStats, readAppDatabase } from '../../lib/app-database.js';
 
 
 async function renderOfficialCanvas(kind, botName, avatarPath = null) { return renderMenuCardV2({ botName, avatarPath, subtitle: kind === 'rpg' ? 'PLAYER PROFILE / LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER' }); }
@@ -30,6 +30,8 @@ const smallCaps = Object.fromEntries([...('abcdefghijklmnopqrstuvwxyz')].map((c,
 const replaceMap = (s, source, target) => { const m = new Map([...source].map((c,i)=>[c,target[i]||c])); return [...String(s)].map(c=>m.get(c)||m.get(c.toLowerCase())||c).join(''); };
 const fontFns = {
   normal: s => String(s),
+  bolditalic: s => mapChars(s,0x1D468,0x1D482),
+  square: s => replaceMap(s,'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz','🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ'),
   bold: s => mapChars(s,0x1D400,0x1D41A,0x1D7CE),
   sans: s => mapChars(s,0x1D5D4,0x1D5EE,0x1D7F6),
   mono: s => mapChars(s,0x1D670,0x1D68A,0x1D7F6),
@@ -48,6 +50,8 @@ const fontFns = {
 };
 const FONT_LABELS = {
   normal: ['Normal','Teks standar, paling kompatibel','Type something to start'],
+  bolditalic: ['Bold Italic Sans','Sans tebal miring','𝙏𝙮𝙥𝙚 𝙨𝙤𝙢𝙚𝙩𝙝𝙞𝙣𝙜'],
+  square: ['Squared Display','Karakter kotak; beberapa huruf memakai simbol fallback','🅃🅈🄿🄴 🅂🄾🄼🄴'],
   bold: ['Bold Serif','Tebal dan formal','𝐓𝐲𝐩𝐞 𝐬𝐨𝐦𝐞𝐭𝐡𝐢𝐧𝐠 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭'],
   sans: ['Sans Bold','Tebal modern','𝗧𝘆𝗽𝗲 𝘀𝗼𝗺𝗲𝘁𝗵𝗶𝗻𝗴 𝘁𝗼 𝘀𝘁𝗮𝗿𝘁'],
   mono: ['Monospace','Gaya terminal','𝚃𝚢𝚙𝚎 𝚜𝚘𝚖𝚎𝚝𝚑𝚒𝚗𝚐 𝚝𝚘 𝚜𝚝𝚊𝚛𝚝'],
@@ -79,7 +83,7 @@ const TEMPLATE = {
   monochrome: { top: '▰▰〔', mid: '│', bottom: '▰▰▰▰▰▰▰' },
   royal: { top: '♛ ╔〔', mid: '♜', bottom: '╚════════♛' }
 };
-const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank','rpgstatus','leaderboard','commandhits']);
+const WIDGETS = new Set(['category','count','prefix','new','owner','footer','heading','intro','website','rank','rpgstatus','leaderboard','commandhits','biocore','events','messages','uptime','database']);
 const canonicalFor = p => Array.isArray(p.menuCommands) ? p.menuCommands : (Array.isArray(p.command) ? p.command.slice(0,1) : [p.command]);
 function getCommandRows() {
   const rows=[];
@@ -105,7 +109,13 @@ async function renderMenu(ctx) {
   const newSet=await getNewCommandSet(rows.map(r=>r.command));
   if(!settings.widgets.includes('owner')) rows=rows.filter(r=>!r.owner);
   if(settings.categories?.length) rows=rows.filter(r=>settings.categories.includes(r.category));
-  rows.sort((a,b)=> { const grouped=settings.categoriesVisible!==false&&settings.widgets.includes('category'); if(grouped){const byCategory=a.category.localeCompare(b.category);if(byCategory)return byCategory;} return settings.order==='za'?-a.command.localeCompare(b.command):a.command.localeCompare(b.command); });
+  rows.sort((a,b)=> { if(settings.order==='category'){const byCategory=a.category.localeCompare(b.category);if(byCategory)return byCategory;return a.command.localeCompare(b.command);} return settings.order==='za'?-a.command.localeCompare(b.command):a.command.localeCompare(b.command); });
+  const totalCommands = rows.length;
+  const pageSize = 100;
+  const page = Math.max(1, Math.floor(Number(ctx.args?.[0]) || 1));
+  const totalPages = Math.max(1, Math.ceil(totalCommands / pageSize));
+  const safePage = Math.min(page, totalPages);
+  rows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const t=TEMPLATE[settings.template]||TEMPLATE.corporate;
   const lines=[];
   const energy=await getEnergy(ctx.sender||ctx.chat).catch(()=>({energy:100}));
@@ -113,12 +123,13 @@ async function renderMenu(ctx) {
     if(settings.topBorder!==false) lines.push(style(emphasized(settings,`${t.top} ${config.botName} — MENU`,'border'),settings.font));
     else lines.push(style(emphasized(settings,`${config.botName} — MENU`,'heading'),settings.font));
   }
-  lines.push(`🔋 Energi: ${Number(energy.energy||0).toFixed(2).replace('.',',')}%`);
+  const batteryText = `🔋 Energi: ${Number(energy.energy||0).toFixed(2).replace('.',',')}%`;
+  lines.push(settings.batteryDisplayStyle === 'match_menu' ? style(batteryText, settings.font) : batteryText);
   if(settings.energyDetails) lines.push('⚠️ Warning: Memuat detail energi akan memperlambat loading menu.');
   if(settings.widgets.includes('intro')) lines.push(style(emphasized(settings,`${settings.order==='category'?'Daftar perintah berdasarkan kategori lalu A–Z':settings.order==='za'?'Daftar perintah Z–A':'Daftar perintah A–Z'}\n`,'intro'),settings.font));
   const gap='\n'.repeat(Math.max(0,Math.min(3,Number(settings.spacing)||0)));
   const widgetLines = {};
-  if(settings.widgets.includes('count')) widgetLines.count=widgetLine(settings,`Total perintah: ${rows.length}`);
+  if(settings.widgets.includes('count')) widgetLines.count=widgetLine(settings,`Total perintah: ${totalCommands} · Halaman ${safePage}/${totalPages}`);
   if(settings.widgets.includes('prefix')) widgetLines.prefix=widgetLine(settings,`Prefix: ${config.prefixes.join(' ')}`);
   if(settings.widgets.includes('new')) widgetLines.new=widgetLine(settings,'🆕 = perintah baru selama 7 hari');
   if(settings.widgets.includes('website')) widgetLines.website=widgetLine(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`);
@@ -130,24 +141,31 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('balance')) { try { const user=await getUser(ctx.sender); widgetLines.balance=widgetLine(settings,`Saldo: Rp${Number(user?.balance||0).toLocaleString('id-ID')}`); } catch { widgetLines.balance=widgetLine(settings,'Saldo: data belum tersedia'); } }
   if(settings.widgets.includes('totalusers') || settings.widgets.includes('registeredusers')) { try { const stats=await getUserStats(); if(settings.widgets.includes('totalusers')) widgetLines.totalusers=widgetLine(settings,`Total pengguna terpantau: ${stats.total}`); if(settings.widgets.includes('registeredusers')) widgetLines.registeredusers=widgetLine(settings,`Pengguna terdaftar: ${stats.registered}`); } catch {} }
   if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; widgetLines.websiteProducts=widgetLine(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`); } catch { widgetLines.websiteProducts=widgetLine(settings,'Produk website: data live tidak tersedia'); } }
+  if(settings.widgets.includes('biocore')) widgetLines.biocore=widgetLine(settings,`Bio Core: runtime aktif · ${registry.plugins?.plugins?.size||0} plugin terdaftar`);
+  if(settings.widgets.includes('events')) { try { const hits=await getHits(); widgetLines.events=widgetLine(settings,`Event/command tercatat: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.events=widgetLine(settings,'Event runtime: tidak tersedia'); } }
+  if(settings.widgets.includes('messages') || settings.widgets.includes('database')) { try { const db=await readAppDatabase(); const users=Object.values(db.users||{}); const totalMessages=users.reduce((n,u)=>n+Math.max(0,Number(u.messageCount)||0),0); if(settings.widgets.includes('messages')) widgetLines.messages=widgetLine(settings,`Pesan masuk tercatat: ${totalMessages.toLocaleString('id-ID')}`); if(settings.widgets.includes('database')) widgetLines.database=widgetLine(settings,`Database: lokal · ${users.length} user · update ${db.updatedAt?new Date(db.updatedAt).toLocaleString('id-ID'):'belum ada'}`); } catch { if(settings.widgets.includes('messages')) widgetLines.messages=widgetLine(settings,'Pesan masuk: data tidak tersedia'); if(settings.widgets.includes('database')) widgetLines.database=widgetLine(settings,'Database: tidak tersedia'); } }
+  if(settings.widgets.includes('uptime')) { const seconds=Math.floor(process.uptime()); const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60); widgetLines.uptime=widgetLine(settings,`Uptime proses: ${hours}j ${minutes}m`); }
   const widgetOrder = [...new Set([...(settings.widgetOrder||[]), ...Object.keys(widgetLines)])].filter(id => widgetLines[id]);
-  for (const id of widgetOrder) lines.push(widgetLines[id]);
+  for (const [widgetIndex,id] of widgetOrder.entries()) lines.push(settings.widgetNumbering?`${widgetIndex+1}. ${widgetLines[id]}`:widgetLines[id]);
   if(['count','prefix','new'].some(id=>widgetLines[id])) lines.push('');
   let lastCategory='';
   rows.forEach((row,index)=>{
     if(settings.categoriesVisible!==false&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push('',line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
     const plugin=registry.plugins.resolve(row.command);
     const energyMark=plugin?.energyMode==='static'?'📌':'⚡';
-    const energyText=(settings.energyDetails||settings.showEnergyNumbers)?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${settings.showEnergyNumbers?`${Number(plugin?.energyCost ?? complexityScore(`${row.command} ${row.description}`)).toFixed(2).replace('.',',')}%`:''}`:'';
+    const showEnergy=(settings.energyDetails||settings.showEnergyNumbers);
+    const energyValue=settings.showEnergyNumbers?` ${Number(plugin?.energyCost ?? complexityScore(`${row.command} ${row.description}`)).toFixed(2).replace('.',',')}%`:'';
+    const energySuffix=showEnergy?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${energyValue}`:'';
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
     const accessMarks=`${row.limitCost>0?'🎟️ ':''}${row.premium?'💎 ':''}`;
-    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${settings.showEnergyEmoji===false?'':`${energyMark} `}${accessMarks}${ctx.prefix}${row.command}${mark}${energyText}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
+    const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${ctx.prefix}${row.command}${mark}${accessMarks}${energySuffix}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
   });
   if(settings.widgets.includes('footer')) lines.push('',line(settings,`Atur tampilan: ${ctx.prefix}setmenu`,'footer'));
   if(settings.widgets.includes('footer')) lines.push('',line(settings,'Legenda: ⚡ Energi dinamis · 📌 Energi statis · 🔢 angka biaya · 🎟️ memakai Limit · 💎 Premium eksklusif','footer'));
   if(settings.bottomBorder!==false) lines.push(style(emphasized(settings,t.bottom,'border'),settings.font));
   const text=lines.join('\n');
+  if(energy.energy < 10) return ctx.reply(`🌙 Mega: Mode hemat daya diaktifkan, menampilkan menu ringan...\n\n${text}`);
   if(settings.mode==='text') return ctx.reply(text);
   const user=ctx.sender||ctx.chat;
   const recommendations=await getCommandRecommendations(user,rows,1);
@@ -155,6 +173,7 @@ async function renderMenu(ctx) {
   const buttons=[];
   if(rec) buttons.push({name:'quick_reply',title:`Rekomendasi: ${ctx.prefix}${rec.command} (${rec.percentage}%)`,id:`${ctx.prefix}${rec.command}`});
   else buttons.push({name:'quick_reply',title:'Lihat rekomendasi',id:`${ctx.prefix}setmenu recommendations`});
+  if (totalPages > 1) buttons.push({name:'quick_reply',title:safePage < totalPages ? `Halaman ${safePage+1} ➡️` : `⬅️ Halaman ${safePage-1}`,id:`${ctx.prefix}menu ${safePage < totalPages ? safePage+1 : safePage-1}`});
   buttons.push({name:'cta_url',title:'Website Official',url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',merchant_url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',webview_interaction:true});
   const rowsMenu=[{title:'Buka Pengaturan Utama Lengkap',description:'Font, widget, template, border, spasi, gambar, urutan dan ketebalan font',id:`${ctx.prefix}setmenu`}];
   buttons.push({name:'single_select',title:'Pengaturan Menu',sections:[{title:'Pengaturan Lengkap',rows:rowsMenu}]});
@@ -163,14 +182,15 @@ async function renderMenu(ctx) {
   if(settings.imageMode==='manual'&&settings.imagePath){
     try { image=await readFile(settings.imagePath); }
     catch { imageWarning='Foto menu manual tidak ditemukan di penyimpanan bot. Pilih ulang melalui .setmenu image manual.'; }
-  } else if(settings.imageMode==='official'||settings.imageMode==='official-rpg') {
-    const officialUrl=String(settings.imageMode==='official-rpg' ? (config.website.rpgImageUrl||'') : (config.website.menuImageUrl||'')).trim();
+  } else if(['official','official-rpg','official-v2','official-rpg-v2'].includes(settings.imageMode)) {
+    const isCanvasV2 = String(settings.imageMode).endsWith('-v2');
+    const officialUrl=String(isCanvasV2 ? '' : (String(settings.imageMode).startsWith('official-rpg') ? (config.website.rpgImageUrl||'') : (config.website.menuImageUrl||''))).trim();
     let validUrl=false;try{const parsed=new URL(officialUrl);validUrl=['http:','https:'].includes(parsed.protocol);}catch{}
     if(validUrl) image={url:officialUrl};
     else {
       let avatarPath = null;
       try { const profile = await getProfile(ctx.chat, ctx.sender); if (profile?.profileImageMode === 'manual' && profile?.profileImagePath) avatarPath = profile.profileImagePath; } catch {}
-      const canvas = await renderOfficialCanvas(settings.imageMode==='official-rpg'?'rpg':'menu', config.botName, avatarPath);
+      const canvas = await renderOfficialCanvas(String(settings.imageMode).startsWith('official-rpg')?'rpg':'menu', config.botName, avatarPath);
       if(canvas) image=canvas;
       else imageWarning='Kanvas official gagal dibuat pada host ini. Pastikan FFmpeg tersedia; menu teks tetap dapat digunakan.';
     }
@@ -178,7 +198,7 @@ async function renderMenu(ctx) {
   // Attach the canvas directly to the same interactive message so the image,
   // command list, and embedded settings button are delivered together.
   const finalText=imageWarning?`${text}\n\n⚠️ ${imageWarning}`:text;
-  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default'}); }
+  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default',quoteExperiment:settings.quoteExperiment||''}); }
   catch { return ctx.reply(`${finalText}\n\nGunakan ${ctx.prefix}setmenu untuk mengatur menu.`); }
 }
 export default {name:'menu',command:['menu','help'],menuCommands:['menu'],description:'Tampilkan daftar perintah dan pengaturan menu pribadi',category:'general',cooldown:3000,async execute(ctx){return renderMenu(ctx);}};

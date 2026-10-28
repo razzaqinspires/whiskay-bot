@@ -23,3 +23,9 @@
 - Added `JADIBOT_*`, `BOT_WHATSAPP_NUMBER`, and `WHISKAY_GITHUB_*` entries to `.env.example`.
 - No production secrets, session files, payment account numbers, or live pairing codes belong in source control or release ZIPs.
 - This record describes source-level implementation; real-device WhatsApp login and deployment verification are tracked separately in `TEST-REPORT-2026-10-25.md`.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

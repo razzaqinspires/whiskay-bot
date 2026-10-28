@@ -53,3 +53,9 @@ This report covers local static checks and deterministic tests for the mini-web 
 - Manual payment approval does not integrate with a bank/payment-provider webhook.
 - Bot state/session JSON is single-process local persistence, not distributed storage. Do not run multiple uncoordinated replicas over the same auth state.
 - GitHub repo traffic is rolling 14-day data only, not lifetime visits. Missing permissions display as unavailable rather than an invented zero.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

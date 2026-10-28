@@ -104,3 +104,9 @@ Bot WhatsApp yang menjaga koneksi Baileys membutuhkan proses Node.js persisten. 
 - Pembayaran diverifikasi manual dan disetujui owner.
 - Auto-install tunnel dicoba pada Linux; macOS/Windows harus memasang `cloudflared` sendiri atau menggunakan URL publik yang dikonfigurasi.
 - Pemeriksaan unit portal tidak menggantikan pengujian end-to-end dengan akun WhatsApp sekunder, jaringan publik, deployment HTTPS, dan konfirmasi pairing nyata.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

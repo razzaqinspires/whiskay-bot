@@ -6,6 +6,7 @@ import aiChatPlugin from '../plugins/tools/ai-chat.js';
 import { relayAnonymousMessage } from '../plugins/general/anonymous.js';
 import { getGroupSettings } from '../lib/group-settings.js';
 import { updateUser } from '../lib/app-database.js';
+import { recordMessageMetric } from '../lib/stage26-observability.js';
 
 export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
   if (upsert.type !== 'notify') return;
@@ -14,7 +15,9 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
     try {
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
+      recordMessageMetric('received');
       eventBus.emit('message', ctx);
+      eventBus.emit('message:received', { correlationId: ctx.correlationId, receivedAt: ctx.receivedAt, chat: ctx.chat, sender: ctx.sender, isGroup: Boolean(ctx.isGroup), fromMe: Boolean(ctx.isBot) });
       // Anti-link targets only WhatsApp group invite links; ordinary website URLs are allowed.
       if (ctx.isGroup && !ctx.isBot && ctx.sender && !ctx.isAdmin && !ctx.isOwner && /chat\.whatsapp\.com\/[\w-]{10,}/i.test(String(ctx.body || ''))) {
         const groupSettings = await getGroupSettings(ctx.chat).catch(() => ({ antilink: false }));
@@ -65,6 +68,8 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       const isCommand = /^[.,!/#]/.test(incoming);
       const isOwnerConsoleOperator = /^(?:>>|=>|>|\$)\s*/.test(incoming);
       if (isCommand || isOwnerConsoleOperator) {
+        recordMessageMetric('commands');
+        eventBus.emit('command:recognized', { correlationId: ctx.correlationId, command: incoming.split(/\s+/)[0].slice(0, 80), sender: ctx.sender, chat: ctx.chat });
         await commandHandler.handle(ctx);
         continue;
       }
@@ -101,6 +106,7 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       try { await aiChatPlugin.execute(aiCtx); }
       catch (aiError) { Logger.warn({ err: aiError.message }, 'passive AI skipped'); }
     } catch (e) {
+      recordMessageMetric('errors');
       Logger.error({ err: e.message }, 'message handler error');
     }
   }

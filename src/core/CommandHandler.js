@@ -1,3 +1,4 @@
+import stage24Logger from '../utils/logger.js';
 import { MiddlewareChain } from './Middleware.js';
 import Logger from './Logger.js';
 import config from '../config/index.js';
@@ -46,6 +47,7 @@ export class CommandHandler {
 
   async handle(ctx) {
     if (!this.parse(ctx)) return false;
+    try { stage24Logger.command(ctx.sender || ctx.chat || 'unknown', `${ctx.prefix || ''}${ctx.command || ''}`); } catch {}
     const chain = new MiddlewareChain();
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;

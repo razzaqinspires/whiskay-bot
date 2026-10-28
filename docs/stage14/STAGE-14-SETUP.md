@@ -19,3 +19,9 @@
 - Uji WhatsApp/Baileys pada nomor test terlebih dahulu. Fitur forward media dapat berbeda menurut versi protokol.
 - Premium harus diverifikasi manual sebelum diaktifkan. Jangan pernah mengaktifkan Premium hanya dari unggahan bukti tanpa pemeriksaan.
 - Jalankan test database/WhatsApp dan build produksi sebelum mengganti deployment aktif.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

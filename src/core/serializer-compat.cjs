@@ -831,6 +831,16 @@ function extendSocket(sock) {
         key: { remoteJid: targetJid, id: fake.key.id, fromMe: true, participant: botJid },
         message: fake.message
       };
+    } else if (options.quoteMode === 'fake-preview') {
+      // Experimental quote layouts are clearly labelled as synthetic bot previews.
+      // Avoid a fabricated third-party/verified identity: the bot is the sender.
+      const botJid = sock.decodeJid(sock.user?.id || sock.authState?.creds?.me?.id || '') || undefined;
+      const allowed = new Set(['text','contact','image','product','interactive','event','document','audio','video','gif','location','newsletter']);
+      const requested = String(options.quoteExperiment || 'text').replace(/^fake-/,'').toLowerCase();
+      const type = allowed.has(requested) ? requested : 'text';
+      const previewText = `[SYNTHETIC QUOTE PREVIEW · ${type.toUpperCase()}]\n${String(body || title || 'Menu').slice(0, 350)}`;
+      const fake = freply.createFakeReply(type, { text: previewText, caption: previewText, title: 'WHISKAY BOT PREVIEW', body: previewText, remoteJid: targetJid, participant: botJid, sender: botJid, fromMe: true, displayName: 'WHISKAY BOT · PREVIEW' });
+      cleanQuoted = { key: { remoteJid: targetJid, id: fake.key?.id, fromMe: true, participant: botJid }, message: fake.message };
     } else if (quoted && quoted.key) {
       let qPart = quoted.key.participant || quoted.sender;
       if (targetJid.endsWith('@g.us')) {

@@ -47,3 +47,9 @@ Use only channels the owner controls. Channel creation and posting may be limite
 ## Limitations
 
 Baileys exposes LID-to-PN mapping only when the mapping is known/cached. Never fabricate a phone number from a LID. Some versions expose `remoteJidAlt` / `participantAlt` without the `*Pn` aliases, so the adapter checks both. Live WhatsApp pairing and newsletter creation/posting have not been verified by this local test suite.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

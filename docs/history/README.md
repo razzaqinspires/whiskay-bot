@@ -10,3 +10,8 @@ For each feature addition, fix, change, or removal: add a dated record under `do
 
 `docs/metrics/history.json` stores bounded GitHub metadata/traffic snapshots; it is not a replacement for the append-only source-update ledger. Never store session files, pairing codes, credentials, WhatsApp message contents, IP addresses, or private payment details in either history file.
 
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

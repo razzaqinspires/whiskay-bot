@@ -31,3 +31,9 @@
 - False-positive rates for the toxic dictionary across different languages.
 - Multiple bot replicas sharing a policy file; JSON persistence is intended for one runtime instance and should be moved to a shared store for clustered deployments.
 - Actual consciousness/AGI; the implementation explicitly makes no such claim.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

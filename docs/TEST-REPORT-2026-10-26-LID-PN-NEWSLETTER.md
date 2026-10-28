@@ -16,3 +16,9 @@
 ## Important limitation
 
 The test file includes static wiring assertions for the serializer's key variants and newsletter API usage. It does not replace an integration test using a real Baileys socket. Before production use, install dependencies on the target machine, run `npm ci && npm test`, then test `.jadibot` and `.saluran` against an account/channel controlled by the owner.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

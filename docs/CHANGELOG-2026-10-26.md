@@ -16,3 +16,9 @@
 - Reorganized menu settings into named categories, added widget symbols and safe quote modes.
 - Extended native-flow response parsing and added Baileys issue review documentation.
 - Updated README and added unit tests for calculations and menu structure.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.

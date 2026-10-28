@@ -24,3 +24,9 @@
 - Web static verification: Stage 14 checks (6), Stage 12–13 checks (7), Stage 11 check, Stage 9–10 checks (12) — passed.
 - JSX syntax transpilation: checked with the globally available TypeScript transpiler for `AdventureClient.jsx`, `NextGenPostFX.jsx`, and `WorldInteractions.jsx` — no syntax diagnostics.
 - Next.js production build, actual WhatsApp send/forward, Supabase deployment, and real-device FPS have not been tested in this environment because project dependencies/credentials/devices are unavailable.
+
+---
+
+## Documentation continuity note (2026-10-29)
+
+This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](../STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](../README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.
