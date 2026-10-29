@@ -1,3 +1,27 @@
+# Changelog
+
+## 2.30.0 — Stage 41 Iteration 4
+- Bound every native quiz poll to the user who started the session; votes from other group participants are ignored silently.
+- Regular quiz rounds consume the designated user's first poll selection and finish after that one click; `.jawab` cannot bypass an active poll.
+- Family 100 keeps its multi-answer rounds by issuing a fresh single-select poll for each answer, still restricted to the session creator.
+- Expanded tests to check every built-in quiz database row for four unique A–D options and verify poll-voter authorization.
+- Checked serializer sender aliases and accumulated `messages.update` poll payloads; live WhatsApp behavior remains unverified.
+
+## 2.29.0 — Stage 41 Iteration 3
+- Quiz games now generate four distinct A–D multiple-choice options from local/remote question data.
+- Native WhatsApp polls use `selectableCount: 1`; poll vote events are routed through `messages.update` before ordinary command parsing.
+- First vote per player is authoritative for the active round; later vote changes do not grant another attempt.
+- Tebak Gambar sends the image when a valid source image is available, followed by the single-select poll.
+- Added tests for A–D choice generation and poll event routing; included Stage 41 tests in `verify:all`.
+- External poll delivery and vote decryption still require a live WhatsApp session for end-to-end verification.
+
+## 2.27.0 — Stage 41 Iteration 1
+
+- Added ten classic quiz/game commands from the supplied `game.js` excerpt, plus `.jawab`, `.hint`, `.cleargame`, `.nyerah`, and `.cek`.
+- Added bounded, timeout-protected remote quiz-data loading with local fallback prompts.
+- Exposed individual group commands in the dynamic menu via `menuCommands`; removed duplicate `.grouphelp` ownership from group-safety.
+- Added Stage 41 regression tests and documentation.
+
 ## 2.26.9 — Stage 40 Iteration 10
 
 - Added a machine-readable parity audit mapping all 17 recorded Experimental-Bell source families to concrete Whiskay target modules and next actions.
@@ -263,3 +287,9 @@
 - Restricts saved image types to JPEG, PNG, WebP, and GIF; enforces a 15 MiB limit, sanitizes filenames, and refuses to overwrite existing files.
 - Added regression tests for image-message unwrapping, MIME-to-extension mapping, filename traversal sanitization, and owner-only command registration.
 - Continued downloader audit: command registration and adapter contracts are covered by local tests, but live provider endpoints and WhatsApp production delivery remain unverified.
+
+## 2.28.0 — Stage 41 Iteration 2
+- Added persistent multiplayer SOS with turn/board validation, score tracking, resign and expiry handling.
+- Added multiplayer Ular Tangga with lobby, 2–4 players, dice, snakes/ladders, turn order and expiry.
+- Added a minigames directory supporting list, search, category, detail and in-bot launch shortcuts.
+- Added Experimental-Bell source-family parity audit and regression tests; documents known unimplemented/unverified provider gaps rather than claiming full parity.

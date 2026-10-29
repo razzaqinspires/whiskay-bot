@@ -40,6 +40,8 @@ export default {
     'ephemeral', 'bancmd', 'unbancmd', 'groupschedule', 'setleavetext',
     'totag', 'tohidetag', 'inviteinfo', 'setppgc', 'getpp', 'getppgc', 'infogc', 'infogroup', 'blacklist', 'unblacklist', 'absen', 'pinchat', 'pinpesan'
   ],
+  menuCommands: ['grouphelp','groupinfo','admins','tagall','hidetag','revoke','resetlink','linkgc','setsubject','setname','setdesc','setdescription','closegroup','opengroup','open','close','locked','unlocked','group','antilink','antispam','welcome','setwelcometext','ephemeral','bancmd','unbancmd','groupschedule','setleavetext','totag','tohidetag','inviteinfo','setppgc','getpp','getppgc','infogc','infogroup','blacklist','unblacklist','absen','pinchat','pinpesan'],
+  menuDescriptions: { grouphelp:'Panduan command grup', groupinfo:'Informasi grup', admins:'Daftar admin grup', tagall:'Mention semua anggota', hidetag:'Kirim pesan tanpa menampilkan daftar mention', revoke:'Reset tautan undangan', linkgc:'Ambil tautan grup', setsubject:'Ubah nama grup', setdesc:'Ubah deskripsi grup', closegroup:'Batasi pesan grup', opengroup:'Buka pesan grup', antilink:'Pengaturan anti-link', antispam:'Pengaturan anti-spam', welcome:'Pengaturan pesan sambutan', groupschedule:'Jadwal buka/tutup grup', ephemeral:'Atur pesan sementara', absen:'Absensi anggota grup', pinchat:'Pin pesan sementara', blacklist:'Blacklist anggota grup', unblacklist:'Hapus blacklist anggota' },
   category: 'group',
   description: 'Perangkat grup: info, tag, pengaturan grup, anti-link, anti-spam, welcome',
   group: true,
@@ -57,20 +59,18 @@ export default {
       if (!cmd) return ctx.reply('Format: .group open|close|link|resetlink|locked|unlocked|setname <nama>|setdesc <deskripsi>');
     }
     if (cmd === 'grouphelp') {
-      return ctx.reply(
-        '👥 *PANDUAN GRUP WHISKAY*\n\n' +
-        'Info: .groupinfo/.infogc · .admins · .getppgc · .getpp [reply/mention]\n' +
-        'Mention: .tagall [pesan] · .hidetag [pesan]\n' +
-        'Grup: .revoke/.resetlink · .linkgc · .setsubject/.setname nama · .setdesc/.setdescription deskripsi · .closegroup/.close · .opengroup/.open · .locked · .unlocked\n' +
-        'Media/undangan: .totag (reply pesan) · .tohidetag (reply pesan) · .inviteinfo <link> · .setppgc (reply foto)\n' +
-        'Keamanan: .antilink on|off|status · .antispam on|off|status\n' +
-        'Anggota: .welcome on|off|status · .setwelcometext pesan · .setleavetext pesan\n' +
-        'Jadwal: .groupschedule close|open HH:MM · .groupschedule list|off · .ephemeral off|24h|7d|90d\n' +
-        'Absensi: .absen buka [judul] · .absen · .absen list · .absen tutup · .absen reset\n' +
-        'Pin pesan: reply pesan lalu .pinchat 24h|7d|30d\n' +
-        'Command grup: .bancmd <command> · .unbancmd <command> · .bancmd --list\nBlacklist anggota: .blacklist @anggota · .unblacklist @anggota\n\n' +
-        'Pengaturan anti-link dan anti-spam disimpan per grup. Bot harus menjadi admin agar dapat menghapus pesan pelanggaran.'
-      );
+      const row = (command, description) => ({ title: `.${command}`, description, id: `${ctx.prefix || '.'}${command}` });
+      return ctx.sendInteractive({
+        title: '👥 PANDUAN GRUP WHISKAY',
+        subtitle: 'Pilih command dari daftar — semua command juga tercantum di .menu',
+        body: 'Pilih fitur grup dari menu interaktif ini. Beberapa tindakan membutuhkan admin grup; perubahan nama, deskripsi, tautan, dan pengaturan grup juga memerlukan bot sebagai admin.',
+        buttons: [{ name: 'single_select', title: '📋 Lihat Command Grup', sections: [
+          { title: 'Info & Mention', rows: [row('groupinfo','Lihat informasi grup'),row('admins','Daftar admin'),row('getppgc','Foto profil grup'),row('getpp','Foto profil pengguna · reply/mention'),row('tagall','Mention semua anggota'),row('hidetag','Mention tersembunyi'),row('totag','Ubah pesan reply menjadi mention'),row('tohidetag','Kirim ulang pesan reply dengan hidetag')] },
+          { title: 'Pengaturan Grup', rows: [row('linkgc','Ambil tautan undangan'),row('revoke','Reset tautan undangan'),row('setsubject','Ubah nama grup · sertakan nama'),row('setdesc','Ubah deskripsi · sertakan teks'),row('closegroup','Tutup pengiriman pesan'),row('opengroup','Buka pengiriman pesan'),row('locked','Periksa status grup terkunci'),row('unlocked','Periksa status grup terbuka'),row('ephemeral','Atur pesan sementara · off/24h/7d/90d'),row('setppgc','Ubah foto grup · reply foto')] },
+          { title: 'Keamanan & Anggota', rows: [row('antilink','Anti-link · on/off/status'),row('antispam','Anti-spam · on/off/status'),row('welcome','Welcome · on/off/status'),row('setwelcometext','Atur teks welcome'),row('setleavetext','Atur teks anggota keluar'),row('blacklist','Blacklist anggota · mention'),row('unblacklist','Hapus blacklist · mention'),row('bancmd','Blokir command grup'),row('unbancmd','Buka blokir command'),row('groupschedule','Jadwal close/open HH:MM')] },
+          { title: 'Absensi & Lainnya', rows: [row('absen','Absensi · buka/list/tutup/reset'),row('pinchat','Pin pesan · reply lalu pilih durasi'),row('inviteinfo','Periksa tautan undangan')] }
+        ] }]
+      });
     }
 
     const adminCommands = new Set(['tagall','hidetag','revoke','linkgc','setsubject','setdesc','closegroup','opengroup','locked','unlocked','antilink','antispam','welcome','setwelcometext','setleavetext','ephemeral','bancmd','unbancmd','groupschedule','totag','tohidetag','setppgc','pinchat','pinpesan','blacklist','unblacklist']);

@@ -91,3 +91,10 @@ The following counts only literal `cmd:` declarations found by regex (it will no
 | `tts.js` | 4,272 | 2 | elevenlabs, gtts |
 | `werewolf.js` | 32,981 | 1 | ww |
 | `wwpc.js` | 6,497 | 1 | wwpc |
+
+
+## Stage 41 Iteration 3 addendum — game command correction
+
+The quiz family has been re-audited against the actual uploaded `helpers/Events/game.js`, including `tebakgambar`, not just the command names in the plugin registry. The prior implementation's answer path was text-only and its local Tebak Gambar fallback did not always carry an image. Stage 41 Iteration 3 now creates A–D options for all ten quiz families, sends a native single-select poll, listens for Baileys `messages.update` poll aggregation events, and bundles local fallback images. The first observed vote per participant is authoritative for that round. Source aliases `.dadu`, `.roll`, `.delsesiut`, and `.delulartangga` are also wired to the Ular Tangga session with owner/admin/creator checks.
+
+The remaining rows in the family matrix are still partial until their individual aliases, argument contracts, permissions, dependencies, and side effects have been compared against the actual Whiskay implementation. This addendum does not claim all 17 families have reached complete parity.

@@ -1,3 +1,11 @@
+- [Stage 41 Iteration 4 — Quiz Poll Authorization and One-Click Sessions](stages/STAGE-41-ITERATION-4.md)
+- [Stage 41 Iteration 4 test report](stages/TEST-REPORT-STAGE-41-ITERATION-4.md)
+
+## Stage 41 — Game transplant
+
+- [Stage 41 Iteration 1](stages/STAGE-41-ITERATION-1.md): quiz command families and group menu visibility.
+- [Stage 41 Iteration 1 test report](stages/TEST-REPORT-STAGE-41-ITERATION-1.md).
+
 - [Release 2.5.5 — Menu, Egg Canvas & Serializer Compatibility](RELEASE-2.5.5-MENU-EGG-CANVAS.md)
 - [Baileys interactive compatibility notes](BAILEYS-INTERACTIVE-COMPATIBILITY.md)
 - [Test report — 2026-10-27 menu/egg/canvas](TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md)

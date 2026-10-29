@@ -1,7 +1,7 @@
 {
   "groups": {},
   "users": {
-    "stage35-test-group-1793263844139|stage35-test-user-1793263844139@s.whatsapp.net": {
+    "stage35-test-group-1793269062327|stage35-test-user-1793269062327@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -11,10 +11,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793263844141
+        "profile": 1793269062330
       }
     },
-    "stage35-test-group-1793263974059|stage35-test-user-1793263974059@s.whatsapp.net": {
+    "stage35-test-group-1793269091759|stage35-test-user-1793269091759@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -24,10 +24,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793263974063
+        "profile": 1793269091762
       }
     },
-    "stage35-test-group-1793263992401|stage35-test-user-1793263992401@s.whatsapp.net": {
+    "stage35-test-group-1793269132797|stage35-test-user-1793269132797@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -37,10 +37,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793263992405
+        "profile": 1793269132800
       }
     },
-    "stage35-test-group-1793263998706|stage35-test-user-1793263998706@s.whatsapp.net": {
+    "stage35-test-group-1793278489122|stage35-test-user-1793278489122@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -50,10 +50,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793263998709
+        "profile": 1793278489127
       }
     },
-    "stage35-test-group-1793265100637|stage35-test-user-1793265100637@s.whatsapp.net": {
+    "stage35-test-group-1793278496468|stage35-test-user-1793278496468@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -63,10 +63,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793265100639
+        "profile": 1793278496472
       }
     },
-    "stage35-test-group-1793267086853|stage35-test-user-1793267086853@s.whatsapp.net": {
+    "stage35-test-group-1793278503627|stage35-test-user-1793278503627@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -76,59 +76,23 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793267086857
+        "profile": 1793278503630
       }
     },
-    "stage35-test-group-1793267096579|stage35-test-user-1793267096579@s.whatsapp.net": {
-      "xp": 3,
+    "6283193905842@s.whatsapp.net|6283193905842@s.whatsapp.net": {
+      "xp": 48,
       "level": 1,
       "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
+      "points": 11,
+      "familiarity": 0.21999999999999997,
       "premium": false,
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793267096584
-      }
-    },
-    "stage35-test-group-1793267118248|stage35-test-user-1793267118248@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793267118252
-      }
-    },
-    "stage35-test-group-1793267259361|stage35-test-user-1793267259361@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793267259364
-      }
-    },
-    "stage35-test-group-1793267265807|stage35-test-user-1793267265807@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793267265811
+        "menu": 1793298020749,
+        "setmenu": 1793297688484,
+        "insult": 1793297709395,
+        "chess": 1793297711839
       }
     }
   },

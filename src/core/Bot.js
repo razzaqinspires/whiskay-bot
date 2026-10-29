@@ -19,6 +19,7 @@ import { SourceWatcher } from './SourceWatcher.js';
 import { RestartManager } from './RestartManager.js';
 import { WatcherLog } from './WatcherLog.js';
 import { createMessageHandler } from '../handlers/message.js';
+import { handleClassicQuizPollUpdates } from '../plugins/games/classic-quiz.js';
 import { baseMiddlewares } from '../middlewares/index.js';
 import { registry } from './registry.js';
 import config from '../config/index.js';
@@ -395,6 +396,10 @@ export class Bot {
       commandHandler: this._cmd,
       eventBus: EventBus
     }));
+
+    sock.ev.on('messages.update', updates => {
+      handleClassicQuizPollUpdates(sock, updates).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll update handling skipped'));
+    });
 
     // Canvas V2 join/leave cards are opt-in per group through .welcome on.
     sock.ev.on('group-participants.update', async update => {

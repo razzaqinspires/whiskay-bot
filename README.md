@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.26.9-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.27.0-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -37,6 +37,12 @@
 - [Stage 37 — Experimental-Bell parity transplant](#stage-37--experimental-bell-parity-transplant)
 - [Stage 40 — Source/Downloader Parity Audit](#stage-40--sourcedownloader-parity-audit-iteration-1–10)
 
+
+## Stage 41 — Game Transplant and Menu Visibility (Iteration 1)
+
+- Added the ten quiz families from the supplied game-module excerpt: `.tebakgambar`, `.susunkata`, `.family100`, `.tebakanime`, `.caklontong`, `.asahotak`, `.tebakjenaka`, `.tebakbendera`, `.tebaktebakan`, and `.tebaklirik`. Use `.jawab <jawaban>` to submit, `.hint` for a clue, `.nyerah` to give up, and `.cleargame` to stop a round. `.cek <kategori>` provides a random entertainment result.
+- Group commands now have individual `menuCommands` entries, so the dynamic menu lists commands such as `.grouphelp`, `.groupinfo`, `.tagall`, `.antilink`, `.groupschedule`, `.absen`, and `.blacklist` instead of showing only the plugin’s first command. `.grouphelp` opens a categorized interactive command picker rather than a long text dump, and has one authoritative handler.
+- Quiz JSON endpoints use a timeout and bounded response reading with local fallback questions. Prize values are informational only in this iteration; automatic energy payouts, arbitrary plain-text answer interception, the supplied multiplayer Snake-and-Ladders implementation, and the Termai minigames API are not yet transplanted.
 
 ## Stage 40 — Source/Downloader Parity Audit (Iteration 1–10)
 
@@ -302,7 +308,7 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 **Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
 
 <!-- GITHUB_METRICS_START -->
-> Snapshot terakhir: **2026-10-29T10:01:44+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
+> Snapshot terakhir: **2026-10-24T19:45:46+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
 
 | Metrik | Nilai |
 |---|---:|
@@ -323,12 +329,12 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 ```mermaid
 xychart-beta
     title "Commit activity · last 14 days"
-    x-axis ["10-20", "10-21", "10-22", "10-23", "10-24", "10-25", "10-26", "10-27", "10-28", "10-29"]
-    y-axis "Count" 0 --> 26
-    line [7, 4, 6, 0, 2, 1, 5, 8, 6, 21]
+    x-axis ["10-15", "10-16", "10-17", "10-18", "10-19", "10-20", "10-21", "10-22", "10-23", "10-24"]
+    y-axis "Count" 0 --> 9
+    line [0, 0, 0, 0, 0, 7, 4, 6, 0, 3]
 ```
 
-Riwayat snapshot tersimpan: **2** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
+Riwayat snapshot tersimpan: **1** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
 <!-- GITHUB_METRICS_END -->
 
 ## 🛡️ Stage 2 — Pairing Portal Hardening (2026-10-26)
@@ -828,3 +834,17 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - Detail/audit: [`docs/stages/STAGE-38.md`](docs/stages/STAGE-38.md), [`STAGE-38-OWNER-PARITY-AUDIT.md`](docs/stages/STAGE-38-OWNER-PARITY-AUDIT.md), [`STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md`](docs/stages/STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md), and [`TEST-REPORT-STAGE-38.md`](docs/stages/TEST-REPORT-STAGE-38.md).
 - Verify: `npm run verify:stage38`; full regression: `npm run verify:all`. Mock tests do not replace live WhatsApp validation.
 
+
+## Experimental-Bell parity audit
+
+The transplant is selective: Whiskay implementations are preserved where they are more mature, and missing behavior is adapted rather than copied wholesale. See [`docs/EXPERIMENTAL-BELL-PARITY-AUDIT.md`](docs/EXPERIMENTAL-BELL-PARITY-AUDIT.md) for the source-family matrix, known gaps, and verification limits. Stage 41 Iteration 2 adds multiplayer SOS, multiplayer Ular Tangga, and a safe Minigames directory.
+
+
+## Stage 41 Iteration 3 — Quiz Multiple Choice
+
+Quiz families (`tebakgambar`, `susunkata`, `family100`, `tebakanime`, `caklontong`, `asahotak`, `tebakjenaka`, `tebakbendera`, `tebaktebakan`, and `tebaklirik`) now generate four answer options labeled A–D and use a native WhatsApp single-select poll. Poll votes are processed by the message handler before ordinary command parsing. The first vote per player is counted once per active round; Family100 refreshes its A–D poll from the remaining answers after a correct response; `.jawab <jawaban>` remains available as a text fallback. See `docs/stages/STAGE-41-ITERATION-3.md` for the limitations and verification scope.
+
+
+## Stage 41 Iteration 4 — Poll User Authorization
+
+Every built-in quiz database row generates four distinct A–D options. Native polls accept only one choice and only the user who started the session is authorized; other participants' votes are ignored. Regular quiz rounds close after that user's first selection, and `.jawab` cannot bypass an active poll. Family 100 continues as multiple rounds with one authorized selection per poll. Polls use the project's serializer JID aliases and Baileys `messages.update` aggregation. Live WhatsApp delivery and poll decryption still require connected-device validation. See `docs/stages/STAGE-41-ITERATION-4.md`.

@@ -2,12 +2,11 @@ import { getGroupSettings, updateGroupSettings } from '../../lib/group-policy.js
 const HELP=`🛡️ *GROUP SAFETY*\n.antitoxic on|off|add <kata>|remove <kata>|list\n.antibanword on|off|add <kata/frasa>|remove <kata/frasa>|list\n.textguard on|off|status\n.groupstatus\n.grouphelp\n\nPengaturan hanya berlaku untuk grup ini. Admin grup diperlukan untuk mengubahnya; bot perlu menjadi admin agar dapat menghapus pesan.`;
 function validWord(raw) { const w=String(raw||'').normalize('NFKC').trim().toLowerCase(); return w.length>=2 && w.length<=80 && !/[\u0000-\u001f]/.test(w) ? w : ''; }
 export default {
-  name:'group-safety', command:['antitoxic','antibanword','textguard','groupstatus','grouphelp'], category:'group', group:true,
+  name:'group-safety', command:['antitoxic','antibanword','textguard','groupstatus'], menuCommands:['antitoxic','antibanword','textguard','groupstatus'], category:'group', group:true,
   description:'Filter kata toxic, anti-ban-word, dan perlindungan pesan flood/teks lag',
   async execute(ctx) {
     if(!ctx.isGroup) return ctx.reply('Perintah ini hanya untuk grup.');
     const cmd=ctx.command;
-    if(cmd==='grouphelp') return ctx.reply(HELP);
     if(!ctx.isAdmin && !ctx.isOwner) return ctx.reply('🔒 Hanya admin grup yang dapat mengubah pengaturan keamanan.');
     const s=getGroupSettings(ctx.chat);
     if(cmd==='groupstatus') return ctx.reply(`🛡️ *STATUS KEAMANAN GRUP*\nAnti-toxic: ${s.toxic?'ON':'OFF'}\nAnti-ban-word: ${s.antiBanWord?'ON':'OFF'} (${s.banWords.length} kata/frasa)\nKata toxic kustom: ${s.toxicWords.length}\nText guard: ${s.textGuard?'ON':'OFF'}\nBot admin: ${ctx.isBotAdmin?'ya':'tidak'}\n\nGunakan .grouphelp untuk bantuan.`);
