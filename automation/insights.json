@@ -1,7 +1,122 @@
 {
-  "updated_at": null,
-  "sampled_commits": 0,
-  "active_authors": [],
-  "frequently_changed_files": [],
-  "busy_utc_hours": []
+  "updated_at": "2026-10-29T18:24:09+00:00",
+  "sampled_commits": 64,
+  "active_authors": [
+    [
+      "Arifi Razzaq",
+      29
+    ],
+    [
+      "root",
+      19
+    ],
+    [
+      "github-actions[bot]",
+      16
+    ]
+  ],
+  "frequently_changed_files": [
+    [
+      "data/menu-command-usage.json",
+      22
+    ],
+    [
+      "data/leveling.json",
+      16
+    ],
+    [
+      "docs/README.md",
+      15
+    ],
+    [
+      "docs/metrics/github-metrics.json",
+      15
+    ],
+    [
+      "docs/metrics/history.json",
+      15
+    ],
+    [
+      "docs/history/updates.jsonl",
+      11
+    ],
+    [
+      ".github/workflows/repo-update-history.yml",
+      10
+    ],
+    [
+      ".github/workflows/github-metrics.yml",
+      9
+    ],
+    [
+      "src/core/Bot.js",
+      9
+    ],
+    [
+      "src/handlers/message.js",
+      9
+    ],
+    [
+      "src/lib/menu-settings.js",
+      9
+    ],
+    [
+      "src/plugins/general/menu.js",
+      9
+    ],
+    [
+      "src/plugins/general/setmenu.js",
+      9
+    ],
+    [
+      "src/plugins/tools/youtube.js",
+      8
+    ],
+    [
+      "src/core/CommandHandler.js",
+      8
+    ],
+    [
+      "src/plugins/general/leveling.js",
+      8
+    ],
+    [
+      "src/lib/energy-worker.js",
+      7
+    ],
+    [
+      "src/plugins/owner/energy-system.js",
+      6
+    ],
+    [
+      "src/core/serializer.js",
+      6
+    ],
+    [
+      "src/plugins/games/rpg.js",
+      6
+    ]
+  ],
+  "busy_utc_hours": [
+    [
+      8,
+      9
+    ],
+    [
+      9,
+      8
+    ],
+    [
+      16,
+      7
+    ],
+    [
+      17,
+      6
+    ],
+    [
+      10,
+      5
+    ]
+  ]
 }

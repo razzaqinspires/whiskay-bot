@@ -1,15 +1,11 @@
 # Whiskay Automation Status
 
-This folder is the bot-owned audit state. It is written only to the `automation` branch; it must never be copied back into `main` by the bot.
+- Last run (UTC): 2026-10-29T18:24:09+00:00
+- Source: `main` @ `30428340eecc` (read-only)
+- Schedule: every 6 hours; daily health audit at 03:00 UTC
+- Mode: normal
+- Self-score: 97/100 (completeness 100, accuracy 100, uptime proxy 90)
+- Latest findings: 0
+- Guardrail: bot commits are restricted to `automation/` on branch `automation`; main/develop/release branches are human-owned.
 
-- Schedule: every 6 hours, plus a daily health audit at 03:00 UTC.
-- Audit source: `main`, checked out read-only.
-- Rolling config: `config.json`.
-- Learned heuristics: `insights.json` (changed paths, commit authors, busy UTC hours).
-- Append-only rules: `rules/`.
-- Reports: `reports/YYYY-MM-DD.json`.
-- Score: `self-score.json`.
-- Incident log: `incidents/YYYY-MM-DD.log`.
-- Human-readable anomaly notes: `self-review.md` and `digest/`.
-
-The uptime value is explicitly a workflow-success proxy, not an assertion about WhatsApp service uptime. GitHub Actions cron can be delayed or skipped during high load. `main`, `develop`, `release/*`, and all branches other than `automation` are read-only targets for the bot.
+See `reports/2026-10-29.json`, `insights.json`, `self-score.json`, `self-review.md`, and `incidents/` for details.

@@ -1,10 +1,10 @@
 {
-  "updated_at": null,
-  "score": 100,
+  "updated_at": "2026-10-29T18:24:09+00:00",
+  "score": 97,
   "completeness": 100,
   "accuracy": 100,
   "uptime_proxy": 90,
-  "success_streak": 0,
+  "success_streak": 1,
   "consecutive_score_drops": 0,
   "mode": "normal"
 }
