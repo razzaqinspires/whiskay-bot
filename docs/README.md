@@ -426,3 +426,9 @@ This catalog includes every current Markdown file, including imported archive du
 
 - [Stage 40 Iteration 7](stages/STAGE-40-ITERATION-7.md) — provider response-size cap and safer format-token consumption.
 - [Stage 40 Iteration 7 test report](stages/TEST-REPORT-STAGE-40-ITERATION-7.md)
+
+- [Stage 40 — Iteration 8: downloader hardening and owner image-path save](stages/STAGE-40-ITERATION-8.md)
+- [Stage 40 — Iteration 8 test report](stages/TEST-REPORT-STAGE-40-ITERATION-8.md)
+
+- [Stage 40 Iteration 9](stages/STAGE-40-ITERATION-9.md) — bounded YouTube search input, stale search-session cleanup, and downloader domain regression tests.
+- [Stage 40 Iteration 9 Test Report](stages/TEST-REPORT-STAGE-40-ITERATION-9.md)

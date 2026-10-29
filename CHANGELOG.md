@@ -1,3 +1,10 @@
+## 2.26.8 — Stage 40 Iteration 9
+
+- Limits YouTube search queries to 200 characters and normalizes whitespace before invoking yt-dlp, preventing unbounded command arguments.
+- Expires inactive YouTube search sessions after 30 minutes and prunes stale sessions when a new search session is saved.
+- Adds regression tests for lookalike downloader domains and bounded YouTube search input.
+- Live external downloader APIs and production WhatsApp delivery remain unverified.
+
 ## 2.26.6 — Stage 40 Iteration 7
 
 - Caps downloader provider response bodies at 1 MiB and reads response streams with a bounded reader before JSON parsing.
@@ -242,3 +249,10 @@
 - Added a room-local Werewolf engine and persistent store using Whiskay's serialized app-database mutation path, with player limits, private role delivery, day voting, night role actions and phase resolution.
 - Added `.ww` and `.wwpc` plugins; introduced the `werewolfRooms` database namespace without discarding existing records.
 - Added Werewolf regression tests and documented unimplemented parity details (timed phases, automatic DM room binding, Mayor vote weighting and Hunter trigger).
+
+## 2.26.7 — Stage 40 Iteration 8
+
+- Added owner-only `.saveimg`, `.saveimage`, `.saveimagepath`, and `.imgsave` to save a replied-to image or an image carrying the command caption into `data/saved-images/` and return its local path.
+- Restricts saved image types to JPEG, PNG, WebP, and GIF; enforces a 15 MiB limit, sanitizes filenames, and refuses to overwrite existing files.
+- Added regression tests for image-message unwrapping, MIME-to-extension mapping, filename traversal sanitization, and owner-only command registration.
+- Continued downloader audit: command registration and adapter contracts are covered by local tests, but live provider endpoints and WhatsApp production delivery remain unverified.

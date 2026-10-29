@@ -199,3 +199,19 @@ test('dl-select passes selected format into ownership-bound token validation', a
   const source = await readFile(new URL('../src/plugins/media/dl-select.js', import.meta.url), 'utf8');
   assert.match(source, /takePending\(token, ctx\.sender, ctx\.chat, format\)/);
 });
+
+test('platform URL matching rejects lookalike domains and unsupported hosts', () => {
+  assert.equal(platformMatches('instagram', 'https://instagram.com.evil.example/reel/abc'), false);
+  assert.equal(platformMatches('instagram', 'https://notinstagram.com/reel/abc'), false);
+  assert.equal(platformMatches('tiktok', 'https://tiktok.example/video/123'), false);
+  assert.equal(platformMatches('youtube', 'https://youtube.com.evil.example/watch?v=abc'), false);
+  assert.equal(platformMatches('unknown-platform', 'https://example.com/file.mp4'), false);
+});
+
+test('YouTube search query is bounded and rejects blank or oversized input', async () => {
+  const { normalizeSearchQuery } = await import('../src/plugins/tools/youtube.js');
+  assert.equal(normalizeSearchQuery('  lofi   study  '), 'lofi study');
+  assert.throws(() => normalizeSearchQuery('   '), /kata kunci/i);
+  assert.throws(() => normalizeSearchQuery('x'.repeat(201)), /maksimal 200 karakter/i);
+  assert.equal(normalizeSearchQuery('x'.repeat(200)).length, 200);
+});

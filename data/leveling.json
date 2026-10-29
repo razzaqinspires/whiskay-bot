@@ -65,6 +65,71 @@
       "commandXpRecent": {
         "profile": 1793265100639
       }
+    },
+    "stage35-test-group-1793267086853|stage35-test-user-1793267086853@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793267086857
+      }
+    },
+    "stage35-test-group-1793267096579|stage35-test-user-1793267096579@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793267096584
+      }
+    },
+    "stage35-test-group-1793267118248|stage35-test-user-1793267118248@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793267118252
+      }
+    },
+    "stage35-test-group-1793267259361|stage35-test-user-1793267259361@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793267259364
+      }
+    },
+    "stage35-test-group-1793267265807|stage35-test-user-1793267265807@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793267265811
+      }
     }
   },
   "audit": []

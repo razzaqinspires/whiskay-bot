@@ -8,9 +8,19 @@ const execFileAsync = promisify(execFile);
 const COMMAND_TIMEOUT = 180_000;
 const MAX_UPLOAD_BYTES = 48 * 1024 * 1024;
 const MAX_SEARCH_RESULTS = 25;
+const MAX_SEARCH_QUERY_LENGTH = 200;
+const SEARCH_SESSION_TTL_MS = 30 * 60_000;
 
 function clean(value, max = 180) {
   return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+export function normalizeSearchQuery(value) {
+  const query = clean(value, MAX_SEARCH_QUERY_LENGTH);
+  if (!query) throw new Error('Masukkan kata kunci pencarian YouTube.');
+  if (String(value || '').trim().length > MAX_SEARCH_QUERY_LENGTH) {
+    throw new Error(`Kata kunci maksimal ${MAX_SEARCH_QUERY_LENGTH} karakter.`);
+  }
+  return query;
 }
 function isYouTubeUrl(raw) {
   let u;
@@ -74,6 +84,7 @@ function formatDuration(seconds) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
 }
 async function searchVideos(query) {
+  query = normalizeSearchQuery(query);
   const { stdout } = await runYtDlp([
     '--dump-single-json', '--flat-playlist', '--no-warnings', '--no-call-home',
     '--skip-download', '--playlist-end', String(MAX_SEARCH_RESULTS), `ytsearch${MAX_SEARCH_RESULTS}:${query}`
@@ -105,10 +116,21 @@ async function inspectVideo(rawUrl) {
 const searchSessions = new Map();
 const PAGE_SIZE = 10;
 function searchSessionKey(ctx) { return `${ctx.chat || ''}:${ctx.sender || ctx.chat || ''}`; }
-function getSearchSession(ctx) { return searchSessions.get(searchSessionKey(ctx)); }
-function saveSearchSession(ctx, query, results, page = 0) {
+function getSearchSession(ctx) {
   const key = searchSessionKey(ctx);
-  const session = { query, results, page, updatedAt: Date.now() };
+  const session = searchSessions.get(key);
+  if (!session) return null;
+  if (Date.now() - session.updatedAt > SEARCH_SESSION_TTL_MS) { searchSessions.delete(key); return null; }
+  return session;
+}
+function saveSearchSession(ctx, query, results, page = 0) {
+  query = normalizeSearchQuery(query);
+  const now = Date.now();
+  for (const [sessionKey, sessionValue] of searchSessions) {
+    if (now - sessionValue.updatedAt > SEARCH_SESSION_TTL_MS) searchSessions.delete(sessionKey);
+  }
+  const key = searchSessionKey(ctx);
+  const session = { query, results, page, updatedAt: now };
   searchSessions.set(key, session);
   // Bound memory: keep the most recent 100 chat/user sessions.
   while (searchSessions.size > 100) searchSessions.delete(searchSessions.keys().next().value);
@@ -127,6 +149,7 @@ function buildSearchSections(ctx, results, page) {
   return [{ title: `Hasil ${start + 1}–${Math.min(start + rows.length, results.length)}`, rows }];
 }
 async function sendSearchResults(ctx, query, page = 0, existingResults = null) {
+  query = normalizeSearchQuery(query);
   const results = existingResults || await searchVideos(query);
   if (!results.length) return ctx.reply('Tidak ada hasil video publik yang ditemukan.');
   const pageCount = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
