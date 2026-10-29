@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.24.0",
+  "version": "2.26.2",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -13,7 +13,7 @@
     "tunnel:check": "node --input-type=module -e \"import('./src/services/worldBossTunnel.js').then(m=>console.log(m.getWorldBossTunnelStatus()))\"",
     "verify:ops": "node scripts/verify-ops.mjs",
     "verify:stage23": "node --test test/stage23-utils.test.js",
-    "verify:all": "npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage37 && npm run verify:stage38",
+    "verify:all": "npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage37 && npm run verify:stage38 && npm run verify:stage39 && npm run verify:stage40",
     "verify:stage24": "node --test test/stage24-logger.test.js",
     "start:pm2": "pm2 start ecosystem.config.cjs",
     "restart:pm2": "pm2 restart ecosystem.config.cjs",
@@ -32,7 +32,9 @@
     "verify:stage35": "node --test test/stage35-core.test.js",
     "verify:stage36": "node --test test/stage36-event-registry.test.js test/werewolf-engine.test.js",
     "verify:stage37": "node --test test/stage37-parity-manifest.test.js",
-    "verify:stage38": "node --test test/stage38-owner-parity.test.js"
+    "verify:stage38": "node --test test/stage38-*.test.js",
+    "verify:stage39": "node --test test/stage39-*.test.js",
+    "verify:stage40": "node --test test/stage40-downloader-parity.test.js"
   },
   "dependencies": {
     "@hapi/boom": "10.0.1",

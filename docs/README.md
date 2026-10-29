@@ -387,4 +387,26 @@ This catalog includes every current Markdown file, including imported archive du
 - [Stage 38 — Owner parity transplant](stages/STAGE-38.md)
 - [Stage 38 owner feature parity audit](stages/STAGE-38-OWNER-PARITY-AUDIT.md)
 - [Stage 38 verification report](stages/TEST-REPORT-STAGE-38.md)
+- [Stage 38 owner management — Iteration 2](stages/STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md)
+- [Stage 38 owner access — Iteration 3](stages/STAGE-38-OWNER-ACCESS-ITERATION-3.md)
+- [Stage 38 offline mode — Iteration 4](stages/STAGE-38-OFFLINE-MODE-ITERATION-4.md)
 
+
+- [Stage 39 — Group administration parity, Iteration 1](stages/STAGE-39-GROUP-ADMIN-ITERATION-1.md)
+- [Stage 39 — Group administration parity, Iteration 2](stages/STAGE-39-GROUP-ADMIN-ITERATION-2.md)
+- [Stage 39 — Group administration parity, Iteration 3](stages/STAGE-39-GROUP-ADMIN-ITERATION-3.md)
+- [Stage 39 — Group administration parity, Iteration 4](stages/STAGE-39-GROUP-ADMIN-ITERATION-4.md)
+- [Stage 39 — Group administration parity overview](stages/STAGE-39.md)
+- [Stage 39 — Test report, Iteration 3](stages/TEST-REPORT-STAGE-39-ITERATION-3.md)
+- [Stage 39 — Test report, Iteration 4](stages/TEST-REPORT-STAGE-39-ITERATION-4.md)
+
+- [Stage 39 Iteration 5 — Group settings aliases](stages/STAGE-39-GROUP-ADMIN-ITERATION-5.md)
+- [Stage 39 Iteration 6 — Final parity audit and blacklist/profile tools](stages/STAGE-39-GROUP-ADMIN-ITERATION-6.md)
+- [Stage 39 Iteration 6 — Test report](stages/TEST-REPORT-STAGE-39-ITERATION-6.md)
+- [Stage 39 Iteration 5 — Test report](stages/TEST-REPORT-STAGE-39-ITERATION-5.md)
+
+- [Stage 40 — Downloader Feature Parity (Iteration 1)](stages/STAGE-40-DOWNLOADER-ITERATION-1.md)
+- [Stage 40 — Test Report (Iteration 1)](stages/TEST-REPORT-STAGE-40-ITERATION-1.md)
+
+- [Stage 40 Iteration 2 — YouTube Search/Play & GitHub Clone](stages/STAGE-40-ITERATION-2.md)
+- [Stage 40 Iteration 2 — Test Report](stages/TEST-REPORT-STAGE-40-ITERATION-2.md)

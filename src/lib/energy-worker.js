@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 
-const DATA_DIR = path.resolve('data');
+const DATA_DIR = path.resolve(process.env.WHISKAY_DATA_DIR || 'data');
 const ENERGY_FILE = path.join(DATA_DIR, 'energy-ledger.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'runtime-switches.json');
 const PAYMENT_FILE = path.join(DATA_DIR, 'payment-config.json');
@@ -139,6 +139,38 @@ export async function spendModCoins(userId, amount, options = {}) {
 export async function upgradeBatteryCapacity(userId, increment=50, cost=100) {
   return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))), price=Math.max(1,Math.floor(Number(cost)||100)); if(coins<price)return {ok:false,reason:'insufficient-coins',modCoins:coins}; const current=clamp(Number(u.maxBatteryCapacity||100),100,10000), next=Math.min(10000,current+Math.max(50,Math.floor(Number(increment)||50))); if(next===current)return {ok:false,reason:'capacity-limit',capacity:current}; u.modCoins=coins-price;u.maxBatteryCapacity=next;appendModCoinHistory(u, makeModCoinEntry({delta:-price,balance:u.modCoins,reason:'battery-capacity-upgrade'}));all[key]=u;await atomicJson(ENERGY_FILE,all);return {ok:true,capacity:next,modCoins:u.modCoins}; });
 }
+
+/** Owner adjustment of a user's battery energy. The change and bounded audit trail are one atomic ledger write. */
+export async function adjustEnergy(userId, delta, options = {}) {
+  const change = Number(delta);
+  if (!Number.isFinite(change) || change === 0 || Math.abs(change) > 10000) {
+    throw new TypeError('Perubahan energi harus bernilai bukan-nol, maksimal 10.000 poin.');
+  }
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), key = normUser(userId);
+    const u = all[key] || { energy: 100, maxBatteryCapacity: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
+    const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+    resolveCharging(u);
+    const before = Math.round(clamp(Number(u.energy ?? 100), 0, capacity) * 100) / 100;
+    const after = Math.round(clamp(before + change, 0, capacity) * 100) / 100;
+    const applied = Math.round((after - before) * 100) / 100;
+    // Manual owner adjustments invalidate a running charge session so it cannot later overwrite the new value.
+    if (u.isCharging) {
+      u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = after; u.chargingEndsAt = 0;
+    }
+    u.energy = after;
+    const entry = {
+      at: Date.now(), delta: applied, requestedDelta: Math.round(change * 100) / 100,
+      before, after, reason: String(options.reason || 'owner-adjustment').replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 48),
+      actor: String(options.actor || '').replace(/[^a-zA-Z0-9@._:-]/g, '').slice(0, 120)
+    };
+    u.energyAdminHistory = [...(Array.isArray(u.energyAdminHistory) ? u.energyAdminHistory : []), entry].slice(-50);
+    all[key] = u;
+    await atomicJson(ENERGY_FILE, all);
+    return { user: key, energy: after, capacity, before, applied, requestedDelta: entry.requestedDelta, isCharging: Boolean(u.isCharging), history: structuredClone(u.energyAdminHistory) };
+  });
+}
+
 export async function resetBattery(userId, energy = 100) {
   return withMutationLock(async () => {
     const all = await readJson(ENERGY_FILE, {}), key = normUser(userId);

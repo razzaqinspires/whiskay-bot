@@ -11,7 +11,16 @@ export function normalizeMediaUrl(value) {
 }
 export function platformMatches(platform, url) {
   const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-  const domains = { tiktok: ['tiktok.com','vm.tiktok.com','vt.tiktok.com'], instagram: ['instagram.com'], facebook: ['facebook.com','fb.watch','m.facebook.com'] };
+  const domains = {
+    tiktok: ['tiktok.com','vm.tiktok.com','vt.tiktok.com'],
+    instagram: ['instagram.com'],
+    facebook: ['facebook.com','fb.watch','m.facebook.com'],
+    pinterest: ['pinterest.com','pin.it'],
+    mediafire: ['mediafire.com'],
+    spotify: ['spotify.com'],
+    youtube: ['youtube.com','youtu.be','youtube-nocookie.com'],
+    rednote: ['xiaohongshu.com','xhslink.com'],
+  };
   return (domains[platform] || []).some(d => host === d || host.endsWith(`.${d}`));
 }
 export function getDownloaderEndpoints(env = process.env) {

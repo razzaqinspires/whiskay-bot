@@ -1,4 +1,5 @@
 import config from '../config/index.js';
+import { getAllOwners } from './owner-access.js';
 
 export function digits(jid) {
   return String(jid || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
@@ -28,7 +29,8 @@ export function sameUser(a, b) {
 }
 
 export function isOwner(identity = [], cfg = config) {
-  const owners = cfg.owners || (cfg.security && cfg.security.owners) || [];
+  const configured = cfg.owners || (cfg.security && cfg.security.owners) || [];
+  const owners = cfg === config ? getAllOwners(cfg) : configured;
   const lids = cfg.ownerLids || [];
   if (!owners.length && !lids.length) return false;
   return identity.some(jid => owners.some(owner => sameUser(jid, owner)) || lids.some(lid => sameUser(jid, lid)));

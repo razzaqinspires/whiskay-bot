@@ -99,6 +99,82 @@ export async function updateUser(id, patch) {
     return structuredClone(db.users[key]);
   });
 }
+
+export function isUserBanActive(user, now = Date.now()) {
+  if (!user?.banned) return false;
+  const until = Number(user.banUntil || 0);
+  // Legacy banned=true rows without banUntil are intentionally treated as permanent.
+  return !until || until > Number(now);
+}
+
+/** Clear only timed bans that have expired. Legacy banned=true rows without banUntil remain permanent. */
+export async function clearExpiredUserBan(id, now = Date.now()) {
+  const key = normalizeUserId(id);
+  if (!key) return { user: null, expired: false };
+  // Fast path avoids a database write for nearly every ordinary command.
+  const snapshot = await getUser(key);
+  if (!snapshot || !snapshot.banned || isUserBanActive(snapshot, now)) return { user: snapshot, expired: false };
+  // Re-check inside the serialized mutation: an owner may have renewed the ban
+  // between the read and write, and expiry cleanup must not clear that newer ban.
+  return mutateAppDatabase(db => {
+    const current = db.users[key];
+    if (!current || !current.banned || isUserBanActive(current, now)) {
+      return { user: current ? structuredClone(current) : null, expired: false };
+    }
+    current.banned = false;
+    current.banUntil = 0;
+    current.banReason = '';
+    current.unbannedAt = Number(now);
+    current.unbannedBy = 'automatic-expiry';
+    return { user: structuredClone(current), expired: true };
+  });
+}
+
+export async function banUser(id, { until = 0, reason = '', by = '' } = {}) {
+  const key = normalizeUserId(id);
+  if (!key) throw new Error('ID pengguna tidak valid.');
+  const expiry = Number(until || 0);
+  if (expiry && (!Number.isFinite(expiry) || expiry <= Date.now())) throw new Error('Waktu kedaluwarsa ban tidak valid.');
+  return mutateAppDatabase(db => {
+    const user = db.users[key];
+    if (!user) throw new Error('Pengguna belum tercatat di database Whiskay.');
+    user.banned = true;
+    user.banUntil = expiry || 0;
+    user.banReason = String(reason || '').trim().replace(/[\r\n]/g, ' ').slice(0, 240);
+    user.bannedBy = String(by || '').slice(0, 120);
+    user.bannedAt = Date.now();
+    return structuredClone(user);
+  });
+}
+
+export async function unbanUser(id, { by = '' } = {}) {
+  const key = normalizeUserId(id);
+  if (!key) throw new Error('ID pengguna tidak valid.');
+  return mutateAppDatabase(db => {
+    const user = db.users[key];
+    if (!user) throw new Error('Pengguna belum tercatat di database Whiskay.');
+    const wasBanned = Boolean(user.banned);
+    user.banned = false;
+    user.banUntil = 0;
+    user.banReason = '';
+    user.unbannedAt = Date.now();
+    user.unbannedBy = String(by || '').slice(0, 120);
+    return { user: structuredClone(user), wasBanned };
+  });
+}
+
+export async function deleteUserOwnerMetadata(id, field) {
+  const key = normalizeUserId(id);
+  const allowed = new Set(['ownerNickname', 'ownerNote']);
+  if (!key || !allowed.has(field)) throw new Error('Field metadata owner tidak diizinkan.');
+  return mutateAppDatabase(db => {
+    const user = db.users[key];
+    if (!user) throw new Error('Pengguna belum tercatat di database Whiskay.');
+    const existed = Object.hasOwn(user, field);
+    delete user[field];
+    return { user: structuredClone(user), existed, field };
+  });
+}
 export async function creditBalance(id, amount, meta = {}) {
   const value = Number(amount);
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Nominal harus berupa bilangan bulat positif.');

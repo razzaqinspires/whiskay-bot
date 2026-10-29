@@ -10,7 +10,11 @@ const DEFAULTS = Object.freeze({
   antispam: false,
   welcome: false,
   welcomeText: '👋 Selamat datang {user} di {group}! Baca deskripsi grup sebelum mulai.',
-  leaveText: '👋 {user} telah meninggalkan grup.'
+  leaveText: '👋 {user} telah meninggalkan grup.',
+  schedule: { closeAt: null, openAt: null, lastCloseDate: null, lastOpenDate: null },
+  cmdblocked: [],
+  blacklist: [],
+  attendance: { title: null, openedAt: null, closedAt: null, entries: [] }
 });
 
 async function readAll() {
@@ -21,6 +25,11 @@ async function readAll() {
     if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
     return {};
   }
+}
+
+export async function getAllGroupSettings() {
+  const all = await readAll();
+  return Object.entries(all).filter(([id, value]) => id.endsWith('@g.us') && value && typeof value === 'object').map(([id, value]) => ({ groupId: id, settings: { ...DEFAULTS, ...value } }));
 }
 
 export async function getGroupSettings(groupId) {
@@ -38,6 +47,17 @@ export async function updateGroupSettings(groupId, patch) {
   for (const [key, value] of Object.entries(patch)) {
     if (!allowed.has(key)) continue;
     if (['antilink', 'antispam', 'welcome'].includes(key)) safePatch[key] = Boolean(value);
+    else if (key === 'cmdblocked' && Array.isArray(value)) safePatch[key] = [...new Set(value.map(v => String(v).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 100);
+    else if (key === 'blacklist' && Array.isArray(value)) safePatch.blacklist = [...new Set(value.map(v => String(v).trim().slice(0, 160)).filter(v => /@(s\.whatsapp\.net|lid)$/.test(v)))].slice(0, 500);
+    else if (key === 'attendance' && value && typeof value === 'object' && !Array.isArray(value)) {
+      const entries = Array.isArray(value.entries) ? value.entries.filter(e => e && typeof e === 'object' && typeof e.jid === 'string' && e.jid.length <= 160).slice(0, 1000).map(e => ({ jid: e.jid, name: String(e.name || e.jid).slice(0, 100), at: typeof e.at === 'string' ? e.at.slice(0, 40) : new Date().toISOString() })) : [];
+      safePatch.attendance = { title: typeof value.title === 'string' ? value.title.slice(0, 100) : null, openedAt: typeof value.openedAt === 'string' ? value.openedAt.slice(0, 40) : null, closedAt: typeof value.closedAt === 'string' ? value.closedAt.slice(0, 40) : null, entries };
+    }
+    else if (key === 'schedule' && value && typeof value === 'object' && !Array.isArray(value)) {
+      const time = v => v === null || v === '' ? null : (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(v)) ? String(v) : undefined);
+      const closeAt = time(value.closeAt), openAt = time(value.openAt);
+      if (closeAt !== undefined && openAt !== undefined) safePatch.schedule = { closeAt, openAt, lastCloseDate: typeof value.lastCloseDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.lastCloseDate) ? value.lastCloseDate : null, lastOpenDate: typeof value.lastOpenDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.lastOpenDate) ? value.lastOpenDate : null };
+    }
     else if (typeof value === 'string') safePatch[key] = value.slice(0, 500);
   }
   const file = settingsPath();

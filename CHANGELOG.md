@@ -1,3 +1,68 @@
+## 2.26.2 — Stage 40 Iteration 3
+
+- Added `.ytm4a` audio download, `.playvn` Opus voice-note sending, and `.dlvlink` format picker for YouTube URLs.
+- Expanded YouTube preview buttons and help text for MP3, M4A, voice note, and MP4 options.
+- Added regression coverage for the new commands and WhatsApp payload modes.
+
+## 2.26.1 — Stage 40, Iteration 2 (2026-10-29)
+
+- Added `.gitclone` / `.ghclone` for public GitHub repository ZIP archives with strict repo URL parsing, redirect-host allowlist, timeout, and 24 MB streamed download cap.
+- Added `.yts` alias for YouTube search and `.play` alias for YouTube search/play flow; retained paginated search, preview, and explicit download format selection.
+- Added regression tests for GitHub repo parsing, branch validation, plugin registration, and aliases. Live GitHub download and WhatsApp media delivery remain unverified.
+
+## 2.26.0 — Stage 40, Iteration 1 (2026-10-29)
+
+- Added Pinterest, MediaFire, Spotify, YouTube URL, and RedNote downloader adapters to the shared provider service.
+- Extended host allowlists and documented the provider contract and known exclusions.
+- Added Stage 40 tests for platform URL allowlists, plugin inventory, and provider configuration.
+- YouTube search/play and GitHub clone ZIP parity remain deferred; live provider/API behavior is unverified.
+
+## 2.25.5 — Stage 39, Iteration 6 (2026-10-29)
+- Added persistent per-group `.blacklist @anggota` / `.unblacklist @anggota` with admin/owner protection and message-handler enforcement; blacklisted messages are suppressed and deleted when the bot has permission.
+- Added `.getpp` for own/mentioned/replied user profile photos, `.getppgc` for group profile photos, and `.infogc` / `.infogroup` aliases.
+- Expanded group feature parity audit and added mocked regression tests for blacklist persistence/protected targets and profile-picture API/privacy failures.
+- Live WhatsApp behavior and Baileys API compatibility remain unverified; see Stage 39 Iteration 6 report.
+
+## 2.25.4 — Stage 39, Iteration 5 (2026-10-29)
+- Added Experimental-Bell-compatible group setting aliases: `.open`, `.close`, `.locked`, `.unlocked`, `.linkgc`, `.resetlink`, `.setname`, and `.setdescription`.
+- Added `.group <action>` umbrella for opening/closing the group, invite link, invite reset, metadata lock/unlock, subject, and description actions.
+- Added explicit API capability/error handling for group invite code, revoke invite, and group settings calls; updated group help and README.
+- Added mocked-socket regression tests for alias mapping, permission flow, umbrella validation, and invite-link retrieval. Live WhatsApp behavior remains unverified.
+
+## 2.25.3 — Stage 39, Iteration 4 (2026-10-29)
+- Added persisted per-group `.absen buka [judul]`, `.absen`, `.absen list`, `.absen tutup`, and `.absen reset`; entries are deduplicated by sender, capped at 1,000, and admin-gated for lifecycle controls.
+- Added `.pinchat` / `.pinpesan` for a replied-to message with explicit duration allowlist (24h, 7d, 30d), admin permission checks, and graceful socket/API failure handling.
+- Extended group settings validation to persist attendance records safely; added regression tests and Iteration 4 docs. Pin behavior still requires live validation against the deployed Baileys/WhatsApp API.
+
+## 2.25.2 — Stage 39, Iteration 3 (2026-10-29)
+- Added `.totag` and `.tohidetag` to relay a replied-to text or supported media message to the group, with media size limits and guarded failure handling.
+- Added `.inviteinfo <WhatsApp invite link>` with strict invite URL validation and graceful fallback when Baileys does not expose `groupGetInviteInfo`.
+- Added `.setppgc` for replying to an image and updating the group profile picture, with image MIME and 5 MB limits plus explicit socket capability checks.
+- Added focused mocked-socket tests and Stage 39 Iteration 3 documentation. Live WhatsApp permission/API behavior remains unverified.
+
+## 2.25.1 — Stage 39, Iteration 2 (2026-10-29)
+- Added persisted per-group `.groupschedule close HH:MM` / `.groupschedule open HH:MM`, `.groupschedule list`, and `.groupschedule off` controls in WIB.
+- Registered a duplicate-safe 30-second Chronos job to apply due group open/close actions once per Jakarta date, record each action separately, and log failures without crashing the bot.
+- Added `.setleavetext` alongside `.setwelcometext`, allowing admins to customize both participant event messages with `{user}` and `{group}` placeholders.
+- Added schedule validation and mocked-socket regression tests; live WhatsApp behavior still requires verification on a real group where the bot has admin rights.
+
+## 2.25.0 — Stage 39, Iteration 1 (2026-10-29)
+- Audited Experimental-Bell group administration commands against existing Whiskay group tools and moderation.
+- Added per-group `.bancmd` / `.unbancmd` with persistent command block lists and protected recovery commands. Non-admin members are blocked at the central command gate; group admins and bot owners can still recover controls.
+- Added `.ephemeral off|24h|7d|90d|status` using Baileys `groupToggleEphemeral` with explicit method/duration validation and graceful fallback.
+- Added Stage 39 regression tests and documented deferred parity items (scheduled open/close, welcome/leave templates, and broader settings aliases).
+
+## 2.24.3 — Stage 38, Iteration 4 (2026-10-29)
+- Added persistent `.offline <alasan>`, `.online`, and `.offlinestatus` owner controls using Whiskay runtime state.
+- Offline mode gates non-owner commands while preserving essential commands and owner access; offline notices are rate-limited per sender in-process.
+- Added normalization and offline-gate regression tests. Remote update/install execution remains deferred until an authoritative update source, signature/integrity verification, and rollback policy are configured.
+
+## 2.24.2 — Stage 38, Iteration 3 (2026-10-29)
+- Added persisted runtime owner grants (`data/owner-access.json`) integrated with central owner authorization; only primary `.env` owners can add/remove grants and primary owners are non-removable through commands.
+- Added native WhatsApp block/unblock with explicit confirmation, PN-only target validation, and self/owner protection.
+- Added read-only session metadata inspection; no command deletes credentials or Baileys key stores.
+- Added isolated security tests and Stage 38 Iteration 3 documentation.
+
 ## 2.24.0 — Stage 38, Iteration 1 (2026-10-29)
 - Added owner-only group inventory/pagination, validated invite joining, explicit in-group leave confirmation, registered-user listing, and API-key presence audit without revealing secrets.
 - Audited existing owner commands first to avoid cloning broadcast, console, ops, energy, newsletter, backup, reload, or test tooling.
@@ -27,6 +92,13 @@
 - Added per-message correlation envelope and privacy-safe counters.
 - Added typed message/command events in the message handler.
 - Added Stage 26 verification and full documentation.
+## 2.24.1 — Stage 38, Iteration 2 (2026-10-29)
+- Added owner moderation commands for timed/permanent bans and automatic expiry cleanup at the central command gate.
+- Added owner energy adjustments with atomic ledger persistence and bounded audit history.
+- Added safe user data inspection and allowlisted owner metadata (`nickname`, `note`) instead of arbitrary mutation.
+- Added `.listbans`, `.listenergy`, stage documentation, and focused runtime tests.
+- Cross-referenced Experimental-Bell owner command contracts while preserving Whiskay's plugin/database architecture.
+
 # v2.7.0 — Auto World Boss Tunnel
 
 - `npm start` launches a dedicated TryCloudflare tunnel for the World Boss webhook.

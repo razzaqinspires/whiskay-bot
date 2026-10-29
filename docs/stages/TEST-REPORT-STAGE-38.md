@@ -1,18 +1,26 @@
-# Stage 38 verification report
+# Stage 38 verification report — Iterations 1–4
 
-**Timestamp:** 2026-10-29 (Asia/Jakarta date)
+Date: 2026-10-29
 
-## Results
+## Latest verification (2026-10-29)
 
-- `node --check src/plugins/owner/owner-parity.js`: passed.
-- `npm run verify:stage38`: **9 tests passed, 0 failed** after the final join/leave safety adjustment.
-- `npm run verify:all`: **passed**, including `verify:ops` and Stages 23–38. The command exited successfully.
-- `node --check` over all `.js`, `.mjs`, and `.cjs` files under `src/` and `test/`: **208 checked, 0 syntax errors**.
+- `node --test test/stage38-*.test.js`: **24/24 passed** (Iterations 1, 2, and 3).
+- `npm run verify:all`: **passed** across the configured operations check and Stage 23–38 suites in the current isolated workspace.
+- Syntax checks for the newly added owner-access module, plugin, and tests: passed.
+- Runtime dependencies were not installed in the isolated extraction; test-only `dotenv/config` shim was used for the subprocess tests because the test subprocesses receive explicit environment variables. The shim is not part of the release ZIP.
 
-## What these tests cover
+## Coverage in this report
 
-Owner-only gate; invite URL parsing and invalid input rejection; group list sorting/pagination without participant identifier output; registered-user normalization and deduplication; explicit leave confirmation; and API-key presence reporting without displaying secret contents. Socket calls in tests are mocked.
+- Iteration 1: safe group inventory, validated invite parsing, leave confirmation, registered-user listing, and secret-presence-only API audit.
+- Iteration 2: timed/permanent app-level bans, owner-target protection, energy adjustment audit, safe user summary, scoped metadata mutation, and ban expiry behavior.
+- Iteration 4: offline-mode state normalization, maintenance gating, owner bypass, essential-command allowlist, and status rendering.
+- Iteration 3: persisted runtime owner grants, primary-owner-only grant changes, primary-owner protection, explicit-confirm native block/unblock, PN-only target validation, self/owner protection, and read-only session metadata reporting.
 
-## Not verified live
+## Limitations
 
-Tests do not prove that the connected WhatsApp account can join a real invite, leave a real group, or that provider API keys are valid. Run a controlled live test on a non-critical group. Key checking is a local environment presence audit, not a provider API request.
+- Mock socket tests do not verify live WhatsApp invite acceptance, group leave, native blocklist changes, or provider API key validity.
+- Runtime owner grants are stored in a local JSON file and are shared only by processes using the same data path; multi-process deployments should move this authority to a shared transactional store.
+- Session inspection is read-only by design. No generic session-clear command is exposed.
+- Co-owner commands were not added because Whiskay has no separately defined co-owner permission matrix yet.
+
+- Remote update execution remains deliberately unimplemented pending trusted-source and rollback design.

@@ -1,7 +1,7 @@
 {
   "groups": {},
   "users": {
-    "stage35-test-group-1793250806660|stage35-test-user-1793250806660@s.whatsapp.net": {
+    "stage35-test-group-1793262373373|stage35-test-user-1793262373373@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -11,10 +11,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793250806665
+        "profile": 1793262373376
       }
     },
-    "stage35-test-group-1793251181260|stage35-test-user-1793251181260@s.whatsapp.net": {
+    "stage35-test-group-1793262380236|stage35-test-user-1793262380236@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -24,10 +24,10 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793251181265
+        "profile": 1793262380238
       }
     },
-    "stage35-test-group-1793253220597|stage35-test-user-1793253220597@s.whatsapp.net": {
+    "stage35-test-group-1793263150443|stage35-test-user-1793263150443@s.whatsapp.net": {
       "xp": 3,
       "level": 1,
       "coin": 0,
@@ -37,59 +37,7 @@
       "notifyLevelUp": true,
       "balance": 0,
       "commandXpRecent": {
-        "profile": 1793253220600
-      }
-    },
-    "stage35-test-group-1793253231109|stage35-test-user-1793253231109@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793253231113
-      }
-    },
-    "stage35-test-group-1793254059711|stage35-test-user-1793254059711@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793254059715
-      }
-    },
-    "stage35-test-group-1793254828831|stage35-test-user-1793254828831@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793254828835
-      }
-    },
-    "stage35-test-group-1793254857849|stage35-test-user-1793254857849@s.whatsapp.net": {
-      "xp": 3,
-      "level": 1,
-      "coin": 0,
-      "points": 1,
-      "familiarity": 0.02,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "commandXpRecent": {
-        "profile": 1793254857852
+        "profile": 1793263150446
       }
     }
   },

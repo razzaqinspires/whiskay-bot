@@ -9,12 +9,14 @@ Reference: [`helpers/Events/owner.js`](https://github.com/Rifza123/Experimental-
 | owner console / API-key check | `.console`, `.eval` exist; no equivalent provider-key presence audit found | Add `.cekapikey` without exposing key material |
 | group listing / join / leave | `.groupbot` controls bot activation policy; no live group inventory/join/leave commands found | Add `.listgc`, `.join`, explicit `.leave confirm` |
 | registered-user listing | Broadcast uses `data/registered-users.json`, but no direct list command found | Add paginated `.listuser` over this existing file only |
-| energy grant/reset | `.setenergy reset`, `.charge`, `.statusbaterai`, `.modcoin` and `.premium` exist | Avoid duplicate financial mutation APIs |
+| energy grant/reset | `.setenergy`, `.charge`, `.statusbaterai`, `.modcoin` and `.premium` exist; ledger supports serialized mutations | Add `.addenergy` / `.kurangenergy` using ledger lock, clamped energy, cancel in-flight charge, and bounded admin audit trail |
 | broadcast | `.bc` preview and staged send exists | Keep current implementation |
 | command/event inspection | `.testcommands`, menu and plugin registry exist | Avoid duplicate command inventory tooling in this iteration |
 | owner/co-owner mutation | No compatible persisted authorization source identified in the inspected plugin list | Defer; do not edit `.env`/live permissions ad hoc |
-| arbitrary data get/set/delete | No generic, schema-safe data-store contract identified | Defer until each data domain and audit policy are specified |
-| block/unblock, session clearing, role setting | No safe one-to-one implementation proven by initial scan | Further source-to-plugin audit required; don't port blindly |
+| arbitrary data get/set/delete | Whiskay app database has a persisted user schema | Add `.getdata stats|user`; constrain `.setdata` / `.deldata` to owner nickname/note allowlist; no raw DB export or arbitrary field/path writes |
+| block/unblock, session clearing, role setting | No safe one-to-one implementation proven by initial scan | Keep deferred; native block requires PN/JID checks and session clearing requires a dedicated lifecycle/credential guard |
+| timed/permanent bans | App database has `users[].banned`; no timed-ban lifecycle in central gate | Add `banUntil`, `banReason`, actor/timestamp audit; clear expired ban on first returning command; legacy `banned=true` without expiry stays permanent |
+| active ban / energy inventories | App DB and energy ledger are separate data sources | Add paginated `.listbans` and `.listenergy`; display only operational fields, never secrets |
 | newsletter / channel | `.saluran` / `.newsletter` exists | Keep dedicated Whiskay implementation |
 | session reset / presence status | No verified safe adapter found during this iteration | Defer to next iteration after inspecting session lifecycle |
 

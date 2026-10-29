@@ -18,6 +18,17 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       recordMessageMetric('received');
       eventBus.emit('message', ctx);
       eventBus.emit('message:received', { correlationId: ctx.correlationId, receivedAt: ctx.receivedAt, chat: ctx.chat, sender: ctx.sender, isGroup: Boolean(ctx.isGroup), fromMe: Boolean(ctx.isBot) });
+      // Group blacklist is per-group and deliberately excludes admins and owners.
+      if (ctx.isGroup && !ctx.isBot && ctx.sender && !ctx.isAdmin && !ctx.isOwner) {
+        const groupSettings = await getGroupSettings(ctx.chat).catch(() => ({ blacklist: [] }));
+        const blacklist = Array.isArray(groupSettings.blacklist) ? groupSettings.blacklist : [];
+        if (blacklist.includes(String(ctx.sender))) {
+          if (ctx.isBotAdmin && typeof ctx.delete === 'function') {
+            try { await ctx.delete(); } catch {}
+          }
+          continue;
+        }
+      }
       // Anti-link targets only WhatsApp group invite links; ordinary website URLs are allowed.
       if (ctx.isGroup && !ctx.isBot && ctx.sender && !ctx.isAdmin && !ctx.isOwner && /chat\.whatsapp\.com\/[\w-]{10,}/i.test(String(ctx.body || ''))) {
         const groupSettings = await getGroupSettings(ctx.chat).catch(() => ({ antilink: false }));

@@ -4,12 +4,18 @@ import Logger from './Logger.js';
 import config from '../config/index.js';
 import { recordCommandUsage } from '../lib/menu-settings.js';
 import { hasPremium } from '../lib/energy-worker.js';
-import { getUser } from '../lib/app-database.js';
+import { clearExpiredUserBan } from '../lib/app-database.js';
 import { getTypoSettings, suggestCommands } from './typo-suggestions.js';
 import { checkNsfwAccess } from '../lib/nsfw-gate.js';
 import { getWorkloadShard } from './WorkloadCortex.js';
 import { isCommandQuarantined, recordCommandFailure } from './FailureMemoryShard.js';
 import { awardCommandXP } from '../lib/leveling.js';
+import { registry } from './registry.js';
+import { shouldBlockForOffline, formatOfflineStatus } from '../lib/offline-mode.js';
+import { getGroupSettings } from '../lib/group-settings.js';
+
+const offlineNoticeAt = new Map();
+const OFFLINE_NOTICE_COOLDOWN_MS = 30 * 60 * 1000;
 
 export class CommandHandler {
   constructor(pm) { this._pm = pm; this._base = new MiddlewareChain(); }
@@ -64,17 +70,45 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;
 
-    // Central registration gate: avoids editing every plugin. Message handler observes users
-    // with registered=false; only explicit .daftar changes that state to true.
-    const allowBeforeRegistration = new Set(['daftar','register','statusdaftar','menu','help','owner','ping','start']);
-    if (String(process.env.REQUIRE_USER_REGISTRATION || 'true').toLowerCase() !== 'false') {
-      const user = await getUser(ctx.sender || ctx.chat).catch(() => null);
-      if (!user?.registered && !allowBeforeRegistration.has(String(ctx.command || '').toLowerCase()) && !ctx.isOwner) {
-        await ctx.reply('🔐 Kamu belum terdaftar. Gunakan .daftar terlebih dahulu. Pesanmu sudah tercatat sebagai pengguna belum terdaftar; registrasi tidak dilakukan otomatis.');
+    // Offline mode is persistent and blocks user commands while preserving owner access.
+    const offlineStatus = registry.runtimeState?.get?.('offlineMode', null);
+    if (shouldBlockForOffline({ status: offlineStatus, isOwner: ctx.isOwner, command: ctx.command })) {
+      const key = String(ctx.sender || ctx.chat || 'unknown');
+      const now = Date.now();
+      const lastNotice = offlineNoticeAt.get(key) || 0;
+      if (now - lastNotice >= OFFLINE_NOTICE_COOLDOWN_MS) {
+        offlineNoticeAt.set(key, now);
+        await ctx.reply(formatOfflineStatus(offlineStatus));
+      }
+      return true;
+    }
+
+    // Moderation applies regardless of the optional registration policy. Timed bans
+    // expire lazily on the target's next command; legacy bans with no banUntil stay permanent.
+    const commandName = String(ctx.command || '').toLowerCase();
+    if (ctx.isGroup && !ctx.isAdmin && !ctx.isOwner) {
+      const groupSettings = await getGroupSettings(ctx.chat).catch(() => null);
+      const blocked = new Set(groupSettings?.cmdblocked || []);
+      const moderationEscape = new Set(['bancmd','unbancmd','grouphelp','groupstatus','groupinfo','menu','help','ping','owner','admins']);
+      if (blocked.has(commandName) && !moderationEscape.has(commandName)) {
+        await ctx.reply(`🚫 Command .${commandName} diblokir oleh admin grup ini.`);
         return true;
       }
-      if (user?.banned && !ctx.isOwner && !['daftar','statusdaftar','owner'].includes(String(ctx.command || '').toLowerCase())) {
-        await ctx.reply('⛔ Akun kamu diblokir dari penggunaan command. Hubungi owner jika ini keliru.');
+    }
+    const banCheck = await clearExpiredUserBan(ctx.sender || ctx.chat).catch(() => ({ user: null, expired: false }));
+    const user = banCheck.user;
+    if (user?.banned && !ctx.isOwner && !['daftar','statusdaftar','owner'].includes(commandName)) {
+      const until = Number(user.banUntil || 0);
+      const reason = user.banReason ? ` Alasan: ${String(user.banReason).slice(0, 180)}` : '';
+      await ctx.reply(`⛔ Akun kamu diblokir dari penggunaan command.${until ? ` Ban berakhir: ${new Date(until).toLocaleString('id-ID', { hour12: false })}.` : ' Ban berlaku permanen.'}${reason} Hubungi owner jika ini keliru.`);
+      return true;
+    }
+
+    // Registration is an independent policy and can be disabled without disabling bans.
+    const allowBeforeRegistration = new Set(['daftar','register','statusdaftar','menu','help','owner','ping','start']);
+    if (String(process.env.REQUIRE_USER_REGISTRATION || 'true').toLowerCase() !== 'false') {
+      if (!user?.registered && !allowBeforeRegistration.has(commandName) && !ctx.isOwner) {
+        await ctx.reply('🔐 Kamu belum terdaftar. Gunakan .daftar terlebih dahulu. Pesanmu sudah tercatat sebagai pengguna belum terdaftar; registrasi tidak dilakukan otomatis.');
         return true;
       }
     }

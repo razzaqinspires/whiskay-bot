@@ -23,6 +23,7 @@ import { baseMiddlewares } from '../middlewares/index.js';
 import { registry } from './registry.js';
 import config from '../config/index.js';
 import { getGroupSettings } from '../lib/group-settings.js';
+import { runGroupSchedules } from '../lib/group-scheduler.js';
 import { renderGroupMemberCardV2 } from '../services/canvas-v2.js';
 import { ChronosCortex } from './ChronosCortex.js';
 import { JobLoader } from './JobLoader.js';
@@ -34,6 +35,9 @@ export class Bot {
     this._restart = false;
     this._chronos = new ChronosCortex({ concurrency: 2 });
     this._jobLoader = new JobLoader({ chronos: this._chronos, context: () => ({ sock: this._sock }) });
+    this._chronos.register({ name: 'group-schedule-check', intervalMs: 30000, initialDelayMs: 5000, run: async ({ now }) => {
+      await runGroupSchedules({ sock: this._sock, now, onError: (error, context) => Logger.warn({ ...context, err: error?.message || String(error) }, 'group scheduled setting failed') });
+    } });
     this._botInfo = {};
     this._watcher = null;
     this._sourceWatcher = null;

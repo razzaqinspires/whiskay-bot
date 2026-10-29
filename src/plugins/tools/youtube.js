@@ -169,7 +169,8 @@ async function sendVideoPreview(ctx, rawUrl) {
     footer: 'Pilih satu tindakan · tidak ada unduhan otomatis',
     buttons: [
       { name: 'quick_reply', title: '🎵 Ambil Audio MP3', id: `${ctx.prefix}ytmp3 ${info.url}` },
-      { name: 'quick_reply', title: '🎬 Ambil Video MP4', id: `${ctx.prefix}ytmp4 ${info.url}` }
+      { name: 'quick_reply', title: '🎬 Ambil Video MP4', id: `${ctx.prefix}ytmp4 ${info.url}` },
+      { name: 'quick_reply', title: 'Format Audio Lainnya', id: `${ctx.prefix}dlvlink ${info.url}` }
     ]
   });
 }
@@ -187,7 +188,11 @@ export async function sendDownloadedMedia(ctx, mode, buffer, caption) {
   if (!jid) throw new Error('Tujuan chat WhatsApp tidak tersedia.');
   const content = mode === 'mp3' || mode === 'play'
     ? { audio: buffer, mimetype: 'audio/mpeg', fileName: 'whiskay-audio.mp3', ptt: false }
-    : { video: buffer, mimetype: 'video/mp4', fileName: 'whiskay-video.mp4', caption };
+    : mode === 'm4a'
+      ? { audio: buffer, mimetype: 'audio/mp4', fileName: 'whiskay-audio.m4a', ptt: false }
+      : mode === 'voice'
+        ? { audio: buffer, mimetype: 'audio/ogg; codecs=opus', fileName: 'whiskay-voice.opus', ptt: true }
+        : { video: buffer, mimetype: 'video/mp4', fileName: 'whiskay-video.mp4', caption };
   return sock.sendMessage(jid, content, ctx.raw ? { quoted: ctx.raw } : {});
 }
 
@@ -195,11 +200,15 @@ async function downloadAndSend(ctx, rawUrl, mode) {
   const url = normalizeVideoUrl(rawUrl);
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'whiskay-yt-'));
   try {
-    await ctx.reply(`⏳ Menyiapkan ${mode === 'mp3' ? 'audio MP3' : mode === 'play' ? 'audio untuk diputar' : 'video MP4'}...\nMohon tunggu.`);
+    await ctx.reply(`⏳ Menyiapkan ${({ mp3: 'audio MP3', play: 'audio MP3', m4a: 'audio M4A', voice: 'voice note Opus', mp4: 'video MP4' })[mode] || 'media'}...\nMohon tunggu.`);
     const output = path.join(tempDir, '%(title).100B-%(id)s.%(ext)s');
     const common = ['--no-playlist', '--no-warnings', '--no-progress', '--no-part', '--max-filesize', '48M', '--restrict-filenames', '-o', output];
     if (mode === 'mp3' || mode === 'play') {
       await runYtDlp([...common, '-x', '--audio-format', 'mp3', '--audio-quality', '5', url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
+    } else if (mode === 'm4a') {
+      await runYtDlp([...common, '-x', '--audio-format', 'm4a', url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
+    } else if (mode === 'voice') {
+      await runYtDlp([...common, '-x', '--audio-format', 'opus', url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
     } else {
       await runYtDlp([...common, ...buildMp4FormatArgs(), url], { timeout: COMMAND_TIMEOUT, maxBuffer: 4 * 1024 * 1024 });
     }
@@ -219,6 +228,46 @@ async function downloadAndSend(ctx, rawUrl, mode) {
 }
 
 export default [
+  {
+    name: 'dlvlink', command: ['dlvlink'], menuCommands: ['dlvlink'], category: 'tools', cooldown: 4_000,
+    description: 'Pilih format unduhan dari URL YouTube',
+    async execute(ctx) {
+      const raw = (ctx.args || []).join(' ').trim();
+      if (!raw) return ctx.reply(`Gunakan ${ctx.prefix}dlvlink URL_VIDEO_YOUTUBE`);
+      let url;
+      try { url = normalizeVideoUrl(raw); } catch (error) { return ctx.reply(error.message); }
+      return ctx.sendInteractive({
+        title: 'YouTube · Pilih Format',
+        body: 'Pilih format media. Bot baru memulai unduhan setelah salah satu pilihan ditekan.',
+        footer: 'Batas file 48 MB · hanya video publik',
+        buttons: [
+          { name: 'quick_reply', title: 'Audio MP3', id: `${ctx.prefix}ytmp3 ${url}` },
+          { name: 'quick_reply', title: 'Audio M4A', id: `${ctx.prefix}ytm4a ${url}` },
+          { name: 'quick_reply', title: 'Voice Note Opus', id: `${ctx.prefix}playvn ${url}` }
+        ]
+      });
+    }
+  },
+  {
+    name: 'ytm4a', command: ['ytm4a'], menuCommands: ['ytm4a'], category: 'tools', cooldown: 12_000,
+    description: 'Unduh audio YouTube dalam format M4A',
+    async execute(ctx) {
+      const raw = (ctx.args || []).join(' ').trim();
+      if (!raw) return ctx.reply(`Gunakan ${ctx.prefix}ytm4a URL_VIDEO_YOUTUBE`);
+      try { normalizeVideoUrl(raw); } catch (error) { return ctx.reply(error.message); }
+      return downloadAndSend(ctx, raw, 'm4a');
+    }
+  },
+  {
+    name: 'playvn', command: ['playvn'], menuCommands: ['playvn'], category: 'tools', cooldown: 12_000,
+    description: 'Unduh audio YouTube dan kirim sebagai voice note',
+    async execute(ctx) {
+      const raw = (ctx.args || []).join(' ').trim();
+      if (!raw) return ctx.reply(`Gunakan ${ctx.prefix}playvn URL_VIDEO_YOUTUBE`);
+      try { normalizeVideoUrl(raw); } catch (error) { return ctx.reply(error.message); }
+      return downloadAndSend(ctx, raw, 'voice');
+    }
+  },
   {
     name: 'ytmp3', command: ['ytmp3'], menuCommands: ['ytmp3'], category: 'tools', cooldown: 12_000,
     description: 'Unduh audio YouTube menjadi MP3',
@@ -240,7 +289,7 @@ export default [
     }
   },
   {
-    name: 'ytplay', command: ['ytplay'], menuCommands: ['ytplay'], category: 'tools', cooldown: 12_000,
+    name: 'ytplay', command: ['ytplay', 'play', 'youtube', 'yt'], menuCommands: ['ytplay', 'play', 'youtube', 'yt'], category: 'tools', cooldown: 12_000,
     description: 'Cari video lalu kirim audionya',
     async execute(ctx) {
       const query = (ctx.args || []).join(' ').trim();
@@ -253,7 +302,7 @@ export default [
     }
   },
   {
-    name: 'ytsearch', command: ['ytsearch'], menuCommands: ['ytsearch'], category: 'tools', cooldown: 8_000,
+    name: 'ytsearch', command: ['ytsearch', 'yts'], menuCommands: ['ytsearch', 'yts'], category: 'tools', cooldown: 8_000,
     description: 'Cari hingga 25 video YouTube dengan daftar native dan pratinjau',
     async execute(ctx) {
       const query = (ctx.args || []).join(' ').trim();
@@ -315,7 +364,7 @@ export default [
     name: 'ythelp', command: ['ythelp'], menuCommands: ['ythelp'], category: 'tools', cooldown: 3_000,
     description: 'Bantuan perintah YouTube downloader',
     async execute(ctx) {
-      return ctx.sendInteractive({ title: 'WhiskayBot · YouTube Tools', body: `• ${ctx.prefix}ytmp3 URL — unduh audio MP3\n• ${ctx.prefix}ytmp4 URL — unduh video MP4\n• ${ctx.prefix}ytplay query — cari lalu kirim audio\n• ${ctx.prefix}ytsearch query — cari video dan pilih hasil melalui Daftar Hasil\n\nContoh:\n${ctx.prefix}ytsearch lagu Indonesia\n${ctx.prefix}ytplay lofi study\n${ctx.prefix}ytmp3 https://youtu.be/VIDEO_ID\n${ctx.prefix}ytmp4 https://youtu.be/VIDEO_ID`, footer: 'Perlu yt-dlp dan FFmpeg terpasang di server. Batas file 48 MB; hanya video publik yang dapat diakses.', buttons: [{ name: 'quick_reply', title: 'Cari YouTube', id: `${ctx.prefix}ytsearch ` }, { name: 'quick_reply', title: 'Contoh Putar', id: `${ctx.prefix}ytplay lofi study` }] });
+      return ctx.sendInteractive({ title: 'WhiskayBot · YouTube Tools', body: `• ${ctx.prefix}ytmp3 URL — unduh audio MP3\n• ${ctx.prefix}ytm4a URL — unduh audio M4A\n• ${ctx.prefix}playvn URL — kirim audio sebagai voice note Opus\n• ${ctx.prefix}dlvlink URL — tampilkan pilihan format\n• ${ctx.prefix}ytmp4 URL — unduh video MP4\n• ${ctx.prefix}ytplay query / ${ctx.prefix}play query — cari video lalu tampilkan pilihan\n• ${ctx.prefix}ytsearch query / ${ctx.prefix}yts query — cari video dan pilih hasil melalui Daftar Hasil\n\nContoh:\n${ctx.prefix}ytsearch lagu Indonesia\n${ctx.prefix}ytplay lofi study\n${ctx.prefix}ytmp3 https://youtu.be/VIDEO_ID\n${ctx.prefix}ytm4a https://youtu.be/VIDEO_ID\n${ctx.prefix}playvn https://youtu.be/VIDEO_ID\n${ctx.prefix}dlvlink https://youtu.be/VIDEO_ID\n${ctx.prefix}ytmp4 https://youtu.be/VIDEO_ID`, footer: 'Perlu yt-dlp dan FFmpeg terpasang di server. Batas file 48 MB; hanya video publik yang dapat diakses.', buttons: [{ name: 'quick_reply', title: 'Cari YouTube', id: `${ctx.prefix}ytsearch ` }, { name: 'quick_reply', title: 'Contoh Putar', id: `${ctx.prefix}ytplay lofi study` }] });
     }
   }
 ];
