@@ -1,3 +1,10 @@
+## 2.26.3 — Stage 40 Iteration 4
+
+- Audited downloader aliases against the Experimental-Bell source command inventory and added missing Facebook, Instagram, TikTok, and YouTube downloader aliases.
+- Extended `.dlvlink` with a direct MP4 choice alongside MP3, M4A, and Opus voice note.
+- Corrected the YouTube play command description to reflect its actual search/preview flow.
+- Added Stage 40 Iteration 4 regression coverage and documentation.
+
 ## 2.26.2 — Stage 40 Iteration 3
 
 - Added `.ytm4a` audio download, `.playvn` Opus voice-note sending, and `.dlvlink` format picker for YouTube URLs.

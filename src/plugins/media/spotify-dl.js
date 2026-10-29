@@ -9,7 +9,7 @@ export default {
   cooldown: 2500,
   async execute(ctx) {
     const raw = String(ctx.args?.[0] || '').trim();
-    if (!raw) return ctx.reply(`Gunakan: ${ctx.prefix || '.'}$spotify https://...\nKirim tautan publik yang boleh kamu unduh.`);
+    if (!raw) return ctx.reply(`Gunakan: ${ctx.prefix || '.'}spotify https://...\nKirim tautan publik yang boleh kamu unduh.`);
     try {
       await sendDownloadChoices(ctx, "spotify", raw);
     } catch (error) {

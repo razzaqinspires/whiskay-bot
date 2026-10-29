@@ -243,7 +243,8 @@ export default [
         buttons: [
           { name: 'quick_reply', title: 'Audio MP3', id: `${ctx.prefix}ytmp3 ${url}` },
           { name: 'quick_reply', title: 'Audio M4A', id: `${ctx.prefix}ytm4a ${url}` },
-          { name: 'quick_reply', title: 'Voice Note Opus', id: `${ctx.prefix}playvn ${url}` }
+          { name: 'quick_reply', title: 'Voice Note Opus', id: `${ctx.prefix}playvn ${url}` },
+          { name: 'quick_reply', title: 'Video MP4', id: `${ctx.prefix}ytmp4 ${url}` }
         ]
       });
     }
@@ -290,7 +291,7 @@ export default [
   },
   {
     name: 'ytplay', command: ['ytplay', 'play', 'youtube', 'yt'], menuCommands: ['ytplay', 'play', 'youtube', 'yt'], category: 'tools', cooldown: 12_000,
-    description: 'Cari video lalu kirim audionya',
+    description: 'Cari video YouTube lalu tampilkan hasil dan pratinjau sebelum unduhan',
     async execute(ctx) {
       const query = (ctx.args || []).join(' ').trim();
       if (!query) return ctx.sendInteractive({ title: 'YouTube Play', body: `Masukkan kata kunci untuk mencari audio.\n\nContoh: ${ctx.prefix}ytplay lagu santai`, footer: 'Mengunduh audio dari hasil pertama yang cocok.', buttons: [{ name: 'quick_reply', title: 'Cari & pilih hasil', id: `${ctx.prefix}ytsearch ` }] });

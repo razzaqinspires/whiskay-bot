@@ -410,3 +410,10 @@ This catalog includes every current Markdown file, including imported archive du
 
 - [Stage 40 Iteration 2 — YouTube Search/Play & GitHub Clone](stages/STAGE-40-ITERATION-2.md)
 - [Stage 40 Iteration 2 — Test Report](stages/TEST-REPORT-STAGE-40-ITERATION-2.md)
+
+
+## Stage 40 — Downloader Feature Parity
+- [Iteration 3 — M4A, Opus voice note, and format picker](stages/STAGE-40-ITERATION-3.md)
+- [Iteration 3 test report](stages/TEST-REPORT-STAGE-40-ITERATION-3.md)
+- [Iteration 4 — Downloader alias audit](stages/STAGE-40-ITERATION-4.md)
+- [Iteration 4 test report](stages/TEST-REPORT-STAGE-40-ITERATION-4.md)

@@ -3,7 +3,7 @@ import { sendDownloadChoices } from '../../services/mediaDownloader.js';
 export default {
   name: 'fb-dl',
   command: ['fb'],
-  aliases: ['fbdl','facebook'],
+  aliases: ['fbdl','facebook','facebookdl'],
   category: 'downloader',
   description: 'Pilih format unduhan facebook melalui tombol interaktif',
   cooldown: 2500,

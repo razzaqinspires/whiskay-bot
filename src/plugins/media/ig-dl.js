@@ -3,7 +3,7 @@ import { sendDownloadChoices } from '../../services/mediaDownloader.js';
 export default {
   name: 'ig-dl',
   command: ['ig'],
-  aliases: ['igdl','instagram'],
+  aliases: ['igdl','instagram','instagramdl'],
   category: 'downloader',
   description: 'Pilih format unduhan instagram melalui tombol interaktif',
   cooldown: 2500,

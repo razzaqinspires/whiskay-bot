@@ -9,7 +9,7 @@ export default {
   cooldown: 2500,
   async execute(ctx) {
     const raw = String(ctx.args?.[0] || '').trim();
-    if (!raw) return ctx.reply(`Gunakan: ${ctx.prefix || '.'}$rednote https://...\nKirim tautan publik yang boleh kamu unduh.`);
+    if (!raw) return ctx.reply(`Gunakan: ${ctx.prefix || '.'}rednote https://...\nKirim tautan publik yang boleh kamu unduh.`);
     try {
       await sendDownloadChoices(ctx, "rednote", raw);
     } catch (error) {

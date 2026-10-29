@@ -3,7 +3,7 @@ import { sendDownloadChoices } from '../../services/mediaDownloader.js';
 export default {
   name: 'tiktok-dl',
   command: ['tiktok'],
-  aliases: ['ttdl'],
+  aliases: ['ttdl', 'tt', 'tiktokdl', 'tiktokaudio', 'ttaudio', 'tiktokvn', 'ttvn'],
   category: 'downloader',
   description: 'Pilih format unduhan tiktok melalui tombol interaktif',
   cooldown: 2500,

@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.26.2",
+  "version": "2.26.3",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -34,7 +34,7 @@
     "verify:stage37": "node --test test/stage37-parity-manifest.test.js",
     "verify:stage38": "node --test test/stage38-*.test.js",
     "verify:stage39": "node --test test/stage39-*.test.js",
-    "verify:stage40": "node --test test/stage40-downloader-parity.test.js"
+    "verify:stage40": "node --test test/stage40-downloader-parity.test.js test/youtube-download.test.js"
   },
   "dependencies": {
     "@hapi/boom": "10.0.1",

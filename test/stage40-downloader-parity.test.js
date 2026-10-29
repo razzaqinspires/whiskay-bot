@@ -78,3 +78,38 @@ test('YouTube media sender uses correct WhatsApp payload for M4A and Opus voice 
   assert.equal(sent[1][1].fileName, 'whiskay-voice.opus');
   assert.equal(sent[1][1].ptt, true);
 });
+
+test('source downloader aliases are registered on the matching platform adapters', async () => {
+  const specs = [
+    ['../src/plugins/media/fb-dl.js', ['fbdl', 'facebook', 'facebookdl']],
+    ['../src/plugins/media/ig-dl.js', ['igdl', 'instagram', 'instagramdl']],
+    ['../src/plugins/media/tiktok-dl.js', ['ttdl', 'tt', 'tiktokdl', 'tiktokaudio', 'ttaudio', 'tiktokvn', 'ttvn']],
+    ['../src/plugins/media/youtube-dl.js', ['youtube', 'ytdl', 'youtubedl', 'youtubedownloader']],
+    ['../src/plugins/media/mediafire-dl.js', ['mediafiredl']],
+    ['../src/plugins/media/pinterest-dl.js', ['pindl', 'pinterest']],
+    ['../src/plugins/media/spotify-dl.js', ['spotdl', 'spodl']],
+    ['../src/plugins/media/rednote-dl.js', ['renotedl', 'xiaohongshu']],
+  ];
+  for (const [file, expected] of specs) {
+    const { default: plugin } = await import(file);
+    for (const alias of expected) assert.ok(plugin.aliases?.includes(alias), `${file} should register alias ${alias}`);
+  }
+});
+
+test('YouTube format picker offers MP3, M4A, voice note and MP4 after URL validation', async () => {
+  const { default: plugins } = await import('../src/plugins/tools/youtube.js');
+  const plugin = plugins.find(p => (p.command || []).includes('dlvlink'));
+  let payload;
+  const ctx = {
+    args: ['https://youtu.be/abc123'], prefix: '.',
+    sendInteractive: async value => { payload = value; return value; },
+    reply: async value => { throw new Error(`unexpected reply: ${value}`); },
+  };
+  await plugin.execute(ctx);
+  const ids = payload.buttons.map(button => button.id);
+  assert.equal(ids.length, 4);
+  assert.ok(ids.some(id => id.startsWith('.ytmp3 ')));
+  assert.ok(ids.some(id => id.startsWith('.ytm4a ')));
+  assert.ok(ids.some(id => id.startsWith('.playvn ')));
+  assert.ok(ids.some(id => id.startsWith('.ytmp4 ')));
+});
