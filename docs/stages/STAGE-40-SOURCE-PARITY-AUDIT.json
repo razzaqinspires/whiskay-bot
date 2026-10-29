@@ -1,0 +1,42 @@
+{
+  "stage": 40,
+  "iteration": 10,
+  "title": "Experimental-Bell source-family parity audit",
+  "sourceRepository": "Rifza123/Experimental-Bell",
+  "sourceRef": "master",
+  "auditBoundary": "Static audit of the existing Whiskay tree and the previously recorded 17-family source inventory. The upstream repository could not be re-fetched in this environment; exact command-by-command equivalence is not claimed.",
+  "statusLegend": {
+    "mapped_partial": "A related target exists, but exact source commands and behavior still need comparison.",
+    "mapped_review": "A related target exists and needs command/alias verification against the source.",
+    "gap_confirmed": "No dedicated target module was found in the current Whiskay plugin tree.",
+    "source_module": "Source is represented by a Whiskay module, but this is not proof of parity."
+  },
+  "families": [
+    { "sourceFile": "about.js", "sourceCommandCountRecorded": 4, "status": "mapped_review", "targetFiles": ["src/plugins/tools/info.js", "src/plugins/general/menu.js"], "nextAction": "Compare every about/info command and output text." },
+    { "sourceFile": "ai.js", "sourceCommandCountRecorded": 67, "status": "mapped_partial", "targetFiles": ["src/plugins/tools/ai-chat.js", "src/plugins/tools/imagine.js"], "nextAction": "Map provider, prompt, image, and fallback commands individually." },
+    { "sourceFile": "converter.js", "sourceCommandCountRecorded": 28, "status": "gap_confirmed", "targetFiles": [], "nextAction": "Inventory conversion commands and build adapters only after dependency/provider review." },
+    { "sourceFile": "downloader.js", "sourceCommandCountRecorded": 39, "status": "mapped_partial", "targetFiles": ["src/plugins/media/tiktok-dl.js", "src/plugins/media/ig-dl.js", "src/plugins/media/fb-dl.js", "src/plugins/media/pinterest-dl.js", "src/plugins/media/mediafire-dl.js", "src/plugins/media/spotify-dl.js", "src/plugins/media/youtube-dl.js", "src/plugins/media/rednote-dl.js", "src/plugins/tools/youtube.js"], "nextAction": "Compare every source command, alias, provider and interactive format path." },
+    { "sourceFile": "game.js", "sourceCommandCountRecorded": 24, "status": "mapped_partial", "targetFiles": ["src/plugins/games/chess.js", "src/plugins/games/slot.js", "src/plugins/games/tictactoe.js", "src/plugins/games/werewolf.js", "src/plugins/games/truth-dare.js"], "nextAction": "Build command-level game matrix; do not treat one game as family parity." },
+    { "sourceFile": "group.js", "sourceCommandCountRecorded": 48, "status": "mapped_partial", "targetFiles": ["src/plugins/general/group-moderation.js", "src/plugins/general/group-safety.js", "src/plugins/general/group-tools.js"], "nextAction": "Compare permissions, aliases, message payloads, and group-admin operations." },
+    { "sourceFile": "maker.js", "sourceCommandCountRecorded": 37, "status": "mapped_partial", "targetFiles": ["src/plugins/tools/sticker-maker.js", "src/plugins/media/meme.js", "src/plugins/tools/imagine.js"], "nextAction": "Map each maker effect and its external API requirements." },
+    { "sourceFile": "others.js", "sourceCommandCountRecorded": 20, "status": "mapped_review", "targetFiles": ["src/plugins/general/explore.js", "src/plugins/general/ping.js", "src/plugins/tools/info.js"], "nextAction": "Reconstruct full command list from source and identify unmapped utilities." },
+    { "sourceFile": "owner.js", "sourceCommandCountRecorded": 80, "status": "mapped_partial", "targetFiles": ["src/plugins/owner/owner-management.js", "src/plugins/owner/owner-access-control.js", "src/plugins/owner/console.js", "src/plugins/owner/zip.js", "src/plugins/owner/testcommands.js"], "nextAction": "Security-review each privileged command before transplanting missing behavior." },
+    { "sourceFile": "relationship.js", "sourceCommandCountRecorded": 22, "status": "mapped_partial", "targetFiles": ["src/plugins/general/anonymous.js", "src/plugins/tools/menfess.js", "src/plugins/games/truth-dare.js"], "nextAction": "Compare relationship, anonymous, and social interaction command coverage." },
+    { "sourceFile": "reloadevents.js", "sourceCommandCountRecorded": 1, "status": "mapped_review", "targetFiles": ["src/plugins/owner/hotreload.js", "src/core/PluginManager.js"], "nextAction": "Verify hot-reload behavior and failure rollback." },
+    { "sourceFile": "rpg.js", "sourceCommandCountRecorded": 26, "status": "mapped_partial", "targetFiles": ["src/plugins/games/rpg.js", "src/plugins/games/rpg-sync.js", "src/plugins/games/rpg-craft.js", "src/plugins/games/rpg-trade.js"], "nextAction": "Compare RPG commands while preserving Whiskay website transaction authority." },
+    { "sourceFile": "search.js", "sourceCommandCountRecorded": 23, "status": "mapped_partial", "targetFiles": ["src/plugins/tools/anime-search.js", "src/plugins/tools/github.js", "src/plugins/tools/youtube.js"], "nextAction": "Compare all search providers, aliases, result pagination, and error paths." },
+    { "sourceFile": "tools.js", "sourceCommandCountRecorded": 46, "status": "mapped_partial", "targetFiles": ["src/plugins/tools/character.js", "src/plugins/tools/egg-calculator.js", "src/plugins/tools/scrape.js", "src/plugins/tools/weather-translate.js"], "nextAction": "Map utility commands and note unavailable dependencies explicitly." },
+    { "sourceFile": "tts.js", "sourceCommandCountRecorded": 2, "status": "gap_confirmed", "targetFiles": [], "nextAction": "Review source TTS provider, licensing, API contract, and secret configuration before implementation." },
+    { "sourceFile": "werewolf.js", "sourceCommandCountRecorded": 1, "status": "source_module", "targetFiles": ["src/plugins/games/werewolf.js"], "nextAction": "Compare game lifecycle, roles, timers, and edge cases to source." },
+    { "sourceFile": "wwpc.js", "sourceCommandCountRecorded": 1, "status": "source_module", "targetFiles": ["src/plugins/games/werewolf-private.js"], "nextAction": "Compare private-room and participant-message flow to source." }
+  ],
+  "summary": {
+    "sourceFamilies": 17,
+    "mappedPartial": 10,
+    "mappedReview": 3,
+    "confirmedGaps": 2,
+    "sourceModulePresent": 2,
+    "exactCommandParityProven": false,
+    "allFamiliesTransplanted": false
+  }
+}

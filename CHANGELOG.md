@@ -1,3 +1,10 @@
+## 2.26.9 — Stage 40 Iteration 10
+
+- Added a machine-readable parity audit mapping all 17 recorded Experimental-Bell source families to concrete Whiskay target modules and next actions.
+- Added regression tests ensuring target mappings exist and the audit does not falsely claim complete command parity.
+- Explicitly recorded converter.js and tts.js as dedicated-plugin gaps for the next implementation batch.
+- Documented that the upstream source could not be re-fetched in this environment; prior command counts need fresh source validation.
+
 ## 2.26.8 — Stage 40 Iteration 9
 
 - Limits YouTube search queries to 200 characters and normalizes whitespace before invoking yt-dlp, preventing unbounded command arguments.

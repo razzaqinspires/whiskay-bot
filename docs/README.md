@@ -432,3 +432,7 @@ This catalog includes every current Markdown file, including imported archive du
 
 - [Stage 40 Iteration 9](stages/STAGE-40-ITERATION-9.md) — bounded YouTube search input, stale search-session cleanup, and downloader domain regression tests.
 - [Stage 40 Iteration 9 Test Report](stages/TEST-REPORT-STAGE-40-ITERATION-9.md)
+
+- [Stage 40 Iteration 10 — source-family parity audit](stages/STAGE-40-ITERATION-10.md)
+- [Stage 40 Iteration 10 — test report](stages/TEST-REPORT-STAGE-40-ITERATION-10.md)
+- [Stage 40 — Experimental-Bell source parity audit manifest](stages/STAGE-40-SOURCE-PARITY-AUDIT.json)
