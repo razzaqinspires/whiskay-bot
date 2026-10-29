@@ -364,3 +364,27 @@ This catalog includes every current Markdown file, including imported archive du
 - [Stage 28 — Durable Event Processing & Transaction Safety](stages/STAGE-28.md)
 - [Stage 29 — Menu Studio, Contextual Explore & RPG Integration](stages/STAGE-29.md)
 - [Stage 29 Test Report](stages/TEST-REPORT-STAGE-29.md)
+
+## Stage 34 — Energy, Chronos, Safe Autonomy
+- [Stage 34 implementation record](stages/STAGE-34.md)
+- [Stage 34 metrics and status registry](stages/STAGE-34-METRICS.md)
+- [Stage 34 verification report](stages/STAGE-34-VERIFICATION.md)
+- [Stage 34 — 250 subcategories for Literasi 1–5](stages/STAGE-34-250-SUBCATEGORIES.md)
+- [Stage 34 — owner-supplied Literasi 6 backlog](stages/STAGE-34-LITERACY-6-OWNER-BACKLOG.md)
+- [Stage 34 — Experimental-Bell feature gap ledger](stages/STAGE-34-BELL-GAP-LEDGER.md)
+
+- [Stage 35](stages/STAGE-35.md) — Chess, command XP, typo, energy controls, and Experimental-Bell gap ledger.
+
+- Stage 36 source audit: `stages/STAGE-36-SOURCE-AUDIT.md`
+
+
+## Stage 37 — Experimental-Bell parity transplant
+- [`stages/STAGE-37.md`](stages/STAGE-37.md) — scope, architecture rules, batch priorities, verification contract, and truthful status.
+- [`stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json`](stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json) — machine-readable 17-family parity ledger.
+- [`stages/TEST-REPORT-STAGE-37.md`](stages/TEST-REPORT-STAGE-37.md) — automated verification results and unverified boundaries.
+- Test: `npm run verify:stage37` (`test/stage37-parity-manifest.test.js`).
+- Status: audit scaffold and documentation gates are present; full command-level transplant is still in progress.
+- [Stage 38 — Owner parity transplant](stages/STAGE-38.md)
+- [Stage 38 owner feature parity audit](stages/STAGE-38-OWNER-PARITY-AUDIT.md)
+- [Stage 38 verification report](stages/TEST-REPORT-STAGE-38.md)
+

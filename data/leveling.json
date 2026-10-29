@@ -1,144 +1,97 @@
 {
-  "groups": {
-    "120363411759263661@g.us": true
-  },
+  "groups": {},
   "users": {
-    "120363411759263661@g.us|6283193905842@s.whatsapp.net": {
-      "xp": 116,
-      "level": 4,
-      "coin": 0,
-      "points": 138,
-      "familiarity": 6.8999999999999835,
-      "premium": false,
-      "notifyLevelUp": true,
-      "balance": 0,
-      "profileImageMode": "official",
-      "profileImagePath": ""
-    },
-    "59206778490968@lid|6283193905842@s.whatsapp.net": {
-      "xp": 0,
+    "stage35-test-group-1793250806660|stage35-test-user-1793250806660@s.whatsapp.net": {
+      "xp": 3,
       "level": 1,
       "coin": 0,
-      "points": 0,
-      "familiarity": 0,
+      "points": 1,
+      "familiarity": 0.02,
       "premium": false,
       "notifyLevelUp": true,
       "balance": 0,
-      "profileImageMode": "official",
-      "profileImagePath": ""
+      "commandXpRecent": {
+        "profile": 1793250806665
+      }
+    },
+    "stage35-test-group-1793251181260|stage35-test-user-1793251181260@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793251181265
+      }
+    },
+    "stage35-test-group-1793253220597|stage35-test-user-1793253220597@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793253220600
+      }
+    },
+    "stage35-test-group-1793253231109|stage35-test-user-1793253231109@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793253231113
+      }
+    },
+    "stage35-test-group-1793254059711|stage35-test-user-1793254059711@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793254059715
+      }
+    },
+    "stage35-test-group-1793254828831|stage35-test-user-1793254828831@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793254828835
+      }
+    },
+    "stage35-test-group-1793254857849|stage35-test-user-1793254857849@s.whatsapp.net": {
+      "xp": 3,
+      "level": 1,
+      "coin": 0,
+      "points": 1,
+      "familiarity": 0.02,
+      "premium": false,
+      "notifyLevelUp": true,
+      "balance": 0,
+      "commandXpRecent": {
+        "profile": 1793254857852
+      }
     }
   },
-  "audit": [
-    {
-      "at": 1792337906525,
-      "type": "group-leveling",
-      "group": "120363411759263661@g.us",
-      "enabled": true,
-      "actor": "6283193905842@s.whatsapp.net"
-    },
-    {
-      "at": 1792337937078,
-      "type": "profile-update",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "profileImageMode",
-        "profileImagePath"
-      ]
-    },
-    {
-      "at": 1792337953977,
-      "type": "profile-update",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "profileImageMode",
-        "profileImagePath"
-      ]
-    },
-    {
-      "at": 1792513177988,
-      "type": "profile-update",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "notifyLevelUp"
-      ]
-    },
-    {
-      "at": 1792513180641,
-      "type": "level-up",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "from": 1,
-      "to": 2
-    },
-    {
-      "at": 1792513180662,
-      "type": "profile-update",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "notifyLevelUp"
-      ]
-    },
-    {
-      "at": 1792513191944,
-      "type": "profile-update",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "notifyLevelUp"
-      ]
-    },
-    {
-      "at": 1792515312629,
-      "type": "profile-update",
-      "group": "59206778490968@lid",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "notifyLevelUp"
-      ]
-    },
-    {
-      "at": 1792515337227,
-      "type": "profile-update",
-      "group": "59206778490968@lid",
-      "user": "6283193905842@s.whatsapp.net",
-      "actor": "self",
-      "consent": true,
-      "fields": [
-        "profileImageMode",
-        "profileImagePath"
-      ]
-    },
-    {
-      "at": 1792516881273,
-      "type": "level-up",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "from": 2,
-      "to": 3
-    },
-    {
-      "at": 1792547300127,
-      "type": "level-up",
-      "group": "120363411759263661@g.us",
-      "user": "6283193905842@s.whatsapp.net",
-      "from": 3,
-      "to": 4
-    }
-  ]
+  "audit": []
 }

@@ -1,0 +1,12 @@
+import { publishChronosSnapshot } from './RuntimeCortex.js';
+/** In-process scheduler registry; no globals, duplicate-safe, bounded concurrency. */
+export class ChronosCortex {
+  constructor({ concurrency = 2, now = () => Date.now() } = {}) { this.jobs=new Map();this.running=new Set();this.concurrency=Math.max(1,Math.min(8,concurrency));this.now=now;this.metrics={ticks:0,success:0,failed:0,skipped:0,lastTickAt:0,lastError:null};this.timer=null; }
+  register(job) { if(!job||! /^[a-z0-9][a-z0-9._-]{1,63}$/i.test(String(job.name||''))||typeof job.run!=='function')throw new TypeError('Job requires safe name and run function');const intervalMs=Number(job.intervalMs);if(!Number.isFinite(intervalMs)||intervalMs<1000||intervalMs>365*86400000)throw new RangeError('intervalMs must be between 1s and 365d');if(this.jobs.has(job.name))throw new Error(`Duplicate job: ${job.name}`);this.jobs.set(job.name,{...job,intervalMs,nextAt:this.now()+(job.initialDelayMs===undefined?intervalMs:Math.max(0,Number(job.initialDelayMs)||0)),enabled:job.enabled!==false});return this.jobs.get(job.name); }
+  unregister(name){return this.jobs.delete(name)}
+  status(){const snapshot={registered:this.jobs.size,running:this.running.size,concurrency:this.concurrency,...this.metrics,jobs:[...this.jobs.values()].map(j=>({name:j.name,enabled:j.enabled,intervalMs:j.intervalMs,nextAt:j.nextAt,lastRunAt:j.lastRunAt||null,lastDurationMs:j.lastDurationMs||null,lastStatus:j.lastStatus||'pending'}))};publishChronosSnapshot(snapshot);return snapshot;}
+  async tick(){const now=this.now();this.metrics.ticks++;this.metrics.lastTickAt=now;const due=[...this.jobs.values()].filter(j=>j.enabled&&j.nextAt<=now&&!this.running.has(j.name)).sort((a,b)=>a.nextAt-b.nextAt);for(const j of due){if(this.running.size>=this.concurrency){this.metrics.skipped++;continue;}this.running.add(j.name);j.nextAt=now+j.intervalMs;const started=this.now();try{await j.run({now,jobName:j.name});j.lastStatus='success';this.metrics.success++;}catch(e){j.lastStatus='failed';this.metrics.failed++;this.metrics.lastError={job:j.name,message:String(e?.message||e).slice(0,200),at:this.now()};}finally{j.lastRunAt=started;j.lastDurationMs=Math.max(0,this.now()-started);this.running.delete(j.name);}}return this.status();}
+  start(){if(this.timer)return false;this.timer=setInterval(()=>{this.tick().catch(()=>{});},1000);this.timer.unref?.();return true;}
+  stop(){if(!this.timer)return false;clearInterval(this.timer);this.timer=null;return true;}
+}
+export default ChronosCortex;

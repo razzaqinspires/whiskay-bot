@@ -31,15 +31,16 @@ async function requestGemini(messages, system, keyOverride) {
   return data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n');
 }
 export default {
-  name: 'ai-chat', command: ['ask', 'ai'], category: 'tools', cooldown: 2500,
+  name: 'ai-chat', command: ['ask', 'ai'], category: 'tools', cooldown: 2500, workload: 'ai',
   description: 'Percakapan asisten AI melalui OpenAI atau Gemini',
   async execute(ctx) {
     const rawPrompt = clean(ctx.args?.join(' ') || '', MAX_PROMPT);
     const cognitive = planCognitiveRequest(rawPrompt);
     const prompt = cognitive.prompt;
+    if (cognitive.requiresClarification) { const labels={download:'Unduh',donation:'Donasi',code:'Kode/Debug',translation:'Terjemahan',weather:'Cuaca',game:'Game/RPG'}; return ctx.sendInteractive({title:'🧭 Klarifikasi Intent',body:`Saya belum cukup yakin dengan maksud pesan ini (confidence ${Math.round(cognitive.confidence*100)}%). Pilih topik yang dimaksud sebelum saya memprosesnya.`,buttons:cognitive.clarify.map(name=>({name:'quick_reply',title:labels[name]||name,id:`${ctx.prefix}ask ${labels[name]||name}: ${prompt}`}))}); }
     if (!prompt) return ctx.reply(`🧠 *NEXORA · RAZZAQ VENTURES*\nGunakan: ${ctx.prefix}ask pertanyaan kamu\nContoh: ${ctx.prefix}ai bantu buat rencana belajar 7 hari.`);
     const memoryUser = String(ctx.sender || ctx.chat || 'anonymous');
-    const history = getConversation(memoryUser).slice(-8);
+    const history = getConversation(memoryUser).slice(-8).map(({role,content,weight=1})=>({role,content:weight<0.25?`[MEMORI LAMA · relevansi rendah] ${content}`:content}));
     const messages = [...history, { role: 'user', content: prompt }];
     const preferred = String(process.env.AI_PROVIDER || (process.env.OPENAI_API_KEYS || process.env.OPENAI_API_KEY ? 'openai' : 'gemini')).toLowerCase();
     const system = clean((process.env.AI_SYSTEM_PROMPT || DEFAULT_SYSTEM) + cognitive.systemSuffix, 1600);

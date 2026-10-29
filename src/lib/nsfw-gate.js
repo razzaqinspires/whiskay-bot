@@ -1,0 +1,13 @@
+import {mkdir,readFile,rename,writeFile} from 'node:fs/promises';import path from 'node:path';
+const FILE=path.resolve('data/nsfw-policy.json');let queue=Promise.resolve();const clean=x=>String(x||'').replace(/[^a-zA-Z0-9@._:-]/g,'').slice(0,180);
+async function read(){try{return {...{version:1,enabled:false,paused:false,groupOptIn:{},tokens:{}},...JSON.parse(await readFile(FILE,'utf8'))};}catch(e){if(e?.code==='ENOENT')return {version:1,enabled:false,paused:false,groupOptIn:{},tokens:{}};if(e instanceof SyntaxError){await rename(FILE,`${FILE}.corrupt-${Date.now()}`).catch(()=>{});return {version:1,enabled:false,paused:false,groupOptIn:{},tokens:{}};}throw e;}}
+async function write(v){await mkdir(path.dirname(FILE),{recursive:true});const t=`${FILE}.${process.pid}.tmp`;await writeFile(t,JSON.stringify(v,null,2),{mode:0o600});await rename(t,FILE);}
+export async function getNsfwPolicy(){return read();}
+export async function setNsfwPolicy(patch){const run=queue.then(async()=>{const v=await read();Object.assign(v,patch);v.version=1;await write(v);return v;});queue=run.catch(()=>{});return run;}
+export async function setNsfwTokens(user,amount){const run=queue.then(async()=>{const v=await read();v.tokens=v.tokens||{};v.tokens[clean(user)]=Math.max(0,Math.min(10000,Math.floor(Number(amount)||0)));await write(v);return v.tokens[clean(user)];});queue=run.catch(()=>{});return run;}
+export async function consumeNsfwToken(user){const run=queue.then(async()=>{const v=await read(),k=clean(user),n=Math.max(0,Number(v.tokens?.[k]||0));if(n<1)return {ok:false,remaining:n};v.tokens[k]=n-1;await write(v);return {ok:true,remaining:n-1};});queue=run.catch(()=>{});return run;}
+export async function checkNsfwAccess({ctx,workloadState='NORMAL'}={}){const p=await read();if(!p.enabled||p.paused)return {ok:false,reason:p.paused?'global-pause':'disabled'};if(workloadState==='CRITICAL')return {ok:false,reason:'workload-critical'};if(ctx?.isGroup&&!p.groupOptIn?.[clean(ctx.chat)])return {ok:false,reason:'group-opt-in-required'};if(ctx?.isOwner)return {ok:true,remaining:Infinity,owner:true};if(ctx?.isGroup&&!ctx?.isAdmin)return {ok:false,reason:'admin-required'};const token=await consumeNsfwToken(ctx?.sender||ctx?.chat);return token.ok?{ok:true,remaining:token.remaining,owner:false}:{ok:false,reason:'tokens-empty',remaining:token.remaining};}
+
+export async function setNsfwGroupOptIn(chat,enabled){const run=queue.then(async()=>{const v=await read();v.groupOptIn=v.groupOptIn||{};v.groupOptIn[clean(chat)]=Boolean(enabled);await write(v);return Boolean(v.groupOptIn[clean(chat)]);});queue=run.catch(()=>{});return run;}
+
+export async function getNsfwTokenBalance(user){const v=await read();return Math.max(0,Number(v.tokens?.[clean(user)]||0));}

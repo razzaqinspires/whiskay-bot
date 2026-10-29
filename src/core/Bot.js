@@ -24,12 +24,16 @@ import { registry } from './registry.js';
 import config from '../config/index.js';
 import { getGroupSettings } from '../lib/group-settings.js';
 import { renderGroupMemberCardV2 } from '../services/canvas-v2.js';
+import { ChronosCortex } from './ChronosCortex.js';
+import { JobLoader } from './JobLoader.js';
 
 export class Bot {
   constructor() {
     this._pm = new PluginManager(config.pluginDir);
     this._cmd = new CommandHandler(this._pm);
     this._restart = false;
+    this._chronos = new ChronosCortex({ concurrency: 2 });
+    this._jobLoader = new JobLoader({ chronos: this._chronos, context: () => ({ sock: this._sock }) });
     this._botInfo = {};
     this._watcher = null;
     this._sourceWatcher = null;
@@ -209,6 +213,8 @@ export class Bot {
 
   async start() {
     await this._reloadQueue.push('boot');
+    const jobs = await this._jobLoader.load();
+    Logger.info({ jobs: jobs.loaded, errors: jobs.errors.length }, 'Background jobs loaded');
     for (const mw of baseMiddlewares) this._cmd.use(mw);
 
     // Decide initial watcher state:
@@ -255,6 +261,7 @@ export class Bot {
     });
 
     this._sock = sock;
+    this._chronos.start();
     this._pairingRequested = false;
 
     attachSerializerRuntime(sock);
@@ -439,6 +446,7 @@ export class Bot {
   }
 
   async stop() {
+    this._chronos?.stop();
     if (this._watcher) await this._watcher.stop();
     if (this._sock) this._sock.end(undefined);
   }

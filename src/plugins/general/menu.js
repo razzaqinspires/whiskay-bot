@@ -10,6 +10,7 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
 import { getEnergy, complexityScore, getHits } from '../../lib/energy-worker.js';
+import { getEnergySaver } from '../../lib/energy-saver.js';
 import { getProfile, getLeaderboard } from '../../lib/leveling.js';
 import { renderMenuCardV2 } from '../../services/canvas-v2.js';
 import { getUser, getUserStats, readAppDatabase } from '../../lib/app-database.js';
@@ -103,7 +104,12 @@ const titleCase=s=>String(s||'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpp
 function isBold(settings,part){return (settings.boldParts||[]).includes(part);}
 function emphasized(settings,text,part){return isBold(settings,part)?`*${text}*`:text;}
 function line(settings, text, part='meta') { const raw=emphasized(settings,text,part); return `${settings.linePrefix ? (TEMPLATE[settings.template]||TEMPLATE.corporate).mid+' ' : ''}${style(raw,settings.font)}`; }
-function widgetLine(settings, text, part='meta') { const visible=settings.showWidgetSymbols!==false; const before=visible?String(settings.widgetSymbolBefore||'').slice(0,12):'', after=visible?String(settings.widgetSymbolAfter||'').slice(0,12):''; return line(settings, `${before}${text}${after}`, part); }
+function widgetLine(settings, text, part='meta') {
+  const designs = { classic: x => x, minimal: x => `· ${x}`, cyberpunk: x => `[ SYS ] :: ${x}`, kawaii: x => `┊ ${x} ♡`, boxed: x => `├ ${x}`, elegant: x => `✦ ${x}`, japanese: x => `╟ ${x}`, developer: x => `:: ${x}` };
+  const decorated = (designs[settings.widgetDesign] || designs.classic)(String(text));
+  const visible=settings.showWidgetSymbols!==false; const before=visible&&settings.showWidgetSymbolBefore!==false?String(settings.widgetSymbolBefore||'').slice(0,12):'', after=visible&&settings.showWidgetSymbolAfter!==false?String(settings.widgetSymbolAfter||'').slice(0,12):'';
+  return line(settings, `${before}${decorated}${after}`, part);
+}
 async function renderMenu(ctx) {
   const settings=await getMenuSettings(ctx.sender||ctx.chat);
   let rows=getCommandRows();
@@ -111,31 +117,38 @@ async function renderMenu(ctx) {
   if(!settings.widgets.includes('owner')) rows=rows.filter(r=>!r.owner);
   if(settings.categories?.length) rows=rows.filter(r=>settings.categories.includes(r.category));
   rows.sort((a,b)=> { if(settings.order==='category'){const byCategory=a.category.localeCompare(b.category);if(byCategory)return byCategory;return a.command.localeCompare(b.command);} return settings.order==='za'?-a.command.localeCompare(b.command):a.command.localeCompare(b.command); });
+  const energy=await getEnergy(ctx.sender||ctx.chat).catch(()=>({energy:100}));
+  const saver=await getEnergySaver(ctx.sender||ctx.chat).catch(()=>({enabled:false}));
+  let saverCompact=false;
+  if(saver.enabled&&Number(energy.energy)<20){const topCategories=[...new Set(rows.map(r=>r.category))].slice(0,5);rows=rows.filter(r=>topCategories.includes(r.category));saverCompact=true;}
   const totalCommands = rows.length;
-  const pageSize = 100;
+  const pageLimitEnabled = settings.commandPageLimitEnabled !== false;
+  const pageSize = pageLimitEnabled ? Math.max(100, Math.min(500, Math.floor(Number(settings.commandPageSize) || 100))) : Math.max(1, totalCommands);
   const page = Math.max(1, Math.floor(Number(ctx.args?.[0]) || 1));
-  const totalPages = Math.max(1, Math.ceil(totalCommands / pageSize));
+  const totalPages = pageLimitEnabled ? Math.max(1, Math.ceil(totalCommands / pageSize)) : 1;
   const safePage = Math.min(page, totalPages);
   rows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const t=TEMPLATE[settings.template]||TEMPLATE.corporate;
   const lines=[];
-  const energy=await getEnergy(ctx.sender||ctx.chat).catch(()=>({energy:100}));
   if(settings.widgets.includes('heading')) {
     if(settings.topBorder!==false) lines.push(style(emphasized(settings,`${t.top} ${config.botName} — MENU`,'border'),settings.font));
     else lines.push(style(emphasized(settings,`${config.botName} — MENU`,'heading'),settings.font));
   }
   const batteryText = `🔋 Energi: ${Number(energy.energy||0).toFixed(2).replace('.',',')}%`;
-  lines.push(settings.batteryDisplayStyle === 'match_menu' ? style(batteryText, settings.font) : batteryText);
+  if (settings.showEnergyWidget !== false) lines.push(widgetLine(settings, settings.batteryDisplayStyle === 'match_menu' ? style(batteryText, settings.font) : batteryText));
   if(settings.energyDetails) lines.push('⚠️ Warning: Memuat detail energi akan memperlambat loading menu.');
   if(settings.widgets.includes('intro')) lines.push(style(emphasized(settings,`${settings.order==='category'?'Daftar perintah berdasarkan kategori lalu A–Z':settings.order==='za'?'Daftar perintah Z–A':'Daftar perintah A–Z'}\n`,'intro'),settings.font));
   const gap='\n'.repeat(Math.max(0,Math.min(3,Number(settings.spacing)||0)));
   const widgetLines = {};
-  if(settings.widgets.includes('count')) widgetLines.count=widgetLine(settings,`Total perintah: ${totalCommands} · Halaman ${safePage}/${totalPages}`);
+  if(settings.widgets.includes('count')) widgetLines.count=widgetLine(settings,`Total perintah: ${totalCommands}${pageLimitEnabled?` · Halaman ${safePage}/${totalPages}`:''}`);
   if(settings.widgets.includes('prefix')) widgetLines.prefix=widgetLine(settings,`Prefix: ${config.prefixes.join(' ')}`);
   if(settings.widgets.includes('new')) widgetLines.new=widgetLine(settings,'🆕 = perintah baru selama 7 hari');
   if(settings.widgets.includes('website')) widgetLines.website=widgetLine(settings,`Website: ${config.website.baseUrl || 'belum dikonfigurasi'}`);
   if(settings.widgets.includes('info')) widgetLines.info=widgetLine(settings,`Info: Bot aktif · Prefix ${config.prefixes.join(' ')}`);
-  if(settings.widgets.includes('rank')) widgetLines.rank=widgetLine(settings,`Profile / rank / engagement: ${ctx.prefix}profile`);
+  if(settings.widgets.includes('rank')) widgetLines.rank=widgetLine(settings,`Rank/engagement: ${ctx.prefix}profile`);
+  if(settings.widgets.includes('toprank')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.toprank=widgetLine(settings,`Top Rank: ${board.length?board.map((p,i)=>`${i+1}. ${String(p.user||'player').split('@')[0]} · Lv.${p.level||1}`).join(' | '):'belum ada data'}`); } catch { widgetLines.toprank=widgetLine(settings,'Top Rank: data belum tersedia'); } }
+  if(settings.widgets.includes('toplevels')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.toplevels=widgetLine(settings,`Top Level: ${board.length?board.map((p,i)=>`${i+1}. ${String(p.user||'player').split('@')[0]} · Lv.${p.level||1}`).join(' | '):'belum ada data'}`); } catch { widgetLines.toplevels=widgetLine(settings,'Top Level: data belum tersedia'); } }
+  if(settings.widgets.includes('modcoins')) { try { const energyInfo=await getEnergy(ctx.sender||ctx.chat); widgetLines.modcoins=widgetLine(settings,`Coin Mod: ${Number(energyInfo.modCoins||0).toLocaleString('id-ID')}`); } catch { widgetLines.modcoins=widgetLine(settings,'Coin Mod: data belum tersedia'); } }
   if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=widgetLine(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')} · XP ${p.xp||0}`); } catch { widgetLines.rpgstatus=widgetLine(settings,'RPG: data karakter belum tersedia'); } }
   if(settings.widgets.includes('leaderboard')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.leaderboard=widgetLine(settings,`Leaderboard: ${board.length?board.map((p,i)=>`${i+1}.${String(p.user||'player').split('@')[0]} Lv.${p.level||1}`).join(' · '):'belum ada data'}`); } catch { widgetLines.leaderboard=widgetLine(settings,'Leaderboard: data belum tersedia'); } }
   if(settings.widgets.includes('commandhits')) { try { const hits=await getHits(); widgetLines.commandhits=widgetLine(settings,`Total hit command: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.commandhits=widgetLine(settings,'Total hit command: tidak tersedia'); } }
@@ -166,7 +179,8 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('footer')) lines.push('',line(settings,'Legenda: ⚡ Energi dinamis · 📌 Energi statis · 🔢 angka biaya · 🎟️ memakai Limit · 💎 Premium eksklusif','footer'));
   if(settings.bottomBorder!==false) lines.push(style(emphasized(settings,t.bottom,'border'),settings.font));
   const text=lines.join('\n');
-  if(energy.energy < 10) return ctx.reply(`🌙 Mega: Mode hemat daya diaktifkan, menampilkan menu ringan...\n\n${text}`);
+  if(saverCompact) return ctx.reply(`🔒 SAVER MODE · 5 kategori teratas untuk menghemat bandwidth\n\n${text}`);
+  if(energy.energy < 10) return ctx.reply(`🌙 Mode energi rendah: menu ringkas tersedia.\n\n${text}`);
   if(settings.mode==='text') return ctx.reply(text);
   const user=ctx.sender||ctx.chat;
   const globalRecommendationsEnabled=await getGlobalRecommendationsEnabled();
@@ -176,7 +190,7 @@ async function renderMenu(ctx) {
   const rec=recommendations[0];
   const buttons=[];
   if(globalRecommendationsEnabled&&settings.recommendationEnabled!==false){ if(rec) buttons.push({name:'quick_reply',title:`Rekomendasi: ${ctx.prefix}${rec.command} (${rec.percentage}%)`,id:`${ctx.prefix}${rec.command}`}); else buttons.push({name:'quick_reply',title:'Lihat rekomendasi',id:`${ctx.prefix}explore`}); }
-  if (totalPages > 1) buttons.push({name:'quick_reply',title:safePage < totalPages ? `Halaman ${safePage+1} ➡️` : `⬅️ Halaman ${safePage-1}`,id:`${ctx.prefix}menu ${safePage < totalPages ? safePage+1 : safePage-1}`});
+  if (settings.showNextPageInfo !== false && totalPages > 1) buttons.push({name:'quick_reply',title:safePage < totalPages ? `Halaman ${safePage+1} ➡️` : `⬅️ Halaman ${safePage-1}`,id:`${ctx.prefix}menu ${safePage < totalPages ? safePage+1 : safePage-1}`});
   buttons.push({name:'cta_url',title:'Website Official',url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',merchant_url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',webview_interaction:true});
   const rowsMenu=[{title:'Buka Pengaturan Utama Lengkap',description:'Font, widget, template, border, spasi, gambar, urutan dan ketebalan font',id:`${ctx.prefix}setmenu`},{title:'Desain menu berbantuan AI',description:'Pilih mode desain; struktur command dan izin tetap dikunci oleh registry',id:`${ctx.prefix}setmenu response`},{title:'Mode respon menu',description:`Saat ini: ${settings.menuResponseMode||'classic'} · ganti klasik/AI`,id:`${ctx.prefix}setmenu response`}];
   buttons.push({name:'single_select',title:'Pengaturan Menu',sections:[{title:'Pengaturan Lengkap',rows:rowsMenu}]});
@@ -203,7 +217,7 @@ async function renderMenu(ctx) {
   // Attach the canvas directly to the same interactive message so the image,
   // command list, and embedded settings button are delivered together.
   const finalText=imageWarning?`${text}\n\n⚠️ ${imageWarning}`:text;
-  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default',quoteExperiment:settings.quoteExperiment||'',fakeContactName:settings.fakeContactName,fakeContactNumber:settings.fakeContactNumber,fakeProductName:settings.fakeProductName,fakeProductPrice:settings.fakeProductPrice,forwardedLabelMode:settings.forwardedLabelMode||'full'}); }
+  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default',quoteExperiment:settings.quoteExperiment||'',fakeContactName:settings.fakeContactName,fakeContactNumber:settings.fakeContactNumber,fakeProductName:settings.fakeProductName,fakeProductPrice:settings.fakeProductPrice,fakeProductImageUrl:settings.fakeProductImageUrl,forwardedLabelMode:settings.forwardedLabelMode||'full'}); }
   catch { return ctx.reply(`${finalText}\n\nGunakan ${ctx.prefix}setmenu untuk mengatur menu.`); }
 }
 export default {name:'menu',command:['menu','help'],menuCommands:['menu'],description:'Tampilkan daftar perintah dan pengaturan menu pribadi',category:'general',cooldown:3000,async execute(ctx){return renderMenu(ctx);}};

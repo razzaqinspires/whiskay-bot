@@ -2,17 +2,23 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
+const ROOT = process.env.WHISKAY_DATA_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
 const SETTINGS_FILE = path.join(ROOT, 'menu-settings.json');
 const LEDGER_FILE = path.join(ROOT, 'menu-command-ledger.json');
 const USAGE_FILE = path.join(ROOT, 'menu-command-usage.json');
 const RECOMMENDATION_FILE = path.join(ROOT, 'recommendation-settings.json');
+const GLOBAL_DEFAULTS_FILE = path.join(ROOT, 'menu-global-defaults.json');
 const DAY = 24 * 60 * 60 * 1000;
 const DEFAULTS = Object.freeze({
   template: 'corporate',
   energyDetails: false,
   font: 'normal',
   batteryDisplayStyle: 'match_menu',
+  widgetDesign: 'classic',
+  showEnergyWidget: true,
+  showNextPageInfo: true,
+  commandPageLimitEnabled: true,
+  profileWidgets: ['userprofile','progress','economy','familiarity','premium','smartenergy'],
   batteryNotification: 'merge',
   description: true,
   categoriesVisible: true,
@@ -25,13 +31,15 @@ const DEFAULTS = Object.freeze({
   topBorder: true,
   bottomBorder: true,
   spacing: 1,
-  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits','balance','totalusers','registeredusers','biocore','events','messages','uptime','database'],
+  widgets: ['category','count','prefix','new','owner','footer','heading','intro','website','rank','toprank','toplevels','modcoins','userprofile','progress','economy','familiarity','worker','premium','rankmatrix','websiteProducts','info','rpgstatus','leaderboard','commandhits','balance','totalusers','registeredusers','biocore','events','messages','uptime','database'],
   imageMode: 'official',
   imagePath: '',
   boldParts: [],
   widgetSymbolBefore: '',
   widgetSymbolAfter: '',
   showWidgetSymbols: true,
+  showWidgetSymbolBefore: true,
+  showWidgetSymbolAfter: true,
   widgetNumbering: false,
   recommendationEnabled: true,
   menuResponseMode: 'classic',
@@ -59,15 +67,19 @@ async function writeJson(file, value) {
 export function defaultMenuSettings() { return structuredClone(DEFAULTS); }
 export async function getMenuSettings(userId) {
   const all = await readJson(SETTINGS_FILE, {});
-  const settings = { ...defaultMenuSettings(), ...(all[String(userId || 'unknown')] || {}) };
+  const global = await readJson(GLOBAL_DEFAULTS_FILE, {});
+  const settings = { ...defaultMenuSettings(), ...(global.settings || {}), ...(all[String(userId || 'unknown')] || {}) };
   if (!['match_menu','default'].includes(settings.batteryDisplayStyle)) settings.batteryDisplayStyle = 'match_menu';
   if (!['hide','merge','separate'].includes(settings.batteryNotification)) settings.batteryNotification = 'merge';
+  if (!['classic','minimal','cyberpunk','kawaii','boxed','elegant','japanese','developer'].includes(settings.widgetDesign)) settings.widgetDesign = 'classic';
+  settings.commandPageSize = Math.max(100, Math.min(500, Math.floor(Number(settings.commandPageSize) || 100)));
+  if (!Array.isArray(settings.profileWidgets)) settings.profileWidgets = defaultMenuSettings().profileWidgets;
   return settings;
 }
 export async function updateMenuSettings(userId, patch) {
   const all = await readJson(SETTINGS_FILE, {});
   const key = String(userId || 'unknown');
-  all[key] = { ...defaultMenuSettings(), ...(all[key] || {}), ...patch };
+  all[key] = { ...(all[key] || {}), ...patch };
   await writeJson(SETTINGS_FILE, all);
   return all[key];
 }
@@ -75,8 +87,28 @@ export async function resetMenuSettings(userId) {
   const all = await readJson(SETTINGS_FILE, {});
   delete all[String(userId || 'unknown')];
   await writeJson(SETTINGS_FILE, all);
-  return defaultMenuSettings();
+  return getMenuSettings(userId);
 }
+export async function setGlobalMenuDefaults(settings, actor='owner') {
+  const builtIn = defaultMenuSettings();
+  const safe = { ...builtIn, ...settings, imageMode: 'official', imagePath: '' };
+  const payload = { settings: safe, updatedAt: new Date().toISOString(), updatedBy: String(actor).slice(0,80) };
+  await writeJson(GLOBAL_DEFAULTS_FILE, payload);
+  // Migrate legacy fully-materialized user settings: values equal to the old built-in
+  // defaults were not meaningful overrides, so allow them to inherit the new baseline.
+  const all = await readJson(SETTINGS_FILE, {});
+  for (const record of Object.values(all)) {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) continue;
+    for (const [key, value] of Object.entries(record)) {
+      if (Object.prototype.hasOwnProperty.call(builtIn, key) && JSON.stringify(value) === JSON.stringify(builtIn[key])) delete record[key];
+    }
+  }
+  await writeJson(SETTINGS_FILE, all);
+  return payload;
+}
+export async function getGlobalMenuDefaults() { return readJson(GLOBAL_DEFAULTS_FILE, { settings: defaultMenuSettings(), updatedAt: null, updatedBy: null }); }
+export async function clearGlobalMenuDefaults() { await writeJson(GLOBAL_DEFAULTS_FILE, { settings: defaultMenuSettings(), updatedAt: new Date().toISOString(), updatedBy: 'factory-reset' }); return defaultMenuSettings(); }
+export async function resetMenuSettingKeys(userId, keys=[]) { const all=await readJson(SETTINGS_FILE,{}), key=String(userId||'unknown'); const current=all[key]||{}; for(const name of keys) delete current[name]; all[key]=current; await writeJson(SETTINGS_FILE,all); return getMenuSettings(userId); }
 
 // Record the first time each canonical command appears. The NEW badge expires
 // after seven days without needing a timer or background job.

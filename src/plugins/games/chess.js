@@ -1,81 +1,22 @@
-import { mutateAppDatabase, readAppDatabase, updateUser } from '../../lib/app-database.js';
-const FILES = 'abcdefgh';
-const INITIAL = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
-const PIECES = { K:'♔', Q:'♕', R:'♖', B:'♗', N:'♘', P:'♙', k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟' };
-function initialBoard() { const board={}; const rows=INITIAL.split('/'); rows.forEach((row,ri)=>{let file=0;for(const c of row){if(/\d/.test(c)){file+=Number(c);continue;}board[`${FILES[file]}${8-ri}`]=c;file++;}});return board; }
-function render(board) { const lines=['    a b c d e f g h','  ┌─────────────────┐']; for(let rank=8;rank>=1;rank--){lines.push(`${rank} │ ${FILES.split('').map(file=>PIECES[board[`${file}${rank}`]]||'·').join(' ')} │ ${rank}`);} lines.push('  └─────────────────┘','    a b c d e f g h');return lines.join('\n'); }
-const side = p => p === p.toUpperCase() ? 'white' : 'black';
-function coords(sq){if(!/^[a-h][1-8]$/.test(sq))return null;return {f:FILES.indexOf(sq[0]),r:Number(sq[1])};}
-function pathClear(board,from,to,df,dr){let f=from.f+df,r=from.r+dr;while(f!==to.f||r!==to.r){if(board[`${FILES[f]}${r}`])return false;f+=df;r+=dr;}return true;}
-function isLegalPseudo(board,fromSq,toSq,color){
- const from=coords(fromSq),to=coords(toSq);if(!from||!to||fromSq===toSq)return false;
- const piece=board[fromSq],target=board[toSq];if(!piece||side(piece)!==color||(target&&side(target)===color))return false;
- const type=piece.toLowerCase(),df=to.f-from.f,dr=to.r-from.r,adf=Math.abs(df),adr=Math.abs(dr);
- if(type==='p'){const dir=color==='white'?1:-1,start=color==='white'?2:7;if(df===0&&!target&&dr===dir)return true;if(df===0&&!target&&from.r===start&&dr===2*dir&&!board[`${FILES[from.f]}${from.r+dir}`])return true;return adf===1&&dr===dir&&Boolean(target);}
- if(type==='n')return (adf===1&&adr===2)||(adf===2&&adr===1);
- if(type==='k')return adf<=1&&adr<=1;
- if(type==='r'&&(df===0||dr===0))return pathClear(board,from,to,Math.sign(df),Math.sign(dr));
- if(type==='b'&&adf===adr)return pathClear(board,from,to,Math.sign(df),Math.sign(dr));
- if(type==='q'&&(df===0||dr===0||adf===adr))return pathClear(board,from,to,Math.sign(df),Math.sign(dr));
- return false;
-}
-function move(board,from,to,color){if(!isLegalPseudo(board,from,to,color))return false;const piece=board[from];board[to]=piece;delete board[from];if(piece.toLowerCase()==='p'&&(to.endsWith('8')||to.endsWith('1')))board[to]=color==='white'?'Q':'q';return true;}
-function squareRows(prefix, gameId, action, coordsList=FILES.split('').flatMap(f=>[8,7,6,5,4,3,2,1].map(r=>`${f}${r}`))) {
- const sections=[];for(let i=0;i<coordsList.length;i+=8)sections.push({title:`Pilih kotak ${Math.floor(i/8)+1}`,rows:coordsList.slice(i,i+8).map(sq=>({title:sq.toUpperCase(),description:'Kotak papan catur',id:`${prefix}catur ${action} ${gameId} ${sq}`}))});
- return sections;
-}
-async function sendBoard(ctx, game, note='') {
- const turnName=game.turn==='white'?'Putih':'Hitam';
- const body=`♟️ *WHISKAY CHESS*\nGame: ${game.id}\nPutih: ${game.white}\nHitam: ${game.black}\nGiliran: ${turnName}\n\n${render(game.board)}\n\n${note}\n\nCatatan: engine ini memvalidasi gerak dasar bidak; belum memvalidasi skak, skakmat, rokade, atau en passant.`;
- return ctx.sendInteractive({title:'♟️ Catur WHISKAY',subtitle:`Giliran ${turnName}`,body,footer:'Pilih bidak lalu pilih tujuan dari daftar.',buttons:[{name:'single_select',title:'Pilih Bidak',sections:squareRows(ctx.prefix,game.id,'from')},{name:'quick_reply',title:'Batalkan game',id:`${ctx.prefix}catur stop ${game.id}`}]});
-}
-export default {
- name:'chess', command:['catur','chess'], category:'games', cooldown:1000, description:'Catur dua pemain dengan tombol pilih kotak dan validasi giliran',
- async execute(ctx){
-  const args=ctx.args||[], action=String(args[0]||'start').toLowerCase(), sender=String(ctx.sender||ctx.chat);
-  if(ctx.isGroup===false && action==='start') {
-    // Private games can still be challenged by supplying a JID/phone.
-  }
-  if(action==='start'||action==='new'){
-   let opponent=String(args[1]||'').replace(/[^\d@.a-z_-]/gi,''); if(/^\d{8,15}$/.test(opponent)) opponent += '@s.whatsapp.net';
-   if(ctx.mentionedJid?.length)opponent=ctx.mentionedJid[0];
-   if(!opponent)return ctx.reply('Format: .catur @lawan (mention lawan di grup) atau .catur 628xxxx@s.whatsapp.net');
-   if(opponent===sender)return ctx.reply('Pilih lawan selain dirimu.');
-   const id=Math.random().toString(36).slice(2,9).toUpperCase();
-   const game={id,white:sender,black:opponent,turn:'white',board:initialBoard(),createdAt:Date.now(),status:'active',selected:{}};
-   await mutateAppDatabase(db=>{db.games[id]=game;});
-   return ctx.sendInteractive({title:'♟️ Tantangan Catur',subtitle:'WHISKAY Chess',body:`Tantangan catur dari ${sender} kepada ${opponent}.\nGame ID: ${id}\nPutih bergerak pertama. Engine memvalidasi gerak dasar, tetapi belum menangani skak/skakmat.`,buttons:[{name:'quick_reply',title:'Terima & tampilkan papan',id:`${ctx.prefix}catur accept ${id}`},{name:'quick_reply',title:'Tolak',id:`${ctx.prefix}catur decline ${id}`}]});
-  }
-  const id=String(args[1]||'').toUpperCase();
-  const db=await readAppDatabase();const game=db.games[id];
-  if(!game)return ctx.reply('Game tidak ditemukan atau sudah tidak tersedia.');
-  if(action==='decline'){if(sender!==game.black)return ctx.reply('Hanya pemain yang ditantang yang dapat menolak.');await mutateAppDatabase(d=>{if(d.games[id])d.games[id].status='declined';});return ctx.reply('Tantangan ditolak.');}
-  if(action==='accept'){if(sender!==game.black)return ctx.reply('Hanya pemain yang ditantang yang dapat menerima.');return sendBoard(ctx,game,'Tantangan diterima.');}
-  if(action==='stop'){if(![game.white,game.black].includes(sender)&&!ctx.isOwner){const u=await updateUser(sender,{warnings:(Number((await readAppDatabase()).users[sender]?.warnings)||0)+1});if(u.warnings>=3)await updateUser(sender,{banned:true});return ctx.reply(u.warnings>=3?'⛔ Tiga percobaan tanpa izin. Akun diblokir dari command.':'⚠️ Tombol game ini bukan milikmu. Percobaan dicatat.');}await mutateAppDatabase(d=>{if(d.games[id])d.games[id].status='stopped';});return ctx.reply('Game dihentikan.');}
-  if(!['from','to'].includes(action))return sendBoard(ctx,game);
-  if(![game.white,game.black].includes(sender)){
-   const user=(await readAppDatabase()).users[sender];const warnings=(Number(user?.warnings)||0)+1;await updateUser(sender,{warnings,banned:warnings>=3});
-   return ctx.reply(warnings>=3?'⛔ Akses command diblokir setelah 3 percobaan mengendalikan game milik orang lain.':'⚠️ Tombol ini bukan milikmu. Aksi diabaikan; jangan gunakan tombol game pengguna lain.');
-  }
-  if(game.status!=='active')return ctx.reply('Game sudah selesai/dihentikan.');
-  const color=sender===game.white?'white':'black';
-  if(game.turn!==color)return ctx.reply('Bukan giliranmu.');
-  const square=String(args[2]||'').toLowerCase();
-  if(action==='from'){
-   if(!coords(square)||!game.board[square]||side(game.board[square])!==color)return ctx.reply('Pilih kotak berisi bidak milikmu.');
-   await mutateAppDatabase(d=>{d.games[id].selected[sender]=square;});
-   const targets=FILES.split('').flatMap(f=>[8,7,6,5,4,3,2,1].map(r=>`${f}${r}`));
-   return ctx.sendInteractive({title:'♟️ Pilih Tujuan',subtitle:`Bidak ${square.toUpperCase()}`,body:`Bidak dipilih: ${square.toUpperCase()}\nPilih kotak tujuan. Gerak ilegal akan ditolak.`,buttons:[{name:'single_select',title:'Pilih Kotak Tujuan',sections:squareRows(ctx.prefix,id,'to',targets)},{name:'quick_reply',title:'Kembali ke papan',id:`${ctx.prefix}catur board ${id}`}]});
-  }
-  const from=game.selected?.[sender];
-  if(!from)return ctx.reply(`Pilih bidak dahulu: .catur from ${id} e2`);
-  if(!coords(square))return ctx.reply('Koordinat tidak valid, contoh e4.');
-  const next={...game.board};
-  if(!move(next,from,square,color))return ctx.reply('Gerakan tidak valid menurut aturan dasar bidak. Pilih kembali bidak dan tujuan.');
-  const captured=game.board[square];const kingCaptured=captured?.toLowerCase()==='k';
-  await mutateAppDatabase(d=>{const g=d.games[id];if(!g||g.turn!==color)return;g.board=next;g.turn=color==='white'?'black':'white';g.selected={};g.lastMove={from,to:square,by:sender,at:Date.now()};if(kingCaptured)g.status='finished';});
-  const updated=(await readAppDatabase()).games[id];
-  if(kingCaptured)return ctx.reply(`🏁 ${color==='white'?'Putih':'Hitam'} menang dengan menangkap raja. (Mode latihan; engine belum menerapkan aturan skakmat.)\n${render(updated.board)}`);
-  return sendBoard(ctx,updated,`Gerakan: ${from.toUpperCase()} → ${square.toUpperCase()}`);
- }
-};
+import { Chess } from 'chess.js';
+import { mutateAppDatabase, readAppDatabase } from '../../lib/app-database.js';
+
+const PIECES={wk:'♔',wq:'♕',wr:'♖',wb:'♗',wn:'♘',wp:'♙',bk:'♚',bq:'♛',br:'♜',bb:'♝',bn:'♞',bp:'♟'};
+const safeId=()=>Math.random().toString(36).slice(2,9).toUpperCase();
+function boardSvg(chess){const board=chess.board(),sq=64,margin=32,size=margin*2+8*sq;let cells='';for(let r=0;r<8;r++)for(let f=0;f<8;f++){const x=margin+f*sq,y=margin+r*sq,cell=board[r][f],fill=(r+f)%2?'#769656':'#eeeed2';cells+=`<rect x="${x}" y="${y}" width="${sq}" height="${sq}" fill="${fill}"/>`;if(cell){const color=cell.color==='w'?'#fff':'#202020',stroke=cell.color==='w'?'#222':'#eee';cells+=`<text x="${x+sq/2}" y="${y+47}" text-anchor="middle" font-size="43" fill="${color}" stroke="${stroke}" stroke-width=".7" paint-order="stroke">${PIECES[cell.color+cell.type]}</text>`;}}for(let i=0;i<8;i++){cells+=`<text x="${margin+i*sq+sq/2}" y="${margin+8*sq+20}" text-anchor="middle" font-size="13" fill="#fff">${'abcdefgh'[i]}</text><text x="${margin-14}" y="${margin+i*sq+sq/2+4}" text-anchor="middle" font-size="13" fill="#fff">${8-i}</text>`;}return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="100%" height="100%" rx="16" fill="#202a22"/>${cells}</svg>`;}
+async function renderBoard(chess){try{const { createCanvas, loadImage }=await import('@napi-rs/canvas');const svg=Buffer.from(boardSvg(chess));const image=await loadImage(svg);const canvas=createCanvas(image.width,image.height);const c=canvas.getContext('2d');c.drawImage(image,0,0);return canvas.toBuffer('image/png');}catch{return null;}}
+function status(chess){if(chess.isCheckmate())return `SKAKMAT — ${chess.turn()==='w'?'Hitam':'Putih'} menang`;if(chess.isDraw())return 'REMIS';if(chess.isCheck())return 'SKAK!';return chess.turn()==='w'?'Giliran Putih':'Giliran Hitam';}
+function movesSections(prefix,id,moves){const rows=moves.slice(0,50).map(m=>({title:m.san,description:`${m.from} → ${m.to}${m.captured?' · makan bidak':''}`,id:`${prefix}catur move ${id} ${m.from} ${m.to}${m.promotion||''}`}));return [{title:'Langkah legal tersedia',rows:rows.length?rows:[{title:'Tidak ada langkah',description:'Posisi sudah selesai',id:`${prefix}catur board ${id}`}]}];}
+async function sendBoard(ctx,game,note=''){const chess=new Chess(game.fen||undefined);const image=await renderBoard(chess);const legal=chess.moves({verbose:true});const best=legal.find(m=>m.san.includes('#'))||legal.find(m=>m.san.includes('+'))||legal.find(m=>m.captured)||legal[0];const body=`♟️ *WHISKAY CHESS*\nGame: ${game.id}\nPutih: ${game.white}\nHitam: ${game.black}\n${status(chess)}\nLangkah: ${chess.history().length}\n${note}\n\n${chess.history().slice(-12).join(' · ')||'Game baru dimulai.'}`;return ctx.sendInteractive({title:'♟️ Catur WHISKAY',subtitle:status(chess),body,image:image||undefined,buttons:[...(best?[{name:'quick_reply',title:`Rekomendasi: ${best.san}`,id:`${ctx.prefix}catur move ${game.id} ${best.from} ${best.to}${best.promotion||''}`}]:[]),{name:'single_select',title:'Daftar Langkah Legal',sections:movesSections(ctx.prefix,game.id,legal)}]});}
+export default {name:'chess',command:['catur','chess'],category:'games',cooldown:1000,description:'Catur legal penuh memakai chess.js, papan Canvas, rekomendasi langkah dan leaderboard',async execute(ctx){
+ const args=ctx.args||[],action=String(args[0]||'start').toLowerCase(),sender=String(ctx.sender||ctx.chat);
+ if(action==='leaderboard'||action==='top'){const db=await readAppDatabase();const rows=Object.values(db.chessStats||{}).sort((a,b)=>(b.rating||0)-(a.rating||0)||(b.wins||0)-(a.wins||0)).slice(0,10);return ctx.sendInteractive({title:'🏆 LEADERBOARD CATUR',subtitle:'Rating · menang · seri · kalah',body:rows.length?rows.map((x,i)=>`${i+1}. ${String(x.user).replace(/@.*/,'')} — ${x.rating||1000} rating · ${x.wins||0}W/${x.draws||0}D/${x.losses||0}L`).join('\n'):'Belum ada hasil pertandingan. Selesaikan pertandingan untuk masuk leaderboard.',buttons:[{name:'quick_reply',title:'Mulai Catur',id:`${ctx.prefix}catur`},{name:'quick_reply',title:'Refresh',id:`${ctx.prefix}catur leaderboard`}]});}
+ if(action==='start'||action==='new'){let opponent=String(args[1]||'').replace(/[\s<>]/g,'');if(/^\d{8,15}$/.test(opponent))opponent+='@s.whatsapp.net';if(ctx.mentionedJid?.length)opponent=ctx.mentionedJid[0];if(!opponent)return ctx.reply('Format: .catur @lawan (mention lawan di grup) atau .catur 628xxxx@s.whatsapp.net');if(opponent===sender)return ctx.reply('Pilih lawan selain dirimu.');const id=safeId();const game={id,white:sender,black:opponent,turn:'w',fen:new Chess().fen(),pgn:'',createdAt:Date.now(),status:'pending',selected:{}};await mutateAppDatabase(d=>{d.games=d.games||{};d.games[id]=game;});return ctx.sendInteractive({title:'♟️ Tantangan Catur',subtitle:'Aturan catur penuh',body:`${sender} menantang ${opponent}.\nGame ID: ${id}\nEngine: chess.js · validasi langkah legal, skak, skakmat, rokade, en passant, promosi.`,buttons:[{name:'quick_reply',title:'Terima & Main',id:`${ctx.prefix}catur accept ${id}`},{name:'quick_reply',title:'Tolak',id:`${ctx.prefix}catur decline ${id}`}]});}
+ const id=String(args[1]||'').toUpperCase(),db=await readAppDatabase(),game=db.games?.[id];if(!game)return ctx.reply('Game tidak ditemukan atau sudah tidak tersedia.');
+ if(action==='decline'){if(sender!==game.black)return ctx.reply('Hanya pemain yang ditantang yang dapat menolak.');await mutateAppDatabase(d=>{d.games[id].status='declined';});return ctx.reply('Tantangan ditolak.');}
+ if(action==='accept'){if(sender!==game.black)return ctx.reply('Hanya lawan yang ditantang yang dapat menerima.');await mutateAppDatabase(d=>{d.games[id].status='active';});return sendBoard(ctx,{...game,status:'active'},'Tantangan diterima.');}
+ if(action==='stop'){if(![game.white,game.black].includes(sender)&&!ctx.isOwner)return ctx.reply('Hanya pemain game atau owner yang dapat menghentikan pertandingan.');await mutateAppDatabase(d=>{d.games[id].status='stopped';});return ctx.reply('Pertandingan dihentikan.');}
+ if(action==='board')return sendBoard(ctx,game);
+ if(action!=='move')return sendBoard(ctx,game);
+ if(![game.white,game.black].includes(sender))return ctx.reply('Tombol game ini bukan milikmu.');if(game.status!=='active')return ctx.reply('Game belum diterima atau sudah selesai.');const chess=new Chess(game.fen||undefined),color=sender===game.white?'w':'b';if(chess.turn()!==color)return ctx.reply('Bukan giliranmu.');const from=String(args[2]||''),to=String(args[3]||''),promotion=String(args[4]||'q');let result;try{result=chess.move({from,to,promotion});}catch{}if(!result)return ctx.reply('Langkah ilegal. Pilih langkah dari daftar yang disediakan.');const ended=chess.isGameOver();const winner=chess.isCheckmate()?(color==='w'?game.white:game.black):null;await mutateAppDatabase(d=>{const g=d.games[id];g.fen=chess.fen();g.pgn=chess.pgn();g.turn=chess.turn();g.lastMove={from,to,san:result.san,by:sender,at:Date.now()};if(ended){g.status='finished';g.result=winner?'win':'draw';g.winner=winner;d.chessStats=d.chessStats||{};const upd=(u,delta,field)=>{const x=d.chessStats[u]||{user:u,rating:1000,wins:0,draws:0,losses:0,games:0};x[field]=(x[field]||0)+1;x.games++;x.rating=Math.max(100,Math.min(3000,(x.rating||1000)+delta));d.chessStats[u]=x;};if(winner){upd(game.white,winner===game.white?20:-15,winner===game.white?'wins':'losses');upd(game.black,winner===game.black?20:-15,winner===game.black?'wins':'losses');}else{upd(game.white,5,'draws');upd(game.black,5,'draws');}}});const updated=(await readAppDatabase()).games[id];if(ended)return ctx.sendInteractive({title:'🏁 Pertandingan Selesai',body:`${status(chess)}\n${winner?`Pemenang: ${winner}`:'Hasil: remis'}\n\n${chess.pgn()}`,image:await renderBoard(chess)||undefined,buttons:[{name:'quick_reply',title:'Leaderboard Catur',id:`${ctx.prefix}catur leaderboard`},{name:'Tantang Lagi',id:`${ctx.prefix}catur start ${game.black===sender?game.white:game.black}`}]});return sendBoard(ctx,updated,`Langkah terakhir: ${result.san}`);
+}};

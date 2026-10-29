@@ -4,14 +4,14 @@ import path from 'node:path';
 const ROOT = path.resolve(process.env.WHISKAY_DATA_DIR || './data');
 const FILE = path.join(ROOT, 'app-database.json');
 const BACKUP = `${FILE}.bak`;
-const EMPTY = () => ({ schemaVersion: 1, users: {}, anonymous: { queue: [], pairs: {} }, games: {}, blockedUsers: {}, topups: {}, updatedAt: new Date().toISOString() });
+const EMPTY = () => ({ schemaVersion: 1, users: {}, anonymous: { queue: [], pairs: {} }, games: {}, werewolfRooms: {}, blockedUsers: {}, topups: {}, updatedAt: new Date().toISOString() });
 let queue = Promise.resolve();
 
 async function readCandidate(file) {
   try {
     const parsed = JSON.parse(await readFile(file, 'utf8'));
     if (!parsed || typeof parsed !== 'object' || !parsed.users || typeof parsed.users !== 'object') throw new Error('invalid database shape');
-    return { ...EMPTY(), ...parsed, users: parsed.users, anonymous: parsed.anonymous || { queue: [], pairs: {} }, games: parsed.games || {}, blockedUsers: parsed.blockedUsers || {}, topups: parsed.topups || {} };
+    return { ...EMPTY(), ...parsed, users: parsed.users, anonymous: parsed.anonymous || { queue: [], pairs: {} }, games: parsed.games || {}, werewolfRooms: parsed.werewolfRooms || {}, blockedUsers: parsed.blockedUsers || {}, topups: parsed.topups || {} };
   } catch { return null; }
 }
 export async function readAppDatabase() {

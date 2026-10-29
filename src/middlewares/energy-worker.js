@@ -1,32 +1,28 @@
-import { consumeEnergy, energyFooter, recordHit, getRuntimeSwitches, isCharging } from '../lib/energy-worker.js';
+import { consumeEnergy, energyFooter, recordHit, getRuntimeSwitches, isCharging, getEnergy } from '../lib/energy-worker.js';
 import { getMenuSettings } from '../lib/menu-settings.js';
-function appendText(content, footer) {
-  if (!footer) return content;
-  if (typeof content === 'string') return content + footer;
-  if (!content || typeof content !== 'object') return content;
-  if (typeof content.text === 'string') return { ...content, text: content.text + footer };
-  if (typeof content.caption === 'string') return { ...content, caption: content.caption + footer };
-  return content;
-}
-export default async function energyWorker(ctx, next) {
-  if (!ctx.command || ctx.isBot) return next();
-  const switches = await getRuntimeSwitches();
-  if (['raidboss','aigenerate'].includes(String(ctx.command||'').toLowerCase()) && await isCharging(ctx.sender || ctx.chat).catch(() => false)) { ctx.aborted = true; await ctx.reply('⚠️ Peringatan CPU: Cabut charger Anda terlebih dahulu untuk menjalankan tugas berat ini!').catch(() => {}); return; }
-  // Runtime switches are deliberately fail-open: an energy ledger failure must not disable normal bot commands.
-  let receipt = null;
-  try { receipt = await consumeEnergy(ctx.sender || ctx.chat, `${ctx.command} ${(ctx.args || []).join(' ')}`, ctx.plugin?.energyMode === 'static' ? Number(ctx.plugin.energyCost ?? 0.35) : null); await recordHit(ctx.sender || ctx.chat, ctx.command); } catch (error) { console.error('[ENERGY WORKER]', error?.message || error); }
-  ctx.energyReceipt = receipt;
-  const settings = await getMenuSettings(ctx.sender || ctx.chat).catch(() => ({ batteryNotification: 'merge' }));
-  const notification = settings.batteryNotification || 'merge';
-  const status = () => energyFooter(ctx.energyReceipt).trim();
-  const footer = () => notification === 'merge' ? energyFooter(ctx.energyReceipt) : '';
-  let separateSent = false;
-  const sendSeparate = async () => { if (notification !== 'separate' || separateSent || !status()) return; separateSent = true; await originalReply(status()).catch(() => {}); };
-  const oldReply = ctx.reply, oldSend = ctx.send, oldInteractive = ctx.sendInteractive;
-  const originalReply = oldReply;
-  if (typeof oldReply === 'function') ctx.reply = async (...args) => { const content = args[0]; const result = await oldReply(appendText(content, footer()), ...args.slice(1)); await sendSeparate(); return result; };
-  if (typeof oldSend === 'function') ctx.send = async (...args) => { const content = args[0]; const result = await oldSend(appendText(content, footer()), ...args.slice(1)); await sendSeparate(); return result; };
-  if (typeof oldInteractive === 'function') ctx.sendInteractive = async (payload = {}) => { const result = await oldInteractive({ ...payload, body: `${payload.body || ''}${footer()}` }); await sendSeparate(); return result; };
-  ctx.energySwitches = switches;
-  await next();
+import { getEnergySaver } from '../lib/energy-saver.js';
+import { estimateWorkload, applyEnergySaver } from '../core/WorkloadCortex.js';
+import { workloadTracker } from '../core/WorkloadTracker.js';
+function appendText(content, footer) { if(!footer)return content;if(typeof content==='string')return content+footer;if(!content||typeof content!=='object')return content;if(typeof content.text==='string')return {...content,text:content.text+footer};if(typeof content.caption==='string')return {...content,caption:content.caption+footer};return content; }
+export default async function energyWorker(ctx,next){
+ if(!ctx.command||ctx.isBot)return next();
+ const switches=await getRuntimeSwitches();
+ if(['raidboss','aigenerate'].includes(String(ctx.command||'').toLowerCase())&&await isCharging(ctx.sender||ctx.chat).catch(()=>false)){ctx.aborted=true;await ctx.reply('⚠️ Tugas berat ditunda saat pengisian baterai aktif.').catch(()=>{});return;}
+ const commandName=String(ctx.command||'').toLowerCase(),uid=ctx.sender||ctx.chat;
+ let current,workload,saver,adjusted;
+ try{current=await getEnergy(uid);workload=estimateWorkload({command:commandName,args:ctx.args||[],plugin:ctx.plugin||{},runtime:{queueDepth:0,heapPressure:Math.max(0,(process.memoryUsage().heapUsed/process.memoryUsage().heapTotal*100)-60)}});saver=await getEnergySaver(uid);adjusted=applyEnergySaver(workload.cost,{enabled:saver.enabled,energy:current.energy});}
+ catch(error){console.error('[ENERGY PRECHECK]',error?.message||error);ctx.aborted=true;await ctx.sendInteractive({title:'Energi Tidak Tersedia',body:'Ledger energi gagal dibaca. Command berbiaya ditahan untuk mencegah konsumsi tak tercatat. Coba kembali setelah penyimpanan pulih.',buttons:[{name:'quick_reply',title:'Coba Status',id:`${ctx.prefix||'.'}statusbaterai`},{name:'quick_reply',title:'Hubungi Owner',id:`${ctx.prefix||'.'}owner`}] }).catch(()=>{});return;}
+ if(workload.cost>0&&current.energy<adjusted.cost){ctx.aborted=true;const unlocked=Number(current.energy)<20;await ctx.sendInteractive({title:'🔋 Energi Tidak Cukup',subtitle:`Tersisa ${current.energy.toFixed(2)}% · perlu ${adjusted.cost.toFixed(2)}%`,body:`Command ${ctx.prefix||'.'}${commandName} dihentikan sebelum worker berjalan.\nEstimasi: ${adjusted.cost.toFixed(2)}% (${workload.mode}).\n${unlocked?'Mode hemat tersedia karena energi di bawah 20%.':'Mode hemat terkunci sampai energi di bawah 20%.'}`,buttons:[{name:'quick_reply',title:'Isi Energi',id:`${ctx.prefix||'.'}charge`},{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix||'.'}energy status`},...(unlocked?[{name:'quick_reply',title:'🔓 Aktifkan Hemat',id:`${ctx.prefix||'.'}energy saver on`}]:[])]}).catch(()=>{});return;}
+ let receipt=null;
+ try{if(workload.cost>0){receipt=await consumeEnergy(uid,`${commandName} ${(ctx.args||[]).join(' ')}`,adjusted.cost);await recordHit(uid,commandName);}ctx.energyReceipt=receipt;ctx.workloadDecision={...workload,estimatedCost:workload.cost,chargedCost:adjusted.cost,saverApplied:adjusted.saverApplied};}
+ catch(error){console.error('[ENERGY WORKER]',error?.message||error);ctx.aborted=true;await ctx.reply('Ledger energi tidak dapat mencatat biaya. Command dibatalkan agar tidak berjalan tanpa catatan energi.').catch(()=>{});return;}
+ const settings=await getMenuSettings(uid).catch(()=>({batteryNotification:'merge'}));const notification=settings.batteryNotification||'merge';const status=()=>energyFooter(ctx.energyReceipt).trim();const footer=()=>notification==='merge'?energyFooter(ctx.energyReceipt):'';let separateSent=false;const originalReply=ctx.reply;
+ const sendSeparate=async()=>{if(notification!=='separate'||separateSent||!status())return;separateSent=true;await originalReply(status()).catch(()=>{});};
+ const oldReply=ctx.reply,oldSend=ctx.send,oldInteractive=ctx.sendInteractive;
+ if(typeof oldReply==='function')ctx.reply=async(...args)=>{const result=await oldReply(appendText(args[0],footer()),...args.slice(1));await sendSeparate();return result;};
+ if(typeof oldSend==='function')ctx.send=async(...args)=>{const result=await oldSend(appendText(args[0],footer()),...args.slice(1));await sendSeparate();return result;};
+ if(typeof oldInteractive==='function')ctx.sendInteractive=async(payload={})=>{const result=await oldInteractive({...payload,forwardedLabelMode:payload.forwardedLabelMode||settings.forwardedLabelMode||'full',quoteMode:payload.quoteMode||settings.quoteMode||'default',quoteExperiment:payload.quoteExperiment||settings.quoteExperiment||'',fakeContactName:payload.fakeContactName||settings.fakeContactName,fakeContactNumber:payload.fakeContactNumber||settings.fakeContactNumber,fakeProductName:payload.fakeProductName||settings.fakeProductName,fakeProductPrice:payload.fakeProductPrice||settings.fakeProductPrice,fakeProductImageUrl:payload.fakeProductImageUrl||settings.fakeProductImageUrl,body:`${payload.body||''}${footer()}`});await sendSeparate();return result;};
+ ctx.energySwitches=switches;
+ await next();
+ if(receipt&&Number(receipt.energy)<20&&!ctx.energyNoticeSent){ctx.energyNoticeSent=true;await oldInteractive?.({title:'🔋 Energi Rendah',subtitle:`${Number(receipt.energy).toFixed(2)}% tersisa`,body:`Biaya command: ${Number(receipt.cost).toFixed(2)}%. Mode hemat ${saver.enabled?'aktif':'nonaktif'}. Aktifkan mode hemat untuk menurunkan biaya workload dinamis; cooldown menjadi lebih panjang.`,buttons:[{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix||'.'}energy status`},{name:'quick_reply',title:saver.enabled?'Nonaktifkan Hemat':'🔓 Aktifkan Hemat',id:`${ctx.prefix||'.'}energy saver ${saver.enabled?'off':'on'}`},{name:'quick_reply',title:'Isi Energi',id:`${ctx.prefix||'.'}charge`}] }).catch(()=>{});}
 }

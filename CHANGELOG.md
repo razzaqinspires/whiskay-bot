@@ -1,3 +1,21 @@
+## 2.24.0 — Stage 38, Iteration 1 (2026-10-29)
+- Added owner-only group inventory/pagination, validated invite joining, explicit in-group leave confirmation, registered-user listing, and API-key presence audit without revealing secrets.
+- Audited existing owner commands first to avoid cloning broadcast, console, ops, energy, newsletter, backup, reload, or test tooling.
+- Added Stage 38 tests, docs, audit ledger, and `verify:stage38`. Live WhatsApp actions remain unverified by mocks.
+
+## 2.22.0 — Stage 36 (2026-10-29)
+- Added EventRegistry with safe event dispatch, validation guards and recursion depth limits.
+- Added centralized Indonesian/English event locale helper and helper adapters for mention, URL and media normalization.
+- Added Experimental-Bell helpers/Events inventory and parity matrix; explicitly marks partial/gap items rather than claiming wholesale porting.
+- Added Literasi 1–5 audit plan with 250 subcategories and regression tests.
+
+## 2.21.0 — Stage 35 (2026-10-29)
+
+- Rebuilt `.catur` around `chess.js` legal move validation, FEN/PGN persistence, check/checkmate/castling/en passant/promotion, recommendation quick reply, legal-move list, and chess leaderboard.
+- Added command-based XP and leveling progression for successfully executed commands, with anti-farming cooldown and level-up notifications.
+- Revalidated energy interactive notices and typo suggestion flow; recorded Experimental-Bell feature gap ledger without claiming unverified parity.
+- Added Stage 35 regression tests and documentation.
+
 ## [2.16.0] - 2026-10-29
 
 ### Added
@@ -89,3 +107,38 @@
 - Recorded manual owner credits, Fast Charge spends/refunds, and battery-capacity upgrade costs with sanitized reason/reference fields.
 - Added Stage 31 regression tests for invalid ledger entries, spend rejection, atomic balance/history persistence, and 100-entry history retention.
 - Documented Coin Mod semantics, payment verification limitations, energy formula/limits, and the Stage 31 work-memory rules.
+
+
+## [2.18.0] — Stage 32 — 2026-10-29
+- Added independent widget design presets, energy widget visibility, and configurable page size/unlimited pagination.
+- Fixed zero-energy execution for non-recovery commands; recovery commands remain available.
+- Added interactive Coin Mod root menu and list-based status controls; reduced quick-reply clutter.
+- Added profile widget settings and global owner display defaults.
+- Serialized leveling/profile writes to prevent concurrent XP lost updates.
+- Added Stage 32 regression tests and documented the actual serializer compatibility path.
+
+
+## [2.19.0] — Stage 33 — 2026-10-29
+- Audited the 106-file Knightbot-MD command directory and compared it against Whiskay's plugin registry to avoid duplicate features.
+- Added local Indonesian fun commands: eightball, fact, joke, compliment, flirt, playful insult, quote, shayari, and roseday.
+- Added button-driven trivia and solo Tic-Tac-Toe with per-sender session ownership and expiry.
+- Added Open-Meteo current weather, MyMemory translation, and Jikan anime/manga search commands with bounded inputs/timeouts.
+- Added seven Stage 33 regression tests; documented privacy, provider, licensing uncertainty, excluded feature classes, troubleshooting, and rollback.
+
+
+## [2.20.0] — Stage 34 — 2026-10-29
+- Fixed widget symbol visibility so before/after symbols can be hidden independently without clearing saved values.
+- Added deterministic workload classification, preflight energy affordability, low-energy button notice, and persisted Energy Saver below 20% with reduced eligible cost and longer cooldown.
+- Added owner-controlled typo suggestion threshold, explicit JobLoader/ChronosCortex, persisted reminders and admin-configurable adzan schedule.
+- Added bounded command failure quarantine, NSFW policy/token scaffold (without content generators), and `.bc --preview`.
+- Added Event Shell Adapter and Experimental-Bell Feature Gap Ledger; documented compose-not-clone decisions.
+- Added Stage 34 regression tests and documentation.
+
+- Added WorkloadTracker interval CPU/heap metrics, deterministic MetaStateCortex health score, and explicit-tag conversation memory decay with `.memory` controls.
+
+
+## [2.23.0] — Stage 36 revision — 2026-10-29
+- Inspected the user-uploaded Experimental-Bell snapshot at file level, including both `helpers/Events/werewolf.js` and the separate `machine/werewolf.js` engine; wrote a command-family parity matrix and Literasi 1–5 audit based on the actual Whiskay tree.
+- Added a room-local Werewolf engine and persistent store using Whiskay's serialized app-database mutation path, with player limits, private role delivery, day voting, night role actions and phase resolution.
+- Added `.ww` and `.wwpc` plugins; introduced the `werewolfRooms` database namespace without discarding existing records.
+- Added Werewolf regression tests and documented unimplemented parity details (timed phases, automatic DM room binding, Mayor vote weighting and Hunter trigger).

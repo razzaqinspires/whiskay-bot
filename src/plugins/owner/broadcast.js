@@ -16,10 +16,11 @@ export default {
   async execute(ctx) {
     if (!ctx.isOwner) return ctx.reply('🔒 Fitur broadcast hanya untuk owner bot.');
     const raw = String(ctx.args?.join(' ') || '').trim();
-    if (!raw || ['help','--help'].includes(raw.toLowerCase())) return ctx.reply('📣 *BROADCAST OWNER*\n`.bc pesan` — kirim ke grup yang diikuti bot\n`.bc --users pesan` — grup + pengguna terdaftar\n`.bc --groups pesan` — hanya grup\n\nBroadcast berjalan bertahap dengan jeda untuk mengurangi risiko rate-limit. Gunakan hanya untuk pengumuman yang relevan.');
-    let mode = 'groups', message = raw;
-    if (raw.startsWith('--users ')) { mode = 'both'; message = raw.slice(8).trim(); }
-    else if (raw.startsWith('--groups ')) { mode = 'groups'; message = raw.slice(9).trim(); }
+    if (!raw || ['help','--help'].includes(raw.toLowerCase())) return ctx.reply(`📣 *BROADCAST OWNER*\n\`.bc pesan\` — kirim ke grup yang diikuti bot\n\`.bc --preview pesan\` — hitung target tanpa mengirim\n\`.bc --users pesan\` — grup + pengguna terdaftar\n\`.bc --groups pesan\` — hanya grup\n\nBroadcast berjalan bertahap dengan jeda untuk mengurangi risiko rate-limit. Gunakan hanya untuk pengumuman yang relevan.`);
+    let mode = 'groups', message = raw, previewOnly = false;
+    if (raw.startsWith('--preview ')) { previewOnly = true; message = raw.slice(10).trim(); }
+    if (message.startsWith('--users ')) { mode = 'both'; message = message.slice(8).trim(); }
+    else if (message.startsWith('--groups ')) { mode = 'groups'; message = message.slice(9).trim(); }
     if (!message) return ctx.reply('Teks pengumuman kosong. Gunakan `.bc pesan`');
     if (message.length > 3500) return ctx.reply('Teks terlalu panjang (maksimal 3500 karakter).');
     const sock = ctx.sock;
@@ -32,6 +33,13 @@ export default {
     const userIds = mode === 'both' ? await registeredUsers() : [];
     const targets = [...new Set([...groupIds, ...userIds])].filter(jid => jid !== ctx.chat);
     if (!targets.length) return ctx.reply('Tidak ada target broadcast. Pastikan bot sudah bergabung ke grup atau data/registered-users.json sudah diisi.');
+    if (previewOnly) return ctx.sendInteractive({title:'📣 Broadcast Preview',body:`Mode: ${mode}
+Target grup: ${groupIds.length}
+Pengguna terdaftar: ${userIds.length}
+Total unik setelah mengecualikan chat ini: ${targets.length}
+Panjang pesan: ${message.length} karakter
+
+Tidak ada pesan yang dikirim pada preview. Jalankan .bc pesan setelah memeriksa target.`,buttons:[{name:'quick_reply',title:'Batal',id:`${ctx.prefix}bc help`},{name:'quick_reply',title:'Lihat status',id:`${ctx.prefix}status`}]});
     await ctx.reply(`📣 *BROADCAST DIMULAI*\nTarget: ${targets.length}\nGrup: ${groupIds.length}\nPengguna terdaftar: ${userIds.length}\n\nPengiriman dilakukan bertahap.`);
     let sent = 0, failed = 0;
     for (const jid of targets) {

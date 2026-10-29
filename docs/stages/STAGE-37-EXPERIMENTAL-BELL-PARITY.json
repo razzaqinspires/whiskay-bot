@@ -1,0 +1,53 @@
+{
+  "stage": 37,
+  "title": "Experimental-Bell command-level parity",
+  "source": {
+    "repository": "Rifza123/Experimental-Bell",
+    "ref": "master",
+    "snapshot": "2026-09-05",
+    "basis": "Stage 36 source audit and inventory; source archive must be revalidated before direct source transplantation"
+  },
+  "statusLegend": {
+    "existing": "Whiskay has a comparable feature; command-level equivalence still needs proof",
+    "partial": "Some comparable functionality exists, but source commands/aliases/providers remain to be compared",
+    "gap": "No dedicated equivalent was confirmed in the baseline audit",
+    "new": "Whiskay-specific implementation exists but is not complete source parity",
+    "pending": "Not yet audited command by command"
+  },
+  "families": [
+    { "sourceFile": "about.js", "capturedCommands": 4, "status": "existing", "target": "src/plugins/tools/info.js and menu", "priority": "P2" },
+    { "sourceFile": "ai.js", "capturedCommands": 67, "status": "partial", "target": "src/plugins/tools/ai-chat.js and imagine", "priority": "P1" },
+    { "sourceFile": "converter.js", "capturedCommands": 28, "status": "partial", "target": "media/converter plugins", "priority": "P1" },
+    { "sourceFile": "downloader.js", "capturedCommands": 39, "status": "partial", "target": "downloader plugins", "priority": "P1" },
+    { "sourceFile": "game.js", "capturedCommands": 24, "status": "partial", "target": "src/plugins/games/*", "priority": "P0" },
+    { "sourceFile": "group.js", "capturedCommands": 48, "status": "partial", "target": "group moderation/tools/safety", "priority": "P1" },
+    { "sourceFile": "maker.js", "capturedCommands": 37, "status": "partial", "target": "sticker/meme/imagine plugins", "priority": "P1" },
+    { "sourceFile": "others.js", "capturedCommands": 20, "status": "pending", "target": "general/tools/owner plugins", "priority": "P1" },
+    { "sourceFile": "owner.js", "capturedCommands": 80, "status": "partial", "target": "owner and operations plugins", "priority": "P0" },
+    { "sourceFile": "relationship.js", "capturedCommands": 22, "status": "partial", "target": "anonymous/menfess/engagement/economy plugins", "priority": "P1" },
+    { "sourceFile": "reloadevents.js", "capturedCommands": 1, "status": "existing", "target": "PluginManager/hotreload mechanisms", "priority": "P2" },
+    { "sourceFile": "rpg.js", "capturedCommands": 26, "status": "partial", "target": "dedicated RPG plugins and web integration", "priority": "P0" },
+    { "sourceFile": "search.js", "capturedCommands": 23, "status": "partial", "target": "search/anime/GitHub/YouTube plugins", "priority": "P1" },
+    { "sourceFile": "tools.js", "capturedCommands": 46, "status": "partial", "target": "tools/utilities/media analysis", "priority": "P1" },
+    { "sourceFile": "tts.js", "capturedCommands": 2, "status": "gap", "target": "new TTS adapter after provider review", "priority": "P2" },
+    { "sourceFile": "werewolf.js", "capturedCommands": 1, "status": "new", "target": "src/plugins/games/werewolf.js and engine", "priority": "P0" },
+    { "sourceFile": "wwpc.js", "capturedCommands": 1, "status": "new", "target": "src/plugins/games/werewolf-private.js", "priority": "P0" }
+  ],
+  "otherHelpers": ["client.js", "eventGame.js", "events.js", "initialize.js", "interactive.js", "jadibot.js", "reaction.js", "stubTypeMsg.js", "utils.js"],
+  "transplantRules": [
+    "Keep Whiskay PluginManager and CommandHandler as the runtime authority.",
+    "Use Whiskay serializer adapters for all interactive messages.",
+    "Do not overwrite Whiskay RPG/economy transactions with source logic.",
+    "Every source command and alias must map to a target plugin or have an explicit exclusion reason.",
+    "Owner-only, destructive, privacy-sensitive, credential, and code-execution commands require separate security review.",
+    "Do not mark provider-dependent commands complete without configuration and failure-path tests.",
+    "README.md and docs/README.md must be updated in the same change as each implemented batch."
+  ],
+  "completion": {
+    "sourceCommandsEnumerated": false,
+    "aliasesMapped": false,
+    "allFamiliesTransplanted": false,
+    "unitTestsPassed": false,
+    "liveWhatsAppVerified": false
+  }
+}

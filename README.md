@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.5.5-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.20.0-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -34,6 +34,7 @@
 - [Install & configure](#-install--configure)
 - [Security and operations](#-security-and-operations)
 - [📚 Documentation & Archives](#-documentation--archives)
+- [Stage 37 — Experimental-Bell parity transplant](#stage-37--experimental-bell-parity-transplant)
 
 ## 🧩 Identity & responsibilities
 
@@ -677,3 +678,92 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - QA: `npm run verify:stage31` atau `npm run verify:all`. Laporan: [`TEST-REPORT-STAGE-31.md`](docs/stages/TEST-REPORT-STAGE-31.md). Tes lokal bukan bukti konektivitas WhatsApp/payment gateway live.
 - Troubleshooting: jika history kosong, record lama mungkin belum pernah memiliki transaksi tercatat; jika ledger JSON rusak, hentikan bot dan backup file sebelum restore; jangan edit saldo produksi tanpa audit.
 - Memori arahan lintas stage: [`MEMORY.md`](MEMORY.md).
+
+
+## Stage 32 — Menu UX, energi, profile, dan leveling
+
+- **Desain widget** (`.setmenu widgetdesign`): `classic`, `minimal`, `cyberpunk`, `kawaii`, `boxed`, `elegant`, `japanese`, `developer`. Desain isi widget terpisah dari template menu dan simbol sebelum/sesudah.
+- **Simbol** (`.setmenu symbols`): pilih preset melalui list, tampil/sembunyi, reset; simbol tidak mengganti desain widget.
+- **Widget energi** (`.setmenu energywidget on|off`): sembunyikan baris energi pada menu tanpa mengubah penghitungan baterai.
+- **Pagination** (`.setmenu pages`): 100–500 command per halaman; `unlimited` mematikan pagination dan tidak direkomendasikan untuk daftar sangat panjang. `showNextPageInfo` menyimpan preferensi tampilan info halaman.
+- **Profile card** (`.profile widgets`): widget profile diatur terpisah; menu profile menyediakan list pengaturan dan pilihan kanvas. Gambar manual disimpan per chat+user agar tidak berbagi path antarakun.
+- **Reset pabrik** (`.setmenu reset`): pilih reset menu, status, profile, atau semua tampilan. Progres RPG dan ekonomi tidak dihapus.
+- **Default global owner** (`.setmenu global-default apply`): menyimpan baseline konfigurasi menu/status/profile canvas owner. Per-user override yang ada tetap dipertahankan; reset memakai baseline global.
+- **Coin Mod** (`.modcoin`): menu interaktif menampilkan saldo, riwayat, beli koin, status baterai, dan upgrade. Coin Mod adalah saldo virtual internal, bukan uang fiat atau Gold RPG.
+- **Energi habis**: command berbiaya dihentikan ketika saldo sudah 0. Command pemulihan yang dibebaskan: `menu`, `help`, `setmenu`, `status`, `statusbaterai`, `profile`, `charge`, `modcoin`, `ping`, `owner`. Energi masih dihitung sebelum command berbiaya; kegagalan baca ledger tetap fail-open untuk menghindari outage total.
+- **Leveling**: operasi write XP/profile/group diserialisasi dalam satu proses agar pesan paralel tidak menimpa perubahan XP. Penyimpanan tetap JSON lokal dan bukan transaksi lintas-instance.
+- **Serializer**: entrypoint adalah `src/core/serializer.js` yang menggunakan `src/core/serializer-compat.cjs`. File bernama `serializer-compact.cjs` tidak ditemukan dalam arsip yang diaudit.
+- **Verifikasi**: `npm run verify:stage32` dan `npm run verify:all`. Hasil tes lokal bukan bukti pengujian WhatsApp live.
+
+- **Stage 32 work record:** [`docs/stages/STAGE-32.md`](docs/stages/STAGE-32.md), [`docs/stages/TEST-REPORT-STAGE-32.md`](docs/stages/TEST-REPORT-STAGE-32.md), [`docs/stages/STAGE-32-250-SUBCATEGORIES.md`](docs/stages/STAGE-32-250-SUBCATEGORIES.md).
+
+
+## Stage 33 — Feature parity dari audit Knightbot-MD (2026-10-29)
+
+- Audit referensi: [mruniquehacker/Knightbot-MD `commands/`](https://github.com/mruniquehacker/Knightbot-MD/tree/main/commands), inventaris 106 file pada saat pemeriksaan. Fitur dibandingkan dengan registry Whiskay; source tidak disalin baris demi baris. Lisensi root referensi tidak berhasil ditemukan melalui endpoint GitHub, jadi implementasi baru ditulis ulang dari perilaku/ide umum dan tidak mendistribusikan source referensi.
+- **Hiburan lokal**: `.funhelp`, `.eightball`, `.fact`, `.joke`, `.compliment`, `.flirt`, `.insult`, `.quote`, `.shayari`, `.roseday`; konten lokal, tidak membutuhkan API key. `.insult` hanya roasting ringan non-targeting; fakta trivia tetap perlu diverifikasi untuk kebutuhan penting.
+- **Trivia interaktif**: `.trivia` membuat satu ronde dengan pilihan jawaban dan batas sesi dua menit. Status sesi berada di memori proses dan hilang setelah restart; tidak memberikan poin/Gold RPG.
+- **Tic-Tac-Toe**: `.tictactoe` atau `.ttt`, permainan solo melawan bot dengan langkah via list, validasi kotak, win/block dasar, dan kedaluwarsa 10 menit. Sesi lokal hanya in-memory.
+- **Cuaca**: `.cuaca <kota>` memakai geocoding dan kondisi saat ini dari Open-Meteo, tanpa API key. Hasil adalah kondisi saat ini, bukan prakiraan jangka panjang.
+- **Terjemahan**: `.translate <bahasa-asal> <bahasa-tujuan> <teks>` / `.terjemah ...` melalui MyMemory. Contoh: `.translate id en Selamat pagi`. Teks dikirim ke provider pihak ketiga; jangan mengirim rahasia, password, data pribadi, atau dokumen sensitif.
+- **Pencarian anime/manga**: `.anime <judul>` dan `.manga <judul>` melalui Jikan API; hasil memuat judul, jenis/status, skor, ringkasan pendek, dan URL sumber. Layanan publik dapat menerapkan rate limit.
+- **Sudah ada dan tidak diduplikasi**: `.github`, `.imagine`, `.character`, `.s/.sticker`, downloader TikTok/Instagram/Facebook, AI chat, group tools, news, menfess, dan command RPG.
+- **Sengaja tidak diport secara otomatis**: pembuka pesan view-once/anti-delete yang dapat mengekspos pesan privat, eskalasi sudo, API key tertanam, pengaturan autoread/autotyping yang butuh runtime hook, serta remove-background/remini/gif/Spotify yang memerlukan provider/token/service berbeda. Kandidat ini dicatat untuk penilaian per fitur, bukan dianggap hilang tanpa audit.
+- **Konfigurasi**: tidak ada secret baru. `.cuaca`, `.translate`, `.anime`, dan `.manga` memerlukan akses internet keluar. Perubahan endpoint eksternal, timeout, dan fallback sudah dibatasi.
+- **QA**: `npm run verify:stage33` menjalankan tujuh regression tests; `npm run verify:all` juga mencakup semua verifikasi terdahulu. Tes provider live tidak dijalankan oleh unit test lokal.
+- Work record: [`docs/stages/STAGE-33.md`](docs/stages/STAGE-33.md), [`docs/stages/TEST-REPORT-STAGE-33.md`](docs/stages/TEST-REPORT-STAGE-33.md), [`docs/stages/STAGE-33-250-SUBCATEGORIES.md`](docs/stages/STAGE-33-250-SUBCATEGORIES.md). Memori kerja: [`MEMORY.md`](MEMORY.md).
+
+
+## Stage 34 — Energy Intelligence, Chronos & Safe Autonomy (2026-10-29)
+
+- Independent widget symbols: `.setmenu symbols visible before on|off` and `.setmenu symbols visible after on|off`; hide/show retains stored values and is independent from widget design/template.
+- Workload-aware energy middleware classifies recovery/free, static and dynamic commands. A command is rejected before execution if its estimated cost exceeds available energy. Ledger failures fail closed for command execution.
+- `.energy status|saver on|off`: Saver unlocks only below 20%, reduces eligible cost by 45%, and increases cooldown by 2.5×. Active saver renders only the first five sorted menu categories while energy is below 20%.
+- `.typo on|off|threshold 68` provides owner-controlled command typo suggestions with edit-distance similarity percentage.
+- Background `JobLoader` + `ChronosCortex` loads explicit interval jobs with duplicate rejection and bounded concurrency. `.reminder` persists reminders; `.adzan` supports admin-controlled manual group schedules with a per-group IANA timezone (default `Asia/Jakarta`).
+- Three failures within 15 minutes logically quarantine a command for 30 minutes; `.quarantine list|reset` is owner-only and never edits source code.
+- `.nsfw` currently controls the master switch, pause and token policy only. No NSFW content generators are enabled; group opt-in/provider audit remain a gap.
+- `.bc --preview pesan` counts targets without sending. RPG `WorldManager` supports bounded render radius/tree density and emits `whiskay:world-telemetry`; it still uses procedural low-poly trees rather than a new photorealistic asset pack.
+- Bell helper audit uses a Feature Gap Ledger and Event Shell Adapter; features already covered by Whiskay are not cloned.
+- Detail: [`docs/stages/STAGE-34.md`](docs/stages/STAGE-34.md), [`STAGE-34-BELL-GAP-LEDGER.md`](docs/stages/STAGE-34-BELL-GAP-LEDGER.md), [`STAGE-34-250-SUBCATEGORIES.md`](docs/stages/STAGE-34-250-SUBCATEGORIES.md), [`STAGE-34-LITERACY-6-OWNER-BACKLOG.md`](docs/stages/STAGE-34-LITERACY-6-OWNER-BACKLOG.md).
+- Verification: `npm run verify:stage34`; local tests do not replace live WhatsApp/API checks.
+
+
+## Stage 35 — Chess, XP and command assistance
+
+- `.catur @lawan` / `.catur 628xxxx@s.whatsapp.net`: legal chess powered by `chess.js`, challenge buttons, suggested move, selectable legal moves, PGN/FEN and leaderboard (`.catur leaderboard`).
+- Successfully executed commands award 3–5 XP with a 15-second per-command anti-farming cooldown; level-up notifications link to profile and leaderboard.
+- Unknown commands can display typo suggestions with similarity percentages; configure with `.typo`.
+- Low-energy and insufficient-energy flows expose interactive actions for energy status, charging and Energy Saver.
+- See `docs/stages/STAGE-35.md` for the feature-gap ledger and deployment caveats. Install dependencies with `npm install`; optional Canvas PNG rendering can be enabled with `npm install @napi-rs/canvas`.
+
+- Stage 35 details: `docs/stages/STAGE-35.md`, `STAGE-35-250-SUBCATEGORIES.md`, `STAGE-35-LITERACY-6-OWNER-BACKLOG.md`, and `STAGE-35-BELL-GAP-LEDGER.md`.
+
+
+## Stage 36 — Experimental-Bell audit and Werewolf MVP
+- Safe event registry and guards: `src/core/event-registry.js`; locale and normalization adapters: `src/core/event-locale.js`, `src/core/helper-feature-adapter.js`.
+- Newly added Werewolf engine, persistent room store and plugins: `src/lib/werewolf-engine.js`, `src/lib/werewolf-store.js`, `src/plugins/games/werewolf.js`, `src/plugins/games/werewolf-private.js`.
+- Source audit from the uploaded Experimental-Bell archive: `docs/stages/STAGE-36-SOURCE-AUDIT.md` and `docs/stages/STAGE-36-EXPERIMENTAL-BELL-INVENTORY.md`.
+- Literasi 1–5 (250 subcategories with actual status flags): `docs/stages/STAGE-36-LITERASI-1-5.md`.
+- Verify with `npm run verify:stage36` or `npm run verify:all`. Werewolf is an MVP, not complete parity; timers, automatic DM room binding, Mayor weighting, Hunter trigger, and role-edge-case tests remain gaps.
+
+- Third-party attribution and adaptation policy: `NOTICE-THIRD-PARTY.md`.
+
+
+## Stage 37 — Experimental-Bell parity transplant (work in progress)
+
+- **Tujuan:** transplantasi command per command dari [Rifza123/Experimental-Bell](https://github.com/Rifza123/Experimental-Bell) ke arsitektur plugin Whiskay; bukan menyalin runtime event lama secara mentah.
+- **Ledger parity:** [`docs/stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json`](docs/stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json) mencatat 17 keluarga event, target Whiskay, prioritas, dan status audit. Status `partial` berarti fitur belum terbukti setara penuh.
+- **Audit & kebijakan:** [`docs/stages/STAGE-37.md`](docs/stages/STAGE-37.md). Semua command dan alias harus punya target plugin atau alasan pengecualian yang terdokumentasi. Pertahankan seluruh game yang ada di sumber—termasuk `family100`, `susunkata`, `tebakgambar`, `tebakanime`, dan game lainnya—bukan hanya Werewolf.
+- **Keamanan:** pertahankan `PluginManager`, `CommandHandler`, serializer Whiskay, middleware izin/energi, dan transaksi RPG yang sudah menjadi otoritas. Tidak boleh menyalin `.env`, sesi WhatsApp, atau kredensial.
+- **Verifikasi:** `npm run verify:stage37` memeriksa ledger dan dokumentasi; `npm run verify:all` juga menjalankannya setelah suite sebelumnya. Hasil terbaru: [`docs/stages/TEST-REPORT-STAGE-37.md`](docs/stages/TEST-REPORT-STAGE-37.md). Tes lokal tidak membuktikan provider/API atau WhatsApp live.
+- **Status jujur:** ledger dan dokumentasi Stage 37 sudah disiapkan; transplantasi penuh belum boleh dinyatakan selesai sampai pemetaan command/alias dan pengujian tiap batch selesai.
+
+## Stage 38 — Owner parity transplant (Iteration 1)
+
+- Added owner-only `.listgc [halaman]` / `.listgroup [halaman]`, `.join <tautan-undangan>` / `.masuk`, `.leave confirm` / `.keluar confirm`, `.listuser [halaman]`, and `.cekapikey`.
+- `.listuser` reads only `data/registered-users.json`; `.cekapikey` reports configured state only and never outputs secret values. `.leave confirm` must be run inside the group to be left.
+- Existing owner features are retained instead of duplicated: `.bc`, `.opsstatus`, `.console`, `.eval`, `.reload`, `.testcommands`, `.groupbot`, `.setenergy`, `.saluran`, `.zip` and related controls.
+- Detail/audit: [`docs/stages/STAGE-38.md`](docs/stages/STAGE-38.md), [`STAGE-38-OWNER-PARITY-AUDIT.md`](docs/stages/STAGE-38-OWNER-PARITY-AUDIT.md), and [`TEST-REPORT-STAGE-38.md`](docs/stages/TEST-REPORT-STAGE-38.md).
+- Verify: `npm run verify:stage38`; full regression: `npm run verify:all`. Mock tests do not replace live WhatsApp validation.
+

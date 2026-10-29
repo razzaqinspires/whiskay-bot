@@ -1,0 +1,8 @@
+import { getTypoSettings, updateTypoSettings } from '../../core/typo-suggestions.js';
+export default { name:'typo-control', command:['typo'], category:'owner', owner:true, cooldown:1000, description:'Atur saran typo command dan statistik dasar', async execute(ctx){const [action='status',value=''] = ctx.args||[];if(!ctx.isOwner)return ctx.reply('🔒 Pengaturan typo hanya untuk owner.');if(action==='on'||action==='off'){const s=await updateTypoSettings({enabled:action==='on'});return ctx.sendInteractive({title:'Typo Command Diperbarui',body:`Saran typo: ${s.enabled?'AKTIF':'NONAKTIF'}
+Minimum kemiripan: ${Math.round(s.minSimilarity*100)}%
+Perubahan tersimpan secara atomik di data/typo-settings.json.`,buttons:[{name:'quick_reply',title:'Status',id:`${ctx.prefix}typo status`},{name:'quick_reply',title:'Aktifkan',id:`${ctx.prefix}typo on`},{name:'quick_reply',title:'Nonaktifkan',id:`${ctx.prefix}typo off`}]});}if(action==='threshold'){const n=Number(value);if(!Number.isFinite(n)||n<50||n>95)return ctx.reply('Format: .typo threshold 68 (50–95)');const s=await updateTypoSettings({minSimilarity:n/100});return ctx.reply(`Ambang kemiripan disimpan: ${Math.round(s.minSimilarity*100)}%.`);}const s=await getTypoSettings();return ctx.sendInteractive({title:'Typo Command · Owner Control',body:`Status: ${s.enabled?'AKTIF':'NONAKTIF'}
+Ambang kemiripan: ${Math.round(s.minSimilarity*100)}%
+Maksimum saran: ${s.maxSuggestions}
+Penyimpanan: data/typo-settings.json
+Contoh: .typo threshold 72`,buttons:[{name:'quick_reply',title:'Aktifkan',id:`${ctx.prefix}typo on`},{name:'quick_reply',title:'Nonaktifkan',id:`${ctx.prefix}typo off`},{name:'quick_reply',title:'Ambang 72%',id:`${ctx.prefix}typo threshold 72`}]});}};
