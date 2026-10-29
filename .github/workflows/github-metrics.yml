@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: github-metrics-${{ github.ref }}
+  group: whiskay-automation-branch
   cancel-in-progress: false
 
 jobs:
@@ -46,4 +46,4 @@ jobs:
             exit 0
           fi
           git commit -m "chore(metrics): refresh GitHub traffic and update timestamp [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:automation" --force
