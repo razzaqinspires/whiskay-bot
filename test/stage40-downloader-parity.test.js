@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { platformMatches, getDownloaderEndpoints, normalizeMediaUrl } from '../src/services/mediaDownloader.js';
+import { platformMatches, getDownloaderEndpoints, normalizeMediaUrl, normalizeProviderMediaUrl } from '../src/services/mediaDownloader.js';
 import { existsSync } from 'node:fs';
 
 const cases = [
@@ -26,6 +26,25 @@ test('provider endpoint configuration deduplicates and rejects invalid schemes a
 test('URL normalization rejects invalid schemes and embedded credentials', () => {
   assert.throws(() => normalizeMediaUrl('javascript:alert(1)'), /HTTP\/HTTPS/);
   assert.throws(() => normalizeMediaUrl('https://user:pass@example.com/x'), /kredensial/);
+});
+
+
+test('provider media URL validation rejects local hosts and private/reserved IP literals', () => {
+  for (const url of [
+    'http://localhost/file.mp4',
+    'http://service.local/file.mp4',
+    'http://127.0.0.1/file.mp4',
+    'http://10.1.2.3/file.mp4',
+    'http://192.168.1.2/file.mp4',
+    'http://169.254.169.254/latest/meta-data',
+    'http://[::1]/file.mp4',
+    'http://[fc00::1]/file.mp4',
+  ]) assert.throws(() => normalizeProviderMediaUrl(url), /host lokal|IP privat\/reserved/ , url);
+});
+
+test('provider media URL validation preserves public HTTP(S) CDN URLs', () => {
+  assert.equal(normalizeProviderMediaUrl('https://cdn.example.com/video.mp4'), 'https://cdn.example.com/video.mp4');
+  assert.equal(normalizeProviderMediaUrl('http://cdn.example.com/audio.mp3'), 'http://cdn.example.com/audio.mp3');
 });
 
 test('all Stage 40 downloader adapters exist', () => {
@@ -112,4 +131,71 @@ test('YouTube format picker offers MP3, M4A, voice note and MP4 after URL valida
   assert.ok(ids.some(id => id.startsWith('.ytm4a ')));
   assert.ok(ids.some(id => id.startsWith('.playvn ')));
   assert.ok(ids.some(id => id.startsWith('.ytmp4 ')));
+});
+
+test('downloader selection token is not consumed by a different sender or chat', async () => {
+  const { sendDownloadChoices, takePending } = await import('../src/services/mediaDownloader.js');
+  const previousEndpoint = process.env.MEDIA_DOWNLOADER_API_URL;
+  const previousEndpoints = process.env.MEDIA_DOWNLOADER_API_URLS;
+  const previousFetch = globalThis.fetch;
+  process.env.MEDIA_DOWNLOADER_API_URL = 'https://provider.example.test/download';
+  delete process.env.MEDIA_DOWNLOADER_API_URLS;
+  globalThis.fetch = async () => new Response(JSON.stringify({ videoHD: 'https://cdn.example.test/hd.mp4', audio: 'https://cdn.example.test/audio.mp3', title: 'Test media' }), { status: 200, headers: { 'content-type': 'application/json' } });
+  try {
+    let payload;
+    await sendDownloadChoices({ sender: 'user-a', chat: 'chat-a', prefix: '.', sendInteractive: async value => { payload = value; } }, 'tiktok', 'https://www.tiktok.com/@user/video/123');
+    const token = payload.buttons[0].id.split(' ')[1];
+    assert.ok(token);
+    assert.equal(takePending(token, 'user-b', 'chat-a'), null, 'another sender must not access or invalidate token');
+    assert.equal(takePending(token, 'user-a', 'chat-b'), null, 'another chat must not access or invalidate token');
+    assert.equal(takePending(token, 'user-a', 'chat-a', 'sd'), null, 'unavailable format must not consume token');
+    const selected = takePending(token, 'user-a', 'chat-a', 'hd');
+    assert.equal(selected.platform, 'tiktok');
+    assert.equal(takePending(token, 'user-a', 'chat-a'), null, 'valid token is single-use');
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousEndpoint === undefined) delete process.env.MEDIA_DOWNLOADER_API_URL; else process.env.MEDIA_DOWNLOADER_API_URL = previousEndpoint;
+    if (previousEndpoints === undefined) delete process.env.MEDIA_DOWNLOADER_API_URLS; else process.env.MEDIA_DOWNLOADER_API_URLS = previousEndpoints;
+  }
+});
+
+test('downloader rejects non-object provider JSON response', async () => {
+  const { resolveMedia } = await import('../src/services/mediaDownloader.js');
+  const previousEndpoint = process.env.MEDIA_DOWNLOADER_API_URL;
+  const previousEndpoints = process.env.MEDIA_DOWNLOADER_API_URLS;
+  const previousFetch = globalThis.fetch;
+  process.env.MEDIA_DOWNLOADER_API_URL = 'https://provider.example.test/download';
+  delete process.env.MEDIA_DOWNLOADER_API_URLS;
+  globalThis.fetch = async () => new Response(JSON.stringify([{ video: 'https://cdn.example.test/video.mp4' }]), { status: 200, headers: { 'content-type': 'application/json' } });
+  try {
+    await assert.rejects(resolveMedia('tiktok', 'https://www.tiktok.com/@user/video/123'), /Format respons provider tidak valid/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousEndpoint === undefined) delete process.env.MEDIA_DOWNLOADER_API_URL; else process.env.MEDIA_DOWNLOADER_API_URL = previousEndpoint;
+    if (previousEndpoints === undefined) delete process.env.MEDIA_DOWNLOADER_API_URLS; else process.env.MEDIA_DOWNLOADER_API_URLS = previousEndpoints;
+  }
+});
+
+
+test('provider response body is capped before JSON parsing', async () => {
+  const { resolveMedia } = await import('../src/services/mediaDownloader.js');
+  const previousEndpoint = process.env.MEDIA_DOWNLOADER_API_URL;
+  const previousEndpoints = process.env.MEDIA_DOWNLOADER_API_URLS;
+  const previousFetch = globalThis.fetch;
+  process.env.MEDIA_DOWNLOADER_API_URL = 'https://provider.example.test/download';
+  delete process.env.MEDIA_DOWNLOADER_API_URLS;
+  globalThis.fetch = async () => new Response(' '.repeat(1_048_577), { status: 200, headers: { 'content-type': 'application/json' } });
+  try {
+    await assert.rejects(resolveMedia('tiktok', 'https://www.tiktok.com/@user/video/123'), /Respons provider terlalu besar/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousEndpoint === undefined) delete process.env.MEDIA_DOWNLOADER_API_URL; else process.env.MEDIA_DOWNLOADER_API_URL = previousEndpoint;
+    if (previousEndpoints === undefined) delete process.env.MEDIA_DOWNLOADER_API_URLS; else process.env.MEDIA_DOWNLOADER_API_URLS = previousEndpoints;
+  }
+});
+
+test('dl-select passes selected format into ownership-bound token validation', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/plugins/media/dl-select.js', import.meta.url), 'utf8');
+  assert.match(source, /takePending\(token, ctx\.sender, ctx\.chat, format\)/);
 });

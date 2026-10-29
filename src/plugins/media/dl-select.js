@@ -5,7 +5,7 @@ export default {
   async execute(ctx) {
     const token = String(ctx.args?.[0] || ''); const format = String(ctx.args?.[1] || '').toLowerCase();
     if (!token || !['hd','sd','audio'].includes(format)) return ctx.reply('Pilihan unduhan tidak valid atau sudah kedaluwarsa. Jalankan command downloader lagi.');
-    const item = takePending(token, ctx.sender, ctx.chat);
+    const item = takePending(token, ctx.sender, ctx.chat, format);
     if (!item) return ctx.reply('⏳ Pilihan ini sudah kedaluwarsa atau berasal dari pengguna lain. Jalankan command downloader lagi.');
     const mediaUrl = format === 'hd' ? item.media.videoHD : format === 'sd' ? item.media.videoSD : item.media.audio;
     if (!mediaUrl) return ctx.reply('Format tersebut tidak tersedia untuk tautan ini.');

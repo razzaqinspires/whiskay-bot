@@ -1,3 +1,24 @@
+## 2.26.6 — Stage 40 Iteration 7
+
+- Caps downloader provider response bodies at 1 MiB and reads response streams with a bounded reader before JSON parsing.
+- Prevents a forged or unavailable format selection from consuming a valid sender/chat-bound downloader token.
+- Adds regression tests for oversized provider payloads and unavailable-format token preservation.
+- Live third-party provider, DNS resolution, and WhatsApp production delivery remain unverified.
+
+## 2.26.5 — Stage 40 Iteration 6
+
+- Prevented unauthorized senders or chats from consuming another user's downloader selection token; valid tokens remain single-use.
+- Added expiry cleanup and a 2,000-entry cap for pending downloader selections to bound in-memory state.
+- Rejects array or non-object JSON from downloader providers and adds regression coverage for malformed responses and token ownership.
+- Live provider and WhatsApp delivery checks remain deployment-level tasks.
+
+## 2.26.4 — Stage 40 Iteration 5
+
+- Hardened URLs returned by third-party downloader providers: reject localhost/local domains and private or reserved IP literals before the media URL is passed to WhatsApp's media fetcher.
+- Sanitize provider-supplied media titles before using them in interactive messages.
+- Added regression tests for local/private URL rejection and public CDN URL compatibility.
+- This check does not perform DNS resolution; provider hostnames that resolve to private IPs still require network-level egress controls.
+
 ## 2.26.3 — Stage 40 Iteration 4
 
 - Audited downloader aliases against the Experimental-Bell source command inventory and added missing Facebook, Instagram, TikTok, and YouTube downloader aliases.

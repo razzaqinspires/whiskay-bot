@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: whiskay-automation-branch
+  group: repo-update-history-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -81,4 +81,4 @@ jobs:
             exit 0
           fi
           git commit -m "chore(audit): record repository update metadata [skip ci]"
-          git push origin "HEAD:automation" --force
+          git push origin "HEAD:${GITHUB_REF_NAME}"

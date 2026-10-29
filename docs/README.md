@@ -417,3 +417,12 @@ This catalog includes every current Markdown file, including imported archive du
 - [Iteration 3 test report](stages/TEST-REPORT-STAGE-40-ITERATION-3.md)
 - [Iteration 4 — Downloader alias audit](stages/STAGE-40-ITERATION-4.md)
 - [Iteration 4 test report](stages/TEST-REPORT-STAGE-40-ITERATION-4.md)
+
+- [Stage 40 — Provider URL hardening, Iteration 5](stages/STAGE-40-ITERATION-5.md)
+- [Stage 40 — Test report, Iteration 5](stages/TEST-REPORT-STAGE-40-ITERATION-5.md)
+
+- [Stage 40 Iteration 6](stages/STAGE-40-ITERATION-6.md) — provider response contract and selection-token ownership hardening.
+- [Stage 40 Iteration 6 test report](stages/TEST-REPORT-STAGE-40-ITERATION-6.md).
+
+- [Stage 40 Iteration 7](stages/STAGE-40-ITERATION-7.md) — provider response-size cap and safer format-token consumption.
+- [Stage 40 Iteration 7 test report](stages/TEST-REPORT-STAGE-40-ITERATION-7.md)
