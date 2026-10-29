@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.14.0",
+  "version": "2.17.0",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -13,7 +13,7 @@
     "tunnel:check": "node --input-type=module -e \"import('./src/services/worldBossTunnel.js').then(m=>console.log(m.getWorldBossTunnelStatus()))\"",
     "verify:ops": "node scripts/verify-ops.mjs",
     "verify:stage23": "node --test test/stage23-utils.test.js",
-    "verify:all": "npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28",
+    "verify:all": "npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31",
     "verify:stage24": "node --test test/stage24-logger.test.js",
     "start:pm2": "pm2 start ecosystem.config.cjs",
     "restart:pm2": "pm2 restart ecosystem.config.cjs",
@@ -22,7 +22,10 @@
     "verify:stage25": "node --test test/stage25-menfess.test.js",
     "verify:stage26": "node --test test/stage26-observability.test.js",
     "verify:stage27": "node --test test/stage27-outbox.test.js",
-    "verify:stage28": "node --test test/stage28-event-processor.test.js"
+    "verify:stage28": "node --test test/stage28-event-processor.test.js",
+    "verify:stage29": "node --test test/stage29-menu.test.js",
+    "verify:stage30": "node --test test/stage30-recommendations.test.js",
+    "verify:stage31": "node --test test/stage31-economy.test.js"
   },
   "dependencies": {
     "@hapi/boom": "10.0.1",

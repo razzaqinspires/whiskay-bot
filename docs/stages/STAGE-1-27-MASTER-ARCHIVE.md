@@ -10,3 +10,8 @@ This index preserves the full historical documentation for Stages 1 through 27. 
 - Stage 27: durable outbox and idempotent processing; see `STAGE-27.md`.
 
 For every release, update root README, CHANGELOG, docs index, test report, and this archive index. Record implemented, tested, deferred, and production-verified items separately.
+
+
+## Stage 29 continuity addendum
+- See [`STAGE-29.md`](STAGE-29.md) for the Stage 29 design, features, and known limitations.
+- See [`TEST-REPORT-STAGE-29.md`](TEST-REPORT-STAGE-29.md) for local checks.

@@ -1,3 +1,9 @@
+## [2.16.0] - 2026-10-29
+
+### Added
+- Stage 30: context-aware recommendation filtering / game request input policy.
+- Stage 30 focused verification script and documentation.
+
 
 ## [2.12.0] — Stage 26
 - Added per-message correlation envelope and privacy-safe counters.
@@ -66,3 +72,20 @@
 - Added event validation/idempotency groundwork and Stage 28 verification.
 - Expanded README and stage documentation while preserving prior history.
 - Production multi-instance transaction guarantees remain dependent on database integration.
+
+
+## [2.15.0] - 2026-10-29 — Stage 29
+- Added global widget-symbol controls and complete settings summary.
+- Added Kawaii, Boxed, Japanese and Developer menu themes.
+- Added configurable synthetic contact/product quote preview fields and forwarded-label modes.
+- Added owner global recommendation switch, contextual `.explore`, `.imagine`, and `.character`.
+- Hid group/broadcast/newsletter identifiers from battery dashboard rows.
+- Expanded `.status` and surfaced Mod Coin in player profile.
+- Added Stage 29 tests and documentation; see known limitations in `docs/stages/STAGE-29.md`.
+
+## 2.17.0 — Stage 31 (2026-10-29)
+- Added bounded per-account Coin Mod transaction history in the existing energy ledger, written atomically with balance changes.
+- Added `.modcoin history [nomor/JID]`; account owners can view their own history, and only bot owners can request another account's history.
+- Recorded manual owner credits, Fast Charge spends/refunds, and battery-capacity upgrade costs with sanitized reason/reference fields.
+- Added Stage 31 regression tests for invalid ledger entries, spend rejection, atomic balance/history persistence, and 100-entry history retention.
+- Documented Coin Mod semantics, payment verification limitations, energy formula/limits, and the Stage 31 work-memory rules.

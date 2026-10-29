@@ -36,6 +36,6 @@ test('owner tester is owner-restricted and offers save/discard buttons', async (
 test('fake quote previews are labelled and do not choose third-party personas', async () => {
   const source = await read('../src/core/serializer-compat.cjs');
   assert.match(source, /SYNTHETIC QUOTE PREVIEW/);
-  assert.match(source, /displayName: 'WHISKAY BOT · PREVIEW'/);
+  assert.match(source, /displayName: type === 'contact' \? String\(options\.fakeContactName \|\| 'WHISKAY BOT · PREVIEW'\) : 'WHISKAY BOT · PREVIEW'/);
   assert.match(source, /const allowed = new Set/);
 });

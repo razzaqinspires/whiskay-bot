@@ -1,6 +1,7 @@
 import config from '../../config/index.js';
 import { registry } from '../../core/registry.js';
-import { getMenuSettings, getNewCommandSet, getCommandRecommendations } from '../../lib/menu-settings.js';
+import { getMenuSettings, getNewCommandSet, getCommandRecommendations, getGlobalRecommendationsEnabled } from '../../lib/menu-settings.js';
+import { filterRecommendationCandidates } from '../../lib/stage30-recommendations.js';
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -92,7 +93,7 @@ function getCommandRows() {
     const cmds = canonicalFor(plugin);
     const categoryCandidates = [plugin.category, ...(Array.isArray(plugin.categories) ? plugin.categories : []), ...(Array.isArray(plugin.tags) ? plugin.tags : [])];
     const category = categoryCandidates.map(v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')).find(Boolean) || 'general';
-    for (const cmd of cmds) if (typeof cmd==='string' && cmd.trim()) rows.push({command:cmd.toLowerCase(),category,description:String(plugin.menuDescriptions?.[cmd]||plugin.description||plugin.menuDescription||'').trim(),owner:Boolean(plugin.owner),limitCost:Number(plugin.limitCost||0),premium:Boolean(plugin.premium)});
+    for (const cmd of cmds) if (typeof cmd==='string' && cmd.trim()) rows.push({command:cmd.toLowerCase(),category,description:String(plugin.menuDescriptions?.[cmd]||plugin.description||plugin.menuDescription||'').trim(),owner:Boolean(plugin.owner),limitCost:Number(plugin.limitCost||0),premium:Boolean(plugin.premium),groupOnly:Boolean(plugin.groupOnly),privateOnly:Boolean(plugin.privateOnly),coinCost:Number(plugin.coinCost||plugin.modCoinCost||0),recommendable:plugin.recommendable!==false});
   }
   const unique=new Map(); for(const row of rows) if(!unique.has(row.command)) unique.set(row.command,row);
   return [...unique.values()];
@@ -102,7 +103,7 @@ const titleCase=s=>String(s||'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpp
 function isBold(settings,part){return (settings.boldParts||[]).includes(part);}
 function emphasized(settings,text,part){return isBold(settings,part)?`*${text}*`:text;}
 function line(settings, text, part='meta') { const raw=emphasized(settings,text,part); return `${settings.linePrefix ? (TEMPLATE[settings.template]||TEMPLATE.corporate).mid+' ' : ''}${style(raw,settings.font)}`; }
-function widgetLine(settings, text, part='meta') { const before=String(settings.widgetSymbolBefore||'').slice(0,12), after=String(settings.widgetSymbolAfter||'').slice(0,12); return line(settings, `${before}${text}${after}`, part); }
+function widgetLine(settings, text, part='meta') { const visible=settings.showWidgetSymbols!==false; const before=visible?String(settings.widgetSymbolBefore||'').slice(0,12):'', after=visible?String(settings.widgetSymbolAfter||'').slice(0,12):''; return line(settings, `${before}${text}${after}`, part); }
 async function renderMenu(ctx) {
   const settings=await getMenuSettings(ctx.sender||ctx.chat);
   let rows=getCommandRows();
@@ -168,14 +169,16 @@ async function renderMenu(ctx) {
   if(energy.energy < 10) return ctx.reply(`🌙 Mega: Mode hemat daya diaktifkan, menampilkan menu ringan...\n\n${text}`);
   if(settings.mode==='text') return ctx.reply(text);
   const user=ctx.sender||ctx.chat;
-  const recommendations=await getCommandRecommendations(user,rows,1);
+  const globalRecommendationsEnabled=await getGlobalRecommendationsEnabled();
+  const recommendationContext={chatId:ctx.chat||ctx.chatId,isGroup:ctx.isGroup,isOwner:ctx.isOwner||ctx.owner,isPremium:ctx.isPremium||ctx.premium,limit:ctx.limit,modCoins:ctx.modCoins};
+  const recommendationRows=filterRecommendationCandidates(rows,recommendationContext);
+  const recommendations=(!globalRecommendationsEnabled||settings.recommendationEnabled===false)?[]:await getCommandRecommendations(user,recommendationRows,1);
   const rec=recommendations[0];
   const buttons=[];
-  if(rec) buttons.push({name:'quick_reply',title:`Rekomendasi: ${ctx.prefix}${rec.command} (${rec.percentage}%)`,id:`${ctx.prefix}${rec.command}`});
-  else buttons.push({name:'quick_reply',title:'Lihat rekomendasi',id:`${ctx.prefix}setmenu recommendations`});
+  if(globalRecommendationsEnabled&&settings.recommendationEnabled!==false){ if(rec) buttons.push({name:'quick_reply',title:`Rekomendasi: ${ctx.prefix}${rec.command} (${rec.percentage}%)`,id:`${ctx.prefix}${rec.command}`}); else buttons.push({name:'quick_reply',title:'Lihat rekomendasi',id:`${ctx.prefix}explore`}); }
   if (totalPages > 1) buttons.push({name:'quick_reply',title:safePage < totalPages ? `Halaman ${safePage+1} ➡️` : `⬅️ Halaman ${safePage-1}`,id:`${ctx.prefix}menu ${safePage < totalPages ? safePage+1 : safePage-1}`});
   buttons.push({name:'cta_url',title:'Website Official',url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',merchant_url:config.website.baseUrl||'https://razzaq-ventures-platform.vercel.app',webview_interaction:true});
-  const rowsMenu=[{title:'Buka Pengaturan Utama Lengkap',description:'Font, widget, template, border, spasi, gambar, urutan dan ketebalan font',id:`${ctx.prefix}setmenu`}];
+  const rowsMenu=[{title:'Buka Pengaturan Utama Lengkap',description:'Font, widget, template, border, spasi, gambar, urutan dan ketebalan font',id:`${ctx.prefix}setmenu`},{title:'Desain menu berbantuan AI',description:'Pilih mode desain; struktur command dan izin tetap dikunci oleh registry',id:`${ctx.prefix}setmenu response`},{title:'Mode respon menu',description:`Saat ini: ${settings.menuResponseMode||'classic'} · ganti klasik/AI`,id:`${ctx.prefix}setmenu response`}];
   buttons.push({name:'single_select',title:'Pengaturan Menu',sections:[{title:'Pengaturan Lengkap',rows:rowsMenu}]});
   let image=null;
   let imageWarning='';
@@ -189,7 +192,9 @@ async function renderMenu(ctx) {
     if(validUrl) image={url:officialUrl};
     else {
       let avatarPath = null;
-      try { const profile = await getProfile(ctx.chat, ctx.sender); if (profile?.profileImageMode === 'manual' && profile?.profileImagePath) avatarPath = profile.profileImagePath; } catch {}
+      const configuredAvatar = settings.canvasAvatarSource === 'logo' ? process.env.BOT_LOGO_PATH : process.env.OWNER_AVATAR_PATH;
+      if (configuredAvatar) avatarPath = configuredAvatar;
+      if (!avatarPath && settings.canvasAvatarSource !== 'logo') { try { const profile = await getProfile(ctx.chat, ctx.sender); if (profile?.profileImageMode === 'manual' && profile?.profileImagePath) avatarPath = profile.profileImagePath; } catch {} }
       const canvas = await renderOfficialCanvas(String(settings.imageMode).startsWith('official-rpg')?'rpg':'menu', config.botName, avatarPath);
       if(canvas) image=canvas;
       else imageWarning='Kanvas official gagal dibuat pada host ini. Pastikan FFmpeg tersedia; menu teks tetap dapat digunakan.';
@@ -198,7 +203,7 @@ async function renderMenu(ctx) {
   // Attach the canvas directly to the same interactive message so the image,
   // command list, and embedded settings button are delivered together.
   const finalText=imageWarning?`${text}\n\n⚠️ ${imageWarning}`:text;
-  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default',quoteExperiment:settings.quoteExperiment||''}); }
+  try { return await ctx.sendInteractive({title:'',subtitle:'',body:finalText,footer:style('Pengaturan menu tersimpan per pengguna.',settings.font),image:image||undefined,buttons,quoteMode:settings.quoteMode||'default',quoteExperiment:settings.quoteExperiment||'',fakeContactName:settings.fakeContactName,fakeContactNumber:settings.fakeContactNumber,fakeProductName:settings.fakeProductName,fakeProductPrice:settings.fakeProductPrice,forwardedLabelMode:settings.forwardedLabelMode||'full'}); }
   catch { return ctx.reply(`${finalText}\n\nGunakan ${ctx.prefix}setmenu untuk mengatur menu.`); }
 }
 export default {name:'menu',command:['menu','help'],menuCommands:['menu'],description:'Tampilkan daftar perintah dan pengaturan menu pribadi',category:'general',cooldown:3000,async execute(ctx){return renderMenu(ctx);}};

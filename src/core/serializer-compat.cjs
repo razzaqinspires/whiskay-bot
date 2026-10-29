@@ -839,7 +839,7 @@ function extendSocket(sock) {
       const requested = String(options.quoteExperiment || 'text').replace(/^fake-/,'').toLowerCase();
       const type = allowed.has(requested) ? requested : 'text';
       const previewText = `[SYNTHETIC QUOTE PREVIEW · ${type.toUpperCase()}]\n${String(body || title || 'Menu').slice(0, 350)}`;
-      const fake = freply.createFakeReply(type, { text: previewText, caption: previewText, title: 'WHISKAY BOT PREVIEW', body: previewText, remoteJid: targetJid, participant: botJid, sender: botJid, fromMe: true, displayName: 'WHISKAY BOT · PREVIEW' });
+      const fake = freply.createFakeReply(type, { text: previewText, caption: previewText, title: type === 'product' ? String(options.fakeProductName || 'Whiskay Demo Product') : 'WHISKAY BOT PREVIEW', body: previewText, remoteJid: targetJid, participant: botJid, sender: botJid, fromMe: true, displayName: type === 'contact' ? String(options.fakeContactName || 'WHISKAY BOT · PREVIEW') : 'WHISKAY BOT · PREVIEW', name: String(options.fakeContactName || 'Whiskay Contact Demo'), number: String(options.fakeContactNumber || '6280000000000'), priceAmount1000: String(Math.max(0, Math.round(Number(String(options.fakeProductPrice || '').replace(/[^0-9]/g, '')) * 1000)) || 10000000), currency: 'IDR', description: `DEMO · ${String(options.fakeProductPrice || 'Rp10.000')}`, url: 'https://www.whatsapp.com' });
       cleanQuoted = { key: { remoteJid: targetJid, id: fake.key?.id, fromMe: true, participant: botJid }, message: fake.message };
     } else if (quoted && quoted.key) {
       let qPart = quoted.key.participant || quoted.sender;
@@ -985,15 +985,18 @@ function extendSocket(sock) {
       }
     }
 
-    const aiRichMeta = {
+    const forwardedMode = ['full', 'short', 'off'].includes(String(options.forwardedLabelMode || 'full')) ? String(options.forwardedLabelMode || 'full') : 'full';
+    const aiRichMeta = forwardedMode === 'off' ? {} : {
       isForwarded: true,
-      forwardingScore: 999999,
-      forwardOrigin: 4,
-      forwardedAiBotMessageInfo: {
-        botName: options.botName || 'Meta AI',
-        botJid: options.botJid || '13135550002@s.whatsapp.net',
-        creatorName: options.creatorName || 'Meta'
-      }
+      forwardingScore: forwardedMode === 'short' ? 1 : 999999,
+      ...(forwardedMode === 'full' ? {
+        forwardOrigin: 4,
+        forwardedAiBotMessageInfo: {
+          botName: options.botName || 'WhiskayBot',
+          botJid: options.botJid || sock.decodeJid(sock.user?.id || sock.authState?.creds?.me?.id || '') || undefined,
+          creatorName: options.creatorName || 'Whiskay'
+        }
+      } : {})
     };
 
     if (options.ephemeral || options.expiration) {

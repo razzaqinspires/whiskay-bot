@@ -1,3 +1,4 @@
+import ExploreReport from '../general/explore.js';
 const events = [
   ['🌿 Jejak Spirit','Kamu menemukan jejak spirit di dekat hutan. Catat lokasinya dan bersiap menghadapi monster.'],
   ['🐺 Monster terlihat','Seekor monster mengintai dari balik pepohonan. Jaga HP sebelum bertarung.'],
@@ -7,6 +8,7 @@ const events = [
   ['✨ Resonansi checkpoint','Checkpoint terdekat beresonansi. Gunakan .enterdungeon untuk menyinkronkan titik masuk.']
 ];
 export default { name:'rpg-explore', command:['explore','enterdungeon'], category:'games', description:'Jelajahi dunia dan sinkronkan checkpoint dungeon', cooldown:5000, energyMode:'static', energyCost:1.5, async execute(ctx) {
+  if (ctx.command === 'explore' && ['stats','commands','rekomendasi'].includes(String(ctx.args?.[0]||'').toLowerCase())) return ExploreReport.execute(ctx);
   if (ctx.command === 'explore') { const [title, body] = events[Math.floor(Math.random()*events.length)]; return ctx.reply(`🌍 *OPEN WORLD — LAPORAN EKSPEDISI*\n\n*${title}*\n${body}\n\nCheckpoint: gunakan .enterdungeon untuk membuat tautan masuk yang tersinkron.`); }
   const { dashboardPlayerId } = await import('../../services/dungeonWebsiteSync.js');
   const crypto = await import('node:crypto');

@@ -362,3 +362,5 @@ This catalog includes every current Markdown file, including imported archive du
 - Stage 27 — Durable Event Outbox & Idempotent Processing: `stages/STAGE-27.md`.
 
 - [Stage 28 — Durable Event Processing & Transaction Safety](stages/STAGE-28.md)
+- [Stage 29 — Menu Studio, Contextual Explore & RPG Integration](stages/STAGE-29.md)
+- [Stage 29 Test Report](stages/TEST-REPORT-STAGE-29.md)

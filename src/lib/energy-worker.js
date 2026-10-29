@@ -9,6 +9,7 @@ const PAYMENT_FILE = path.join(DATA_DIR, 'payment-config.json');
 const HITS_FILE = path.join(DATA_DIR, 'command-hits.json');
 const DAY = 86_400_000;
 const MAX_USERS = 5000;
+const MAX_MODCOIN_HISTORY = 100;
 let writeQueue = Promise.resolve();
 let pendingWriteCount = 0;
 let mutationQueue = Promise.resolve();
@@ -24,6 +25,35 @@ async function atomicJson(file, value) {
   return writeQueue;
 }
 const normUser = id => String(id || 'unknown').replace(/[^a-zA-Z0-9@._:-]/g, '').slice(0, 180) || 'unknown';
+
+/** Build a bounded, non-secret Coin Mod audit entry. Balance changes remain in the same ledger write. */
+export function makeModCoinEntry({ delta, balance, reason = 'unspecified', reference = '', at = Date.now() } = {}) {
+  const amount = Math.trunc(Number(delta));
+  const nextBalance = Math.trunc(Number(balance));
+  if (!Number.isSafeInteger(amount) || amount === 0 || !Number.isSafeInteger(nextBalance) || nextBalance < 0) {
+    throw new TypeError('Invalid Mod Coin transaction values');
+  }
+  return {
+    at: Math.max(0, Math.trunc(Number(at) || Date.now())),
+    delta: amount,
+    balance: nextBalance,
+    reason: String(reason || 'unspecified').replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 48),
+    ...(reference ? { reference: String(reference).replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 80) } : {})
+  };
+}
+
+function appendModCoinHistory(user, entry) {
+  user.modCoinHistory = [...(Array.isArray(user.modCoinHistory) ? user.modCoinHistory : []), entry].slice(-MAX_MODCOIN_HISTORY);
+}
+
+export async function getModCoinHistory(userId, limit = 10) {
+  const all = await readJson(ENERGY_FILE, {}), user = all[normUser(userId)] || {};
+  const safeLimit = clamp(Math.floor(Number(limit) || 10), 1, 50);
+  return {
+    balance: Math.max(0, Math.floor(Number(user.modCoins || 0))),
+    transactions: (Array.isArray(user.modCoinHistory) ? user.modCoinHistory : []).slice(-safeLimit).reverse()
+  };
+}
 export function complexityScore(command, previous = []) {
   // Deterministic, bounded, low-allocation estimator. It is a heuristic cost model,
   // not an LLM call: token shape, operators, text length, uniqueness and similarity
@@ -84,16 +114,30 @@ export async function startCharging(userId, now = Date.now(), options = {}) {
     return { ok: true, energy, capacity, volts, endsAt: u.chargingEndsAt, durationMs: duration };
   });
 }
-export async function addModCoins(userId, amount) {
+export async function addModCoins(userId, amount, options = {}) {
   const value = Math.floor(Number(amount)); if (!Number.isFinite(value) || value < 1 || value > 1000000000) return { ok:false, reason:'invalid-amount' };
-  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; u.modCoins=Math.max(0,Math.floor(Number(u.modCoins||0)))+value; all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins}; });
+  return withMutationLock(async () => {
+    const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100};
+    const current=Math.max(0,Math.floor(Number(u.modCoins||0)));
+    if (current + value > Number.MAX_SAFE_INTEGER) return { ok:false, reason:'balance-overflow', modCoins:current };
+    u.modCoins=current+value;
+    appendModCoinHistory(u, makeModCoinEntry({delta:value,balance:u.modCoins,reason:options.reason||'admin-credit',reference:options.reference,at:options.at}));
+    all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins};
+  });
 }
-export async function spendModCoins(userId, amount) {
+export async function spendModCoins(userId, amount, options = {}) {
   const value = Math.floor(Number(amount)); if (!Number.isFinite(value) || value < 1) return {ok:false,reason:'invalid-amount'};
-  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))); if(coins<value)return {ok:false,reason:'insufficient-coins',modCoins:coins}; u.modCoins=coins-value; all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins}; });
+  return withMutationLock(async () => {
+    const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100};
+    const coins=Math.max(0,Math.floor(Number(u.modCoins||0)));
+    if(coins<value)return {ok:false,reason:'insufficient-coins',modCoins:coins};
+    u.modCoins=coins-value;
+    appendModCoinHistory(u, makeModCoinEntry({delta:-value,balance:u.modCoins,reason:options.reason||'spend',reference:options.reference,at:options.at}));
+    all[key]=u; await atomicJson(ENERGY_FILE,all); return {ok:true,modCoins:u.modCoins};
+  });
 }
 export async function upgradeBatteryCapacity(userId, increment=50, cost=100) {
-  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))), price=Math.max(1,Math.floor(Number(cost)||100)); if(coins<price)return {ok:false,reason:'insufficient-coins',modCoins:coins}; const current=clamp(Number(u.maxBatteryCapacity||100),100,10000), next=Math.min(10000,current+Math.max(50,Math.floor(Number(increment)||50))); if(next===current)return {ok:false,reason:'capacity-limit',capacity:current}; u.modCoins=coins-price;u.maxBatteryCapacity=next;all[key]=u;await atomicJson(ENERGY_FILE,all);return {ok:true,capacity:next,modCoins:u.modCoins}; });
+  return withMutationLock(async () => { const all=await readJson(ENERGY_FILE,{}), key=normUser(userId), u=all[key]||{energy:100}; const coins=Math.max(0,Math.floor(Number(u.modCoins||0))), price=Math.max(1,Math.floor(Number(cost)||100)); if(coins<price)return {ok:false,reason:'insufficient-coins',modCoins:coins}; const current=clamp(Number(u.maxBatteryCapacity||100),100,10000), next=Math.min(10000,current+Math.max(50,Math.floor(Number(increment)||50))); if(next===current)return {ok:false,reason:'capacity-limit',capacity:current}; u.modCoins=coins-price;u.maxBatteryCapacity=next;appendModCoinHistory(u, makeModCoinEntry({delta:-price,balance:u.modCoins,reason:'battery-capacity-upgrade'}));all[key]=u;await atomicJson(ENERGY_FILE,all);return {ok:true,capacity:next,modCoins:u.modCoins}; });
 }
 export async function resetBattery(userId, energy = 100) {
   return withMutationLock(async () => {

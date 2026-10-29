@@ -6,6 +6,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../d
 const SETTINGS_FILE = path.join(ROOT, 'menu-settings.json');
 const LEDGER_FILE = path.join(ROOT, 'menu-command-ledger.json');
 const USAGE_FILE = path.join(ROOT, 'menu-command-usage.json');
+const RECOMMENDATION_FILE = path.join(ROOT, 'recommendation-settings.json');
 const DAY = 24 * 60 * 60 * 1000;
 const DEFAULTS = Object.freeze({
   template: 'corporate',
@@ -30,7 +31,16 @@ const DEFAULTS = Object.freeze({
   boldParts: [],
   widgetSymbolBefore: '',
   widgetSymbolAfter: '',
+  showWidgetSymbols: true,
   widgetNumbering: false,
+  recommendationEnabled: true,
+  menuResponseMode: 'classic',
+  forwardedLabelMode: 'full',
+  fakeContactName: 'Whiskay Contact Demo',
+  fakeContactNumber: '6280000000000',
+  fakeProductName: 'Whiskay Demo Product',
+  fakeProductPrice: 'Rp10.000',
+  fakeProductImageUrl: '',
   quoteMode: 'default',
   quoteExperiment: '',
   commandPageSize: 100
@@ -115,3 +125,6 @@ export async function getCommandRecommendations(userId, available = [], limit = 
   const total = items.reduce((n, [, v]) => n + Number(v.count || 0), 0);
   return items.sort((a, b) => Number(b[1].count || 0) - Number(a[1].count || 0)).slice(0, limit).map(([command, v]) => ({ command, count: Number(v.count || 0), percentage: total ? Math.round(Number(v.count || 0) / total * 100) : 0 }));
 }
+
+export async function getGlobalRecommendationsEnabled() { const data = await readJson(RECOMMENDATION_FILE, { enabled: true }); return data.enabled !== false; }
+export async function setGlobalRecommendationsEnabled(enabled, actor = 'owner') { const data = { enabled: Boolean(enabled), updatedAt: new Date().toISOString(), updatedBy: String(actor).slice(0, 80) }; await writeJson(RECOMMENDATION_FILE, data); return data; }

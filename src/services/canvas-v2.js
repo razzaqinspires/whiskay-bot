@@ -93,3 +93,14 @@ export async function renderGroupMemberCardV2({ type = 'welcome', groupName = 'W
   return svgToPng(svg);
 }
 function safeMime(value) { return ['image/jpeg','image/png','image/webp'].includes(String(value)) ? String(value) : 'image/jpeg'; }
+
+/** Landscape runtime status canvas, rendered locally without remote assets. */
+export async function renderStatusCanvas({ mode = 'v2', title = 'WHISKAY DEVELOPER STATUS', rows = [] } = {}) {
+  const safe = value => esc(String(value ?? '').slice(0, 150));
+  const normalized = mode === 'v1' ? 'v1' : 'v2';
+  const entries = rows.slice(0, 10).map((row, i) => `<text x="${normalized === 'v1' ? 78 : 100}" y="${normalized === 'v1' ? 210 + i * 37 : 205 + i * 38}" fill="${i % 2 ? '#a9bdcf' : '#f3f5f8'}" font-size="${normalized === 'v1' ? 21 : 20}" font-family="sans-serif">${safe(row.label)}: ${safe(row.value)}</text>`).join('');
+  const svg = normalized === 'v1'
+    ? `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#08131f"/><stop offset="1" stop-color="#1c2b3c"/></linearGradient></defs><rect width="1200" height="675" fill="url(#bg)"/><rect x="34" y="34" width="1132" height="607" rx="18" fill="#0d1c2d" stroke="#45617a" stroke-width="2"/><text x="78" y="100" fill="#75e6d0" font-size="19" font-family="sans-serif">WHISKAYBOT / RUNTIME DIAGNOSTICS / V1</text><text x="78" y="155" fill="#f3f5f8" font-size="35" font-weight="bold" font-family="sans-serif">${safe(title)}</text>${entries}<text x="78" y="605" fill="#8196ac" font-size="14" font-family="sans-serif">LOCAL METRICS · VALUES MAY CHANGE AFTER REFRESH</text></svg>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#050914"/><stop offset="1" stop-color="#24203d"/></linearGradient></defs><rect width="1200" height="675" fill="url(#bg)"/><rect x="36" y="36" width="1128" height="603" rx="30" fill="#090f20" stroke="#75e6d0" stroke-opacity=".7" stroke-width="2"/><text x="82" y="98" fill="#75e6d0" font-size="18" letter-spacing="3" font-family="sans-serif">SYSTEM / HEALTH / STAGE 29</text><text x="82" y="151" fill="#f3f5f8" font-size="34" font-weight="bold" font-family="sans-serif">${safe(title)}</text><path d="M82 174H1118" stroke="#e9c982" stroke-width="2"/>${entries}<text x="82" y="605" fill="#e9c982" font-size="14" font-family="sans-serif">WHISKAY · STATUS SNAPSHOT · V2 LANDSCAPE</text></svg>`;
+  return svgToPng(svg);
+}
