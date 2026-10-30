@@ -1,0 +1,8 @@
+version: 1
+name: baseline-source-audit
+checks:
+  - clean-source-checkout
+  - automation-only-write-scope
+  - workflow-main-write-ban
+  - inspect-watch-paths
+append_only: true
