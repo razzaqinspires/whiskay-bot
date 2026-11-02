@@ -14,9 +14,9 @@ Two themes are available: `neon` and `zen`. Five operational widgets are availab
 
 ## Command line audit
 
-Owner command: `.testcommands` (alias `.testcmds`). It inventories registered plugin commands, syntax-checks JavaScript/CJS/MJS under `src/`, and runs `node --test`. The WhatsApp result contains Save & Update README and Don't Save buttons.
+The current owner QA interface is `.testcommands`, with aliases `.testcommand`, `.testcmd`, and `.testcmds`. Bare invocation displays help; `.testcommands run` starts the isolated `npm ci` → syntax audit → `npm run verify:all` → `npm test` pipeline in the background. Use `.testcommands status` while it runs and `.testcommands report` to read the last full-success report.
 
-Saving creates `test/owner-command-audit-<id>.test.js` and adds a report summary to `README.md`. Temporary raw reports live in `data/test-reports/`. The audit intentionally does not invoke every business command: commands may send messages, alter user data, buy/sell items, or call external services. Those need isolated mocks or explicit integration-test fixtures.
+The current runner writes a single `test/reports/WHISKAY-VERIFY-SUCCESS.md` after every phase passes, or creates a ZIP in `test/reports/diagnostics/` with phase logs, parsed file/line/column references and numbered source excerpts on failure. It does not invoke business commands individually: commands can send messages, alter user data, buy/sell items, or call external services, so those require isolated mocks or explicit integration fixtures.
 
 ## Quoted messages and fake quote previews
 

@@ -1,7 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { spawn, spawnSync } from 'node:child_process';
-import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { updateEnvFileValues } from '../lib/env-file.js';
 
 const events = new EventEmitter();
 events.setMaxListeners(20);
@@ -11,13 +14,15 @@ const RETRY_BASE_MS = Math.max(1000, Number(process.env.WHISKAY_TUNNEL_RETRY_MS 
 const RETRY_MAX_MS = Math.max(RETRY_BASE_MS, Number(process.env.WHISKAY_TUNNEL_RETRY_MAX_MS || 30000));
 const START_TIMEOUT_MS = Math.max(5000, Number(process.env.WHISKAY_TUNNEL_START_TIMEOUT_MS || 20000));
 const RPG_DIR = path.resolve(process.env.WHISKAY_RPG_PROJECT_DIR || '../whiskay-rpg-companion');
-const ROOT_DIR = process.cwd();
+const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MANIFEST = '.runtime/whiskay-tunnel.json';
 
 let child = null;
 let url = '';
 let mode = 'stopped';
 let startedAt = 0;
+let persistedAt = 0;
+let persistError = '';
 let lastError = '';
 let retryCount = 0;
 let retryTimer = null;
@@ -39,49 +44,58 @@ export function getWorldBossTunnelStatus() {
     enabled: String(process.env.WHISKAY_WEBHOOK_TUNNEL_ENABLED || 'true').toLowerCase() !== 'false',
     mode, url, endpoint: url ? `${url}${ENDPOINT}` : '',
     port: PORT, pid: child?.pid || null, retryCount, lastError,
-    startedAt: startedAt || null
+    startedAt: startedAt || null, persistedAt: persistedAt || null,
+    envSaved: Boolean(persistedAt), persistError
   };
 }
 
-function getExecutable() {
-  const configured = String(process.env.CLOUDFLARED_BIN || '').trim();
-  if (configured) return configured;
-  const archMap = { x64: 'amd64', arm64: 'arm64', arm: 'arm' };
-  const bundled = path.resolve(process.env.JADIBOT_BIN_DIR || './data/bin', `cloudflared-linux-${archMap[process.arch] || process.arch}`);
-  try { accessSync(bundled); return bundled; } catch {}
-  const check = spawnSync('cloudflared', ['--version'], { encoding: 'utf8', timeout: 3000 });
-  if (!check.error && check.status === 0) return 'cloudflared';
-  throw new Error('cloudflared tidak ditemukan. Instal cloudflared atau atur CLOUDFLARED_BIN.');
+function absoluteCandidate(candidate) {
+  if (!candidate || candidate === 'cloudflared') return candidate;
+  return path.isAbsolute(candidate) ? candidate : path.resolve(ROOT_DIR, candidate);
 }
-function accessSync(file) {
-  // spawnSync avoids relying on shell PATH lookup APIs and also validates executable presence.
+
+function isRunnable(file) {
   try {
-    const result = spawnSync(file, ['--version'], { encoding: 'utf8', timeout: 2500 });
+    const candidate = absoluteCandidate(file);
+    if (candidate.includes(path.sep)) {
+      if (!existsSync(candidate) || !statSync(candidate).isFile()) return false;
+    }
+    const result = spawnSync(candidate, ['--version'], { encoding: 'utf8', timeout: 3500, env: process.env });
     return !result.error && result.status === 0;
   } catch { return false; }
 }
 
-async function updateEnvFile(file, entries) {
-  await mkdir(path.dirname(file), { recursive: true });
-  let source = '';
-  try { source = await readFile(file, 'utf8'); } catch {}
-  const lines = source ? source.split(/\r?\n/) : [];
-  for (const [key, value] of Object.entries(entries)) {
-    const escaped = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const line = `${key}="${escaped}"`;
-    const matcher = new RegExp(`^\\s*(?:export\\s+)?${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=`);
-    const idx = lines.findIndex(row => matcher.test(row));
-    if (idx >= 0) lines[idx] = line;
-    else lines.push(line);
-    process.env[key] = String(value);
+// Always resolve bundled paths from the repository root, not the shell's cwd.
+// A stale configured path is skipped; spawn errors also clear the child reference
+// so the bounded retry worker can make a fresh attempt instead of reusing a dead child.
+export function resolveCloudflaredExecutable() {
+  const archMap = { x64: 'amd64', arm64: 'arm64', arm: 'arm' };
+  const filename = `cloudflared-linux-${archMap[process.arch] || process.arch}`;
+  const configuredRaw = String(process.env.CLOUDFLARED_BIN || '').trim();
+  const configured = configuredRaw ? absoluteCandidate(configuredRaw) : '';
+  const configuredBinDir = String(process.env.JADIBOT_BIN_DIR || './data/bin').trim();
+  const binDir = path.isAbsolute(configuredBinDir) ? configuredBinDir : path.resolve(ROOT_DIR, configuredBinDir);
+  const candidates = [
+    ...(configured ? [configured] : []),
+    path.join(binDir, filename),
+    path.join(ROOT_DIR, 'bin', filename),
+    'cloudflared'
+  ];
+  const seen = new Set();
+  for (const candidate of candidates) {
+    if (!candidate || seen.has(candidate)) continue;
+    seen.add(candidate);
+    if (isRunnable(candidate)) return candidate === 'cloudflared' ? candidate : absoluteCandidate(candidate);
+    if (candidate === configured && configured) {
+      console.warn(`[world-boss-tunnel] CLOUDFLARED_BIN tidak valid/tidak dapat dieksekusi: ${configured}; mencoba fallback.`);
+    }
   }
-  const tmp = `${file}.tmp-${process.pid}`;
-  await writeFile(tmp, `${lines.filter((v, i, a) => i < a.length - 1 || v !== '').join('\n').replace(/\n*$/, '\n')}`, { mode: 0o600 });
-  await rename(tmp, file);
+  throw new Error(`cloudflared tidak ditemukan untuk linux/${process.arch}. Letakkan ${filename} di ${binDir} atau ${path.join(ROOT_DIR, 'bin', filename)}, instal cloudflared ke PATH, atau atur CLOUDFLARED_BIN ke binary yang valid.`);
 }
 
+
 async function syncGitHubManifest(manifest) {
-  if (String(process.env.WHISKAY_TUNNEL_GITHUB_SYNC || 'true').toLowerCase() === 'false') return;
+  if (String(process.env.WHISKAY_TUNNEL_GITHUB_SYNC || 'false').toLowerCase() === 'false') return;
   const token = String(process.env.WHISKAY_GITHUB_SYNC_TOKEN || '').trim();
   if (!token) { console.warn('[world-boss-tunnel] GitHub sync dilewati: WHISKAY_GITHUB_SYNC_TOKEN belum diatur.'); return; }
   const repos = [
@@ -126,12 +140,15 @@ async function persistUrl() {
     WHISKAY_BOT_WEBHOOK_URL: endpoint,
     WHISKAY_BOT_WEBHOOK_PUBLIC_URL: url
   };
-  const botEnv = path.join(ROOT_DIR, '.env');
+  const botEnv = process.env.ENV_FILE
+    ? path.resolve(process.env.ENV_FILE)
+    : path.join(ROOT_DIR, '.env');
+  await updateEnvFileValues(botEnv, entries);
+
+  // Optional companion env update is best-effort; the bot's own env is authoritative.
   const rpgEnv = path.join(RPG_DIR, '.env');
-  try { await updateEnvFile(botEnv, entries); }
-  catch (error) { console.warn(`[world-boss-tunnel] Tidak bisa memperbarui .env bot: ${error.message}`); }
-  try { await updateEnvFile(rpgEnv, { WHISKAY_BOT_WEBHOOK_URL: endpoint }); }
-  catch (error) { console.warn(`[world-boss-tunnel] Tidak bisa memperbarui .env RPG (${rpgEnv}): ${error.message}`); }
+  try { await updateEnvFileValues(rpgEnv, { WHISKAY_BOT_WEBHOOK_URL: endpoint }); }
+  catch (error) { console.warn(`[world-boss-tunnel] .env RPG tidak diperbarui (${rpgEnv}): ${error.message}`); }
 
   const manifest = {
     service: 'whiskay-world-boss-webhook',
@@ -139,21 +156,22 @@ async function persistUrl() {
     webhookUrl: endpoint,
     path: ENDPOINT,
     port: PORT,
+    envFile: path.relative(ROOT_DIR, botEnv) || '.env',
     generatedAt: new Date().toISOString(),
     note: 'Temporary TryCloudflare URL; do not put secrets in this file. URL may change after restart.'
   };
   const localManifest = path.join(ROOT_DIR, MANIFEST);
   try {
     await mkdir(path.dirname(localManifest), { recursive: true });
-    await writeFile(localManifest, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o644 });
+    await writeFile(localManifest, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
   } catch (error) { console.warn(`[world-boss-tunnel] Manifest lokal gagal ditulis: ${error.message}`); }
-  const rpgManifest = path.join(RPG_DIR, MANIFEST);
-  try {
-    await mkdir(path.dirname(rpgManifest), { recursive: true });
-    await writeFile(rpgManifest, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o644 });
-  } catch (error) { console.warn(`[world-boss-tunnel] Manifest RPG gagal ditulis: ${error.message}`); }
   await syncGitHubManifest(manifest);
+  persistedAt = Date.now();
+  persistError = '';
   emitState('url');
+  console.log(`[world-boss-tunnel] URL TryCloudflare tersimpan otomatis ke ${botEnv}`);
+  console.log(`[world-boss-tunnel] Base URL : ${url}`);
+  console.log(`[world-boss-tunnel] Webhook  : ${endpoint}`);
 }
 
 function scheduleRetry() {
@@ -177,7 +195,7 @@ function scheduleRetry() {
 function launchTunnel() {
   if (stopping) return Promise.resolve('');
   if (child && child.exitCode === null) return Promise.resolve(url);
-  const executable = getExecutable();
+  const executable = resolveCloudflaredExecutable();
   mode = 'starting'; url = ''; lastError = '';
   emitState('starting');
   return new Promise((resolve, reject) => {
@@ -195,16 +213,30 @@ function launchTunnel() {
     } catch (error) {
       mode = 'error'; lastError = error.message; emitState('error'); finish('', error); return;
     }
+    const currentChild = child;
+    let persistenceStarted = false;
     const inspect = chunk => {
       const text = String(chunk || '');
       const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-      if (match && !url) {
+      if (match && !persistenceStarted) {
+        persistenceStarted = true;
         url = match[0].replace(/\/+$/, '');
-        mode = 'connected'; startedAt = Date.now(); retryCount = 0;
-        persistUrl().catch(error => console.warn('[world-boss-tunnel] Persist URL gagal:', error.message));
-        console.log(`[world-boss-tunnel] Webhook tunnel aktif: ${url}${ENDPOINT}`);
-        emitState('connected');
-        finish(url);
+        mode = 'persisting-env'; startedAt = Date.now(); retryCount = 0;
+        emitState('persisting');
+        persistUrl().then(() => {
+          mode = 'connected';
+          console.log(`[world-boss-tunnel] Tunnel aktif dan URL tersimpan: ${url}${ENDPOINT}`);
+          emitState('connected');
+          finish(url);
+        }).catch(error => {
+          persistError = error.message;
+          lastError = `Tunnel aktif, tetapi .env gagal diperbarui: ${error.message}`;
+          mode = 'connected-env-warning';
+          console.warn(`[world-boss-tunnel] ${lastError}`);
+          console.warn(`[world-boss-tunnel] Salin manual: WHISKAY_BOT_WEBHOOK_URL=${url}${ENDPOINT}`);
+          emitState('error');
+          finish(url);
+        });
       }
       if (/failed to start|authentication error|failed to create quick tunnel/i.test(text)) {
         lastError = text.trim().slice(-500);
@@ -213,11 +245,17 @@ function launchTunnel() {
     child.stdout?.on('data', inspect);
     child.stderr?.on('data', inspect);
     child.on('error', error => {
-      lastError = error.message; mode = 'error'; emitState('error'); finish('', error);
+      if (child === currentChild) child = null;
+      lastError = error.message;
+      mode = 'error';
+      emitState('error');
+      finish('', error);
+      if (!stopping) scheduleRetry();
     });
     child.on('exit', code => {
       const unexpected = !stopping;
-      child = null; url = '';
+      if (child === currentChild) child = null;
+      url = '';
       if (unexpected) {
         mode = 'disconnected';
         lastError ||= `cloudflared keluar dengan kode ${code}`;

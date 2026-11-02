@@ -25,12 +25,19 @@ test('menu has five additional operational widgets and two new templates', async
   for (const name of ['biocore', 'events', 'messages', 'uptime', 'database']) assert.ok(menu.includes(name), `renderer missing ${name}`);
 });
 
-test('owner tester is owner-restricted and offers save/discard buttons', async () => {
+test('owner tester runs npm ci, verify:all and full test discovery in an isolated sandbox', async () => {
   const source = await read('../src/plugins/owner/testcommands.js');
+  const runner = await read('../scripts/testcommand-runner.mjs');
   assert.match(source, /owner: true/);
-  assert.match(source, /testcommands save/);
-  assert.match(source, /testcommands discard/);
-  assert.match(source, /README\.md/);
+  assert.match(source, /energyMode: 'free'/);
+  assert.match(source, /runRepositoryVerification/);
+  assert.match(runner, /\['ci', '--no-audit', '--no-fund'\]/);
+  assert.match(runner, /\['run', 'verify:all'\]/);
+  assert.match(runner, /\['test', '--', '--test-reporter=\.\/scripts\/testcommand-reporter\.mjs'\]/, 'owner tester must run the complete npm test discovery with the live TAP reporter');
+  assert.match(runner, /WHISKAY-VERIFY-FAILURE-/);
+  assert.match(runner, /WHISKAY-VERIFY-SUCCESS\.md/);
+  assert.match(runner, /failureLocations/);
+  assert.match(runner, /sourceExcerpts/);
 });
 
 test('fake quote previews are labelled and do not choose third-party personas', async () => {

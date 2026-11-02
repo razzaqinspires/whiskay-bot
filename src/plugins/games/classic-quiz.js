@@ -1,11 +1,13 @@
 import { readFile } from 'node:fs/promises';
+import { awardQuizWin, getQuizLeaderboard } from '../../lib/leveling.js';
+import { rememberPollCreationMessage } from '../../core/serializer.js';
 const TERMAI_JSON = 'https://c.termai.cc/json/';
 const DB_URL = 'https://raw.githubusercontent.com/Rifza123/lib/refs/heads/main/db/';
 const GAME_TYPES = {
-  tebakgambar: { title: 'TEBAK GAMBAR', reward: 35, data: [{ question: 'Gambar apa yang sering disebut sebagai simbol cinta?', answer: 'hati', hint: 'Organ tubuh yang memompa darah; juga simbol cinta.', localImage: 'heart.png' }, { question: 'Benda apa yang ditunjukkan oleh gambar ini?', answer: 'jam', hint: 'Dipakai untuk melihat waktu.', localImage: 'clock.png' }] },
+  tebakgambar: { title: 'TEBAK GAMBAR', reward: 35, rewardCoins: 5, data: [{ question: 'Gambar apa yang sering disebut sebagai simbol cinta?', answer: 'hati', hint: 'Organ tubuh yang memompa darah; juga simbol cinta.', localImage: 'heart.png' }, { question: 'Benda apa yang ditunjukkan oleh gambar ini?', answer: 'jam', hint: 'Dipakai untuk melihat waktu.', localImage: 'clock.png' }] },
   susunkata: { title: 'SUSUN KATA', reward: 25, data: [{ type: 'Kota', question: 'D N A E M', answer: 'medan' }, { type: 'Hewan', question: 'C I N G U K', answer: 'kucing' }, { type: 'Buah', question: 'G N A P E', answer: 'pepang' }] },
   family100: { title: 'FAMILY 100', reward: 75, multi: true, data: [{ question: 'Sebutkan sesuatu yang biasanya ada di dapur.', answer: ['kompor', 'panci', 'wajan', 'pisau', 'sendok', 'piring', 'kulkas', 'gelas', 'rice cooker', 'blender'] }, { question: 'Sebutkan hewan yang hidup di air.', answer: ['ikan', 'hiu', 'paus', 'lumba-lumba', 'gurita', 'udang', 'kepiting', 'ubur-ubur'] }] },
-  tebakanime: { title: 'TEBAK ANIME', reward: 35, data: [{ question: 'Tokoh utama berambut pirang yang bercita-cita menjadi Hokage.', answer: 'naruto', hint: 'Nama keluarganya Uzumaki.' }, { question: 'Kapten Topi Jerami dalam One Piece.', answer: 'luffy', hint: 'Nama lengkapnya Monkey D. ...' }] },
+  tebakanime: { title: 'TEBAK ANIME', reward: 35, rewardCoins: 5, data: [{ question: 'Tokoh utama berambut pirang yang bercita-cita menjadi Hokage.', answer: 'naruto', hint: 'Nama keluarganya Uzumaki.' }, { question: 'Kapten Topi Jerami dalam One Piece.', answer: 'luffy', hint: 'Nama lengkapnya Monkey D. ...' }] },
   caklontong: { title: 'CAK LONTONG', reward: 45, data: [{ question: 'Apa yang selalu naik tetapi tidak pernah turun?', answer: 'umur', hint: 'Bertambah setiap ulang tahun.', description: 'Jawaban sederhana sering paling tepat.' }, { question: 'Apa yang punya banyak gigi tetapi tidak bisa menggigit?', answer: 'sisir', hint: 'Dipakai untuk merapikan rambut.', description: 'Benda yang biasa ada di kamar mandi.' }] },
   asahotak: { title: 'ASAH OTAK', reward: 40, data: [{ question: 'Aku punya kota tetapi tidak punya rumah, punya hutan tetapi tidak punya pohon. Apakah aku?', answer: 'peta', hint: 'Bisa menunjukkan lokasi.' }, { question: 'Semakin diambil, semakin besar. Apakah itu?', answer: 'lubang', hint: 'Bisa dibuat dengan menggali.' }] },
   tebakjenaka: { title: 'TEBAK JENAKA', reward: 30, data: [{ question: 'Apa yang punya leher tetapi tidak punya kepala?', answer: 'botol', hint: 'Tempat menyimpan minuman.' }, { question: 'Apa yang punya kaki tetapi tidak bisa berjalan?', answer: 'meja', hint: 'Perabot untuk menaruh barang.' }] },
@@ -18,7 +20,14 @@ const pollSessions = new Map();
 const OPTION_PREFIXES = ['A', 'B', 'C', 'D'];
 const norm = value => String(value ?? '').normalize('NFKC').toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 const pick = list => list[Math.floor(Math.random() * list.length)];
-const keyFor = ctx => String(ctx.chat || ctx.sender || 'unknown');
+const chatKey = ctx => String(ctx.chat || ctx.sender || 'unknown');
+export const getQuizSessionKey = (chat, type) => `${String(chat || 'unknown')}::${String(type || '')}`;
+const keyFor = (ctx, type) => getQuizSessionKey(chatKey(ctx), type);
+function findActiveGame(ctx, requestedType='') {
+  const prefix = `${chatKey(ctx)}::`;
+  const candidates = [...sessions.entries()].filter(([key, game]) => key.startsWith(prefix) && game.expiresAt > Date.now() && (!requestedType || game.type === requestedType) && isCreator(game, ctx)).sort((a,b) => Number(b[1].createdAt||0)-Number(a[1].createdAt||0));
+  return candidates[0] || null;
+}
 const gameLabel = type => GAME_TYPES[type]?.title || type;
 async function fetchRemote(type) {
   const controller = new AbortController();
@@ -139,11 +148,11 @@ async function rotateFamily100Poll(sock, gameKey, game, chat) {
   await sock.sendMessage(chat, { text: `Progress Family 100: ${game.answered.length}/${game.answer.length} jawaban ditemukan.\nPilih satu jawaban baru pada polling berikutnya. Hanya pembuat sesi yang boleh menjawab; satu pilihan dihitung per polling.` }).catch(() => {});
   const choices = buildMultipleChoice('family100', remaining);
   try {
-    const sent = await sock.sendMessage(chat, { poll: { name: `FAMILY 100: ${String(game.question || 'Cari jawaban survei').replace(/\s+/g, ' ').slice(0, 150)}`, values: choices.values, selectableCount: 1 } });
+    const sent = rememberPollCreationMessage(await sock.sendMessage(chat, { poll: { name: `FAMILY 100: ${String(game.question || 'Cari jawaban survei').replace(/\s+/g, ' ').slice(0, 150)}`, values: choices.values, selectableCount: 1 } }));
     const pollId = String(sent?.key?.id || '');
     if (!pollId) throw new Error('Poll creation returned no message id');
     game.pollId = pollId;
-    pollSessions.set(pollId, { pollId, type: 'family100', gameKey, chat, allowedVoters: [...(game.allowedVoters || [game.creator])], pollCreationMessage: sent.message, optionMap: Object.fromEntries(choices.values.map((value, index) => [value, choices.choices[index]])), pollUpdates: [], answeredVoters: [], closed: false });
+    pollSessions.set(pollId, { pollId, type: 'family100', gameKey, chat, allowedVoters: [...(game.allowedVoters || [game.creator])], pollCreationMessage: sent, optionMap: Object.fromEntries(choices.values.map((value, index) => [value, choices.choices[index]])), pollUpdates: [], answeredVoters: [], closed: false });
   } catch {
     await sock.sendMessage(chat, { text: 'Polling lanjutan tidak tersedia. Gunakan .jawab <jawaban> untuk menyelesaikan Family 100.' }).catch(() => {});
   }
@@ -184,8 +193,9 @@ async function processPollSelection(sock, state, voter, optionName) {
     }
     game.answered.push(found);
     if (game.answered.length >= game.answer.length) {
+      const reward = await awardQuizWin(state.chat, voter, game.type, game.reward, game.rewardCoins || 0);
       clearGame(state.gameKey, game);
-      await sock.sendMessage(state.chat, { text: `🏆 FAMILY 100 SELESAI!\nSemua ${game.answer.length} jawaban ditemukan.\nJawaban: ${game.answer.join(', ')}` }).catch(() => {});
+      await sock.sendMessage(state.chat, { text: `🏆 FAMILY 100 SELESAI!\nSemua ${game.answer.length} jawaban ditemukan.\nJawaban: ${game.answer.join(', ')}\nHadiah: +${reward.xp} XP.` }).catch(() => {});
     } else {
       state.closed = true;
       await sock.sendMessage(state.chat, { text: `✅ @${voter.split('@')[0]} menemukan: *${found}*\nProgress: ${game.answered.length}/${game.answer.length} jawaban.`, mentions: [voter] }).catch(() => {});
@@ -199,8 +209,9 @@ async function processPollSelection(sock, state, voter, optionName) {
     await sock.sendMessage(state.chat, { text: `❌ PILIHAN BELUM TEPAT\n${gameLabel(game.type)}\nJawaban yang benar: *${answer}*\nRonde selesai. Pilihan pertama dari pemain yang dituju sudah digunakan.`, mentions: [voter] }).catch(() => {});
     return;
   }
+  const reward = await awardQuizWin(state.chat, voter, game.type, game.reward, game.rewardCoins || 0);
   clearGame(state.gameKey, game);
-  await sock.sendMessage(state.chat, { text: `🎉 JAWABAN BENAR!\n${gameLabel(game.type)}\nPemenang: @${voter.split('@')[0]}\nJawaban: *${Array.isArray(game.answer) ? chosen : game.answer}*\nRonde selesai. Hadiah konfigurasi: ${game.reward} energy; kredit energy otomatis belum diaktifkan.`, mentions: [voter] }).catch(() => {});
+  await sock.sendMessage(state.chat, { text: `🎉 JAWABAN BENAR!\n${gameLabel(game.type)}\nPemenang: @${voter.split('@')[0]}\nJawaban: *${Array.isArray(game.answer) ? chosen : game.answer}*\n\n🏆 Hadiah: +${reward.xp} XP${reward.coins ? ` · +${reward.coins} coin` : ''}\nStatistik ${gameLabel(game.type)}: ${reward.stat.wins} kemenangan.`, mentions: [voter] }).catch(() => {});
 }
 
 async function processPollUpdates(sock, state, updates) {
@@ -240,18 +251,21 @@ export async function handleClassicQuizPollUpdates(sock, updates) {
 
 export default {
   name: 'classic-quiz',
-  command: [...Object.keys(GAME_TYPES), 'jawab', 'answer', 'hint', 'cleargame', 'nyerah', 'cek'],
-  menuCommands: [...Object.keys(GAME_TYPES), 'jawab', 'hint', 'cleargame', 'nyerah', 'cek'],
+  command: [...Object.keys(GAME_TYPES), ...Object.keys(GAME_TYPES).map(type => `top${type}`), 'jawab', 'answer', 'hint', 'cleargame', 'nyerah', 'cek'],
+  menuCommands: [...Object.keys(GAME_TYPES), ...Object.keys(GAME_TYPES).map(type => `top${type}`), 'jawab', 'hint', 'cleargame', 'nyerah', 'cek'],
   category: 'games', cooldown: 1000,
   description: 'Game tebak gambar, kata, anime, Family 100, bendera, lirik, teka-teki dan cek hiburan',
   menuDescriptions: {
-    tebakgambar: 'Tebak gambar dan petunjuk', susunkata: 'Susun huruf menjadi kata', family100: 'Tebak jawaban survei Family 100', tebakanime: 'Tebak karakter anime', caklontong: 'Teka-teki Cak Lontong', asahotak: 'Asah otak dan logika', tebakjenaka: 'Tebak-tebakan jenaka', tebakbendera: 'Tebak nama negara', tebaktebakan: 'Teka-teki umum', tebaklirik: 'Tebak kata dari petunjuk lirik', jawab: 'Jawab ronde game aktif', hint: 'Minta petunjuk game aktif', cleargame: 'Hentikan game di chat ini', nyerah: 'Menyerah pada game aktif', cek: 'Cek skor hiburan acak'
+    tebakgambar: 'Tebak gambar dan petunjuk', susunkata: 'Susun huruf menjadi kata', family100: 'Tebak jawaban survei Family 100', tebakanime: 'Tebak karakter anime', caklontong: 'Teka-teki Cak Lontong', asahotak: 'Asah otak dan logika', tebakjenaka: 'Tebak-tebakan jenaka', tebakbendera: 'Tebak nama negara', tebaktebakan: 'Teka-teki umum', tebaklirik: 'Tebak kata dari petunjuk lirik', jawab: 'Jawab ronde game aktif', hint: 'Minta petunjuk game aktif', cleargame: 'Hentikan game di chat ini', nyerah: 'Menyerah pada game aktif', cek: 'Cek skor hiburan acak', ...Object.fromEntries(Object.keys(GAME_TYPES).map(type => [`top${type}`, `Peringkat global ${gameLabel(type)}`]))
   },
   async execute(ctx) {
     const cmd = String(ctx.command || '').toLowerCase();
-    const key = keyFor(ctx);
-    let game = sessions.get(key);
-    if (game && game.expiresAt <= Date.now()) { clearGame(key, game); game = null; }
+    const requestedType = String(ctx.args?.[0] || '').toLowerCase();
+    const key = GAME_TYPES[cmd] ? keyFor(ctx, cmd) : null;
+    let active = (cmd === 'hint' || cmd === 'jawab' || cmd === 'answer' || cmd === 'nyerah' || cmd === 'cleargame') ? findActiveGame(ctx, GAME_TYPES[requestedType] ? requestedType : '') : null;
+    let gameKey = active?.[0] || key;
+    let game = gameKey ? sessions.get(gameKey) : null;
+    if (game && game.expiresAt <= Date.now()) { clearGame(gameKey, game); game = null; }
     if (cmd === 'cek') {
       const modes = ['imut','malas','wibu','psikopat','kaya','sabar','pintar','hoki','overpower','gacha','karbit','setia','ganteng','cantik','jomblo','femboy'];
       const mode = String(ctx.args?.[0] || '').toLowerCase();
@@ -268,7 +282,7 @@ Ini hanya hiburan acak, bukan penilaian faktual.`, buttons: [{ name: 'quick_repl
     if (cmd === 'cleargame' || cmd === 'nyerah') {
       if (!game) return ctx.reply('Tidak ada game aktif di chat ini.');
       if (!isCreator(game, ctx) && !ctx.isAdmin && !ctx.isOwner) return ctx.reply('Hanya pembuat ronde, admin grup, atau owner yang dapat mengakhiri ronde ini.');
-      clearGame(key, game);
+      clearGame(gameKey, game);
       return ctx.reply(`🛑 Game ${gameLabel(game.type)} dihentikan. Jawaban: ${Array.isArray(game.answer) ? game.answer.join(', ') : game.answer}`);
     }
     if (cmd === 'hint') {
@@ -282,7 +296,7 @@ Ini hanya hiburan acak, bukan penilaian faktual.`, buttons: [{ name: 'quick_repl
       if (!game) return ctx.reply('Tidak ada game aktif di chat ini.');
       if (!isCreator(game, ctx)) return ctx.reply('Ronde ini khusus untuk pengguna yang memulainya.');
       if (game.pollId && pollSessions.has(game.pollId)) return ctx.reply('Polling ronde ini aktif. Jawaban hanya dihitung dari satu pilihan polling pertama; perintah .jawab dinonaktifkan selama polling aktif.');
-      const given = ctx.args.join(' ').trim();
+      const given = (GAME_TYPES[requestedType] ? ctx.args.slice(1) : ctx.args).join(' ').trim();
       if (!given) return ctx.reply(`Format: ${ctx.prefix}jawab <jawaban>`);
       if (game.type === 'family100' && Array.isArray(game.answer)) {
         const found = game.answer.find(item => norm(item) === norm(given));
@@ -293,18 +307,24 @@ Ini hanya hiburan acak, bukan penilaian faktual.`, buttons: [{ name: 'quick_repl
         if (ctx.sender && !game.votedPlayers.some(jid => sameJid(jid, ctx.sender))) game.votedPlayers.push(String(ctx.sender));
         game.answered.push(found);
         if (game.answered.length >= game.answer.length) {
-          clearGame(key, game);
-          return ctx.reply(`✅ Benar: ${found}\nDitemukan ${game.answered.length}/${game.answer.length} jawaban.\n🏆 Semua jawaban ditemukan!`);
+          const reward = await awardQuizWin(ctx.chat, ctx.sender, game.type, game.reward, game.rewardCoins || 0);
+          clearGame(gameKey, game);
+          return ctx.reply(`✅ Benar: ${found}\nDitemukan ${game.answered.length}/${game.answer.length} jawaban.\n🏆 Semua jawaban ditemukan! Hadiah +${reward.xp} XP.`);
         }
-        if (game.pollId) await rotateFamily100Poll(ctx.sock, key, game, ctx.chat);
+        if (game.pollId) await rotateFamily100Poll(ctx.sock, gameKey, game, ctx.chat);
         return ctx.reply(`✅ Benar: ${found}\nDitemukan ${game.answered.length}/${game.answer.length} jawaban.`);
       }
       if (!isQuizAnswerCorrect(game, given)) return ctx.reply('❌ Belum tepat. Coba lagi atau gunakan .hint.');
-      clearGame(key, game);
-      return ctx.sendInteractive({ title: '🎉 JAWABAN BENAR!', subtitle: gameLabel(game.type), body: `Jawaban: *${game.answer}*\nRonde selesai. Hadiah nominal ${game.reward} adalah nilai konfigurasi permainan; integrasi pemberian energy otomatis belum diaktifkan.`, buttons: [{ name: 'quick_reply', title: 'Main lagi', id: `${ctx.prefix}${game.type}` }, { name: 'quick_reply', title: 'Menu Game', id: `${ctx.prefix}menu` }] });
+      const reward = await awardQuizWin(ctx.chat, ctx.sender, game.type, game.reward, game.rewardCoins || 0);
+      clearGame(gameKey, game);
+      return ctx.sendInteractive({ title: '🎉 JAWABAN BENAR!', subtitle: gameLabel(game.type), body: `Jawaban: *${game.answer}*\n\n🏆 Hadiah: +${reward.xp} XP${reward.coins ? ` · +${reward.coins} coin` : ''}\nKemenangan ${gameLabel(game.type)}: ${reward.stat.wins}.`, buttons: [{ name: 'quick_reply', title: 'Main lagi', id: `${ctx.prefix}${game.type}` }, { name: 'quick_reply', title: 'Top Player', id: `${ctx.prefix}top${game.type}` }, { name: 'quick_reply', title: 'Menu Game', id: `${ctx.prefix}menu` }] });
+    }
+    if (cmd.startsWith('top') && GAME_TYPES[cmd.slice(3)]) {
+      const type = cmd.slice(3); const rows = await getQuizLeaderboard(type, 10);
+      return ctx.sendInteractive({ title: `🏆 TOP ${gameLabel(type)}`, subtitle: 'GLOBAL PLAYER RANKING', body: rows.length ? rows.map((row,i)=>`${i+1}. @${String(row.user).split('@')[0]} · ${row.wins} win · ${row.xp} XP`).join('\n') : 'Belum ada pemenang untuk permainan ini.', buttons: [{name:'quick_reply',title:'Main Game',id:`${ctx.prefix}${type}`},{name:'quick_reply',title:'Menu Game',id:`${ctx.prefix}menu`}] });
     }
     if (!GAME_TYPES[cmd]) return ctx.reply('Game tidak dikenal. Gunakan .menu untuk melihat semua game.');
-    if (game) return ctx.reply(`Masih ada game aktif di chat ini: ${gameLabel(game.type)}. Gunakan .hint, .jawab, .nyerah, atau .cleargame.`);
+    if (game) return ctx.reply(`Ronde ${gameLabel(cmd)} masih aktif di chat ini. Gunakan .hint ${cmd}, .jawab ${cmd} <jawaban>, .nyerah ${cmd}, atau .cleargame ${cmd}. Game lain dapat berjalan bersamaan.`);
     const definition = GAME_TYPES[cmd];
     let item = await fetchRemote(cmd);
     if (!item) item = pick(definition.data);
@@ -317,9 +337,9 @@ Ini hanya hiburan acak, bukan penilaian faktual.`, buttons: [{ name: 'quick_repl
     const multipleChoice = buildMultipleChoice(cmd, answer);
     const allowedVoters = creatorAliases(ctx);
     if (!allowedVoters.length && ctx.sender) allowedVoters.push(String(ctx.sender).replace(/:\d+(?=@)/, '').toLowerCase());
-    game = { type: cmd, question: item.question || item.description || 'Jawab pertanyaan berikut.', answer, hint: item.hint, description: item.description, image: item.remoteImage || item.img || item.image, localImage: item.localImage, reward: definition.reward, creator: String(ctx.sender || ''), allowedVoters, expiresAt, answered: [], votedPlayers: [], multipleChoice };
+    game = { type: cmd, question: item.question || item.description || 'Jawab pertanyaan berikut.', answer, hint: item.hint, description: item.description, image: item.remoteImage || item.img || item.image, localImage: item.localImage, reward: definition.reward, rewardCoins: definition.rewardCoins || 0, createdAt: Date.now(), creator: String(ctx.sender || ''), allowedVoters, expiresAt, answered: [], votedPlayers: [], multipleChoice };
     sessions.set(key, game);
-    const body = `*${definition.title}*\n\n${cmd === 'susunkata' ? `Tipe: ${item.type || 'Umum'}\nHuruf: ${item.question}` : item.question || item.description || 'Tebak jawaban yang tepat.'}\n\n${multipleChoice.values.join('\n')}\n\nWaktu: ${cmd === 'family100' ? '5 menit' : '1 menit'}\nHadiah konfigurasi: ${definition.reward} energy\n\nPilih SATU jawaban pada polling di bawah. Hanya pengguna yang memulai ronde ini yang dihitung; satu klik diproses sekali. Perintah .jawab hanya menjadi fallback bila polling gagal dibuat.\nGunakan *${ctx.prefix}hint* untuk petunjuk.`;
+    const body = `*${definition.title}*\n\n${cmd === 'susunkata' ? `Tipe: ${item.type || 'Umum'}\nHuruf: ${item.question}` : item.question || item.description || 'Tebak jawaban yang tepat.'}\n\n${multipleChoice.values.join('\n')}\n\nWaktu: ${cmd === 'family100' ? '5 menit' : '1 menit'}\nHadiah menang: +${definition.reward} XP${definition.rewardCoins ? ` · +${definition.rewardCoins} coin` : ''}\n\nPilih SATU jawaban pada polling di bawah. Hanya pengguna yang memulai ronde ini yang dihitung; satu klik diproses sekali. Perintah .jawab hanya menjadi fallback bila polling gagal dibuat.\nGunakan *${ctx.prefix}hint ${cmd}* untuk petunjuk.`;
     game.timeout = setTimeout(async () => {
       if (sessions.get(key) !== game) return;
       clearGame(key, game);
@@ -341,20 +361,21 @@ Ini hanya hiburan acak, bukan penilaian faktual.`, buttons: [{ name: 'quick_repl
       }
     }
     if (typeof ctx.sock?.sendMessage === 'function') {
-      await ctx.sendInteractive({ title: `🎮 ${definition.title}`, subtitle: 'WHISKAY · GAME ROOM', body: `${body}\n\nPolling: pilih satu opsi A–D.`, buttons: [{ name: 'quick_reply', title: '💡 Petunjuk', id: `${ctx.prefix}hint` }, { name: 'quick_reply', title: '🏳️ Menyerah', id: `${ctx.prefix}nyerah` }] }).catch(() => {});
+      if (cmd !== 'tebakgambar') await ctx.sendInteractive({ title: `🎮 ${definition.title}`, subtitle: 'WHISKAY · GAME ROOM', body: `${body}\n\nPolling: pilih satu opsi A–D.`, buttons: [{ name: 'quick_reply', title: '💡 Petunjuk', id: `${ctx.prefix}hint ${cmd}` }, { name: 'quick_reply', title: '🏳️ Menyerah', id: `${ctx.prefix}nyerah ${cmd}` }] }).catch(() => {});
+      else await ctx.sendInteractive({ title: '🎮 TEBAK GAMBAR', subtitle: 'PILIHAN POLLING DI BAWAH', body: 'Pilih satu jawaban pada polling. Gunakan tombol Petunjuk jika diperlukan.', buttons: [{ name: 'quick_reply', title: '💡 Petunjuk', id: `${ctx.prefix}hint tebakgambar` }, { name: 'quick_reply', title: '🏳️ Menyerah', id: `${ctx.prefix}nyerah tebakgambar` }] }).catch(() => {});
       try {
         const values = multipleChoice.values;
-        const sent = await ctx.sock.sendMessage(ctx.chat, { poll: { name: `${definition.title}: ${String(game.question || 'Pilih jawaban yang benar').replace(/\s+/g, ' ').slice(0, 180)}`, values, selectableCount: 1 } }, { quoted: ctx.raw });
+        const sent = rememberPollCreationMessage(await ctx.sock.sendMessage(ctx.chat, { poll: { name: `${definition.title}: ${String(game.question || 'Pilih jawaban yang benar').replace(/\s+/g, ' ').slice(0, 180)}`, values, selectableCount: 1 } }, { quoted: ctx.raw }));
         const pollId = String(sent?.key?.id || '');
         if (pollId) {
           game.pollId = pollId;
-          pollSessions.set(pollId, { pollId, type: cmd, gameKey: key, chat: ctx.chat, allowedVoters: [...game.allowedVoters], pollCreationMessage: sent.message, optionMap: Object.fromEntries(values.map((value, index) => [value, multipleChoice.choices[index]])), pollUpdates: [], answeredVoters: [], closed: false });
+          pollSessions.set(pollId, { pollId, type: cmd, gameKey: key, chat: ctx.chat, allowedVoters: [...game.allowedVoters], pollCreationMessage: sent, optionMap: Object.fromEntries(values.map((value, index) => [value, multipleChoice.choices[index]])), pollUpdates: [], answeredVoters: [], closed: false });
         }
         return sent;
       } catch (error) {
         return ctx.reply('Polling native tidak tersedia pada koneksi ini. Ronde tetap aktif; gunakan .jawab <jawaban> atau .hint.');
       }
     }
-    return ctx.sendInteractive({ title: `🎮 ${definition.title}`, subtitle: 'WHISKAY · GAME ROOM', body, buttons: [{ name: 'quick_reply', title: '💡 Petunjuk', id: `${ctx.prefix}hint` }, { name: 'quick_reply', title: '🏳️ Menyerah', id: `${ctx.prefix}nyerah` }] });
+    return ctx.sendInteractive({ title: `🎮 ${definition.title}`, subtitle: 'WHISKAY · GAME ROOM', body, buttons: [{ name: 'quick_reply', title: '💡 Petunjuk', id: `${ctx.prefix}hint ${cmd}` }, { name: 'quick_reply', title: '🏳️ Menyerah', id: `${ctx.prefix}nyerah ${cmd}` }] });
   }
 };

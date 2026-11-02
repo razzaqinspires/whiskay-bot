@@ -1,7 +1,10 @@
 {
   "developer": "Arifi Razzaq",
-  "contactEmail": "SET_DEVELOPER_EMAIL_IN_ENV",
-  "botRepository": "SET_WHISKAY_BOT_REPOSITORY_URL",
-  "webRepository": "SET_WHISKAY_WEB_REPOSITORY_URL",
-  "versionPolicy": "exact-lockfile-reviewed"
+  "contactEmail": "",
+  "botRepository": "https://github.com/razzaqinspires/whiskay-bot",
+  "webRepository": "https://github.com/razzaqinspires/whiskay-rpg-companion",
+  "version": "2.35.16",
+  "versionPolicy": "exact-lockfile-reviewed",
+  "runtime": "Node.js 20+ / ESM / Baileys",
+  "projectBoundary": "WhatsApp bot runtime is separate from the RPG website application"
 }

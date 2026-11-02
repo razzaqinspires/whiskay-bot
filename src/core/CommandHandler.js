@@ -126,22 +126,28 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
     const ok = await chain.run(ctx);
     if (!ok || ctx.aborted) return true;
 
+    const commandStartedAt = performance.now();
+    let commandSucceeded = true;
     try {
       const t0 = performance.now();
       await p.execute(ctx);
       await recordCommandUsage(ctx.sender || ctx.chat, p.menuCommands?.[0] || (Array.isArray(p.command) ? p.command[0] : p.command) || ctx.command).catch(() => {});
       if (!ctx.isBot && ctx.sender && !['daftar','register','statusdaftar'].includes(ctx.command)) {
         const xp = await awardCommandXP(ctx.chat || ctx.sender, ctx.sender, ctx.command).catch(() => null);
+        ctx.xpAward = xp;
         if (xp?.leveled && xp.profile?.notifyLevelUp !== false) {
           await ctx.sendInteractive({ title:'⭐ LEVEL UP!', subtitle:`Level ${xp.from} → ${xp.to}`, body:`Perintah berhasil dijalankan dan kamu memperoleh +${xp.gain} XP.\nLevel baru: ${xp.to} · ${xp.profile.xp}/${xp.needed} XP menuju level berikutnya.`, buttons:[{name:'quick_reply',title:'Lihat Profil',id:`${ctx.prefix}profile`},{name:'quick_reply',title:'Leaderboard',id:`${ctx.prefix}leaderboard`}] }).catch(()=>{});
         }
       }
       Logger.debug(`${ctx.command} -> ${(performance.now() - t0).toFixed(2)}ms`);
     } catch (e) {
+      commandSucceeded = false;
       Logger.error({ cmd: ctx.command, err: e.message }, 'cmd error');
       const shard = await recordCommandFailure(ctx.command, e).catch(() => null);
       if (shard?.quarantinedUntil > Date.now()) Logger.error({ cmd: ctx.command, quarantinedUntil: shard.quarantinedUntil }, 'command quarantined after repeated failures');
       await ctx.reply('❌ ' + e.message).catch(() => {});
+    } finally {
+      await ctx.completeEnergyTelemetry?.({ durationMs: performance.now() - commandStartedAt, ok: commandSucceeded }).catch(error => Logger.error({ cmd: ctx.command, err: error.message }, 'energy telemetry finalize failed'));
     }
     return true;
   }

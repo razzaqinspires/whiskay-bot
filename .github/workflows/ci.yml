@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: whiskay-ci-${{ github.ref }}
@@ -17,18 +19,123 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      - name: Prepare diagnostic directory
+        run: mkdir -p ci-artifacts
       - name: Install locked dependencies
-        run: npm ci
+        id: install
+        shell: bash
+        run: |
+          set +e
+          npm ci --no-audit --no-fund --fetch-retries=2 --fetch-timeout=30000 > ci-artifacts/npm-ci.log 2>&1
+          result=$?
+          if [ "$result" -ne 0 ]; then
+            echo 'Retrying npm ci with --prefer-offline...' >> ci-artifacts/npm-ci.log
+            npm ci --no-audit --no-fund --prefer-offline --fetch-retries=2 --fetch-timeout=30000 >> ci-artifacts/npm-ci.log 2>&1
+            result=$?
+          fi
+          cat ci-artifacts/npm-ci.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
       - name: Syntax-check source and tests
-        run: find src test -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+        id: syntax
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          find src scripts test config automation .github/scripts -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) -print0 |
+            while IFS= read -r -d '' file; do node --check "$file" || exit 1; done > ci-artifacts/syntax.log 2>&1
+          result=$?
+          cat ci-artifacts/syntax.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
       - name: Run regression tests
-        run: npm test
+        id: tests
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npm test > ci-artifacts/npm-test.log 2>&1
+          result=$?
+          cat ci-artifacts/npm-test.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
+      - name: Upload detailed test report and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whiskay-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-artifacts/
+            data/test-reports/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Create detailed GitHub Issue on failure
+        if: always() && (steps.install.outputs.result != 'PASS' || steps.syntax.outputs.result != 'PASS' || steps.tests.outputs.result != 'PASS')
+        uses: actions/github-script@v7
+        env:
+          INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
+          SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
+          TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const scrub = value => String(value || '')
+              .replace(/(authorization\s*[:=]\s*(?:bearer\s+)?)[^\s,;]+/gi, '$1[REDACTED]')
+              .replace(/(gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_./+=-]{12,}/g, '[REDACTED_TOKEN]')
+              .replace(/-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----[\s\S]*?-----END ([A-Z ]+ )?PRIVATE KEY-----/g, '[REDACTED_PRIVATE_KEY]');
+            const read = file => { try { return scrub(fs.readFileSync(file, 'utf8')); } catch { return ''; } };
+            const logs = [
+              ['npm ci', read('ci-artifacts/npm-ci.log')],
+              ['syntax', read('ci-artifacts/syntax.log')],
+              ['npm test', read('ci-artifacts/npm-test.log')],
+            ];
+            const extract = text => text.split(/\r?\n/)
+              .map((line, index) => ({ line, index }))
+              .filter(x => /not ok|AssertionError|\bError:|\bERR!|npm error|SyntaxError|ReferenceError|TypeError|EAI_AGAIN|ENOTFOUND|ECONNRESET|ETIMEDOUT|failed|FAIL/i.test(x.line))
+              .slice(0, 100).map(x => `${x.index + 1}: ${x.line}`).join('\n').slice(0, 16000);
+            const sha = context.sha;
+            const marker = `<!-- whiskay-ci-failure:${sha} -->`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [marker, '# Whiskay Bot CI failure', '',
+              `- Branch: \`${context.ref}\``, `- Commit: \`${sha}\``, `- Run: [${context.runId}](${runUrl})`,
+              `- npm ci: ${process.env.INSTALL_RESULT}`, `- Syntax: ${process.env.SYNTAX_RESULT}`, `- npm test: ${process.env.TEST_RESULT}`,
+              '', 'Full redacted logs and ZIP reports are available from the workflow run Artifacts section.', '',
+              ...logs.map(([name, content]) => `## ${name}\n\n${extract(content) ? '```text\n' + extract(content) + '\n```' : 'No failure markers captured.'}`),
+              '', 'Do not merge while required checks are failing. Fix the root cause and re-run CI.',
+            ].join('\n');
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100,
+            });
+            const existing = issues.find(issue => !issue.pull_request && (issue.body || '').includes(marker));
+            let issue;
+            if (existing) {
+              issue = (await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body })).data;
+            } else {
+              issue = (await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title: `Whiskay CI failed · ${sha.slice(0, 8)}`, body })).data;
+            }
+            if (context.eventName === 'pull_request') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.payload.pull_request.number, body: `CI failed. Detailed issue: ${issue.html_url}\n\n${body.slice(0, 5000)}` });
+            }
+            core.warning(`Failure issue recorded: ${issue.html_url}`);
+      - name: Enforce CI verdict
+        if: always()
+        env:
+          INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
+          SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
+          TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+        run: |
+          if [ "$INSTALL_RESULT" != PASS ] || [ "$SYNTAX_RESULT" != PASS ] || [ "$TEST_RESULT" != PASS ]; then
+            echo 'CI_RESULT=FAIL'; exit 1
+          fi
+          echo 'CI_RESULT=PASS'

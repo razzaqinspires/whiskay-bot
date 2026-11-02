@@ -3,9 +3,11 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.27.0-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.35.21-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
+
+**Developer:** Arifi Razzaq · **Repository:** [razzaqinspires/whiskay-bot](https://github.com/razzaqinspires/whiskay-bot)
 
 </div>
 
@@ -23,20 +25,111 @@
 ## 🧭 Contents
 
 - [Identity & responsibilities](#-identity--responsibilities)
+- [Stage 46 — Startup, config & GitHub control](#stage-46--startup-config--github-control)
+- [Stage 49 — Runtime & Group Cache Foundations](#stage-49--runtime--group-cache-foundations)
+- [Stage 50 — Leveling Data Integrity & Recovery](#stage-50--leveling-data-integrity--recovery)
+- [Stage 51 — Adzan Personal Region Profiles](#stage-51--adzan-personal-region-profiles)
+- [Stage 52 — Repository Structure Cleanup](#stage-52--repository-structure-cleanup)
+- [Stage 55 — Plugin & Command Intelligence](#stage-55--plugin--command-intelligence)
+- [Stage 56 — Git History & Move Intelligence](#stage-56--git-history--move-intelligence)
+- [Repository layout](#repository-layout)
+- [Stage 49 Part 4 — XP Intelligence & Energy Canvas](#stage-49-part-4--xp-intelligence--energy-canvas)
 - [Architecture map](#-architecture-map)
 - [Smart Energy Middleware](#-smart-energy-middleware)
 - [Worker status & runtime statistics](#-worker-status--runtime-statistics)
 - [Command catalog](#-command-catalog)
 - [Global Auction House](#-global-auction-house)
 - [World Boss webhook](#-world-boss-webhook)
+- [TEAMDROP document relay](#-teamdrop-document-relay)
 - [Jadibot secure pairing portal](#-jadibot-secure-pairing-portal)
 - [GitHub metrics and automation](#-github-metrics-and-automation)
 - [Install & configure](#-install--configure)
 - [Security and operations](#-security-and-operations)
 - [📚 Documentation & Archives](#-documentation--archives)
-- [Stage 37 — Experimental-Bell parity transplant](#stage-37--experimental-bell-parity-transplant)
 - [Stage 40 — Source/Downloader Parity Audit](#stage-40--sourcedownloader-parity-audit-iteration-1–10)
 
+
+
+## Stage 53 — GitHub-Safe Upload & Runtime Data Isolation (v2.35.16)
+
+- `.gitignore` now excludes every `data/`, `sessions/` and `session/` directory, WhatsApp auth stores, private environment/credential files, database sidecars, keys, caches and local QA output. Static dungeon seed moved to `assets/dungeon/floors.json`.
+- `scripts/protect-runtime-data.mjs` untracks legacy database/session/credential files from Git index in bounded batches without deleting local files; blocked security checks still create a local-only diagnostic ZIP.
+- `git upload` runs clean `npm ci`, syntax checks, full `npm test`, and creates a redacted local diagnostics ZIP plus a Markdown report. QA failures are still submitted in an upload branch for review; secret/session/database checks remain hard blockers.
+- Uploads go only to `upload/*`; GitHub Actions opens/updates a Pull Request to `main`, validates again, uploads full logs as workflow artifacts, and creates detailed GitHub Issues on validation failure. No direct push to `main` is used.
+- Commit messages and timestamps use Asia/Jakarta local date/time.
+
+## Stage 52 — Repository Structure Cleanup
+
+**Version:** `2.35.15` · **Date:** 2026-11-01
+
+- Root-level regular files are limited to `package.json`, `package-lock.json`, `README.md`, and `LICENSE`; required hidden files and directories remain in place.
+- Project history and working memory live in `docs/project/`; third-party notices live in `docs/legal/`.
+- Runtime and pairing entrypoints live in `scripts/`; PM2 configuration lives in `config/`. Use `npm run pair -- --help` for pairing-helper usage.
+- `.github/` is the only active GitHub Actions directory. The former `github/` copy and the local patch are preserved under `docs/archive/`.
+- Obsolete duplicate templates/ignore files, unreferenced source backups, and old generated QA bundles were removed. Active tests, source modules, runtime data, and historical stage documentation were retained.
+- Verification: `npm run verify:stage52`, `npm test`, and `npm run verify:all`. Passing local tests do not prove live WhatsApp delivery or deployment connectivity.
+
+## Repository layout
+
+| Path | Responsibility |
+|---|---|
+| `src/` | Bot runtime, services, handlers, plugins, middleware and workers |
+| `scripts/` | Startup, daemon, pairing, Git upload, QA and maintenance utilities |
+| `config/` | Repository and process-manager configuration |
+| `data/` (private runtime only; never committed) | Runtime state and static data required by the bot |
+| `test/` | Automated unit, integration-mock and regression tests |
+| `docs/` | Architecture, stage records, reports, project memory and archives |
+| `.github/` | Active GitHub Actions workflows and automation scripts |
+| `vendor/` | Vendored project-owned integration modules |
+
+## Owner QA Control Center — live test progress (v2.35.4)
+
+- Owner-only commands: `.testcommands run`, `.testcommands status` / `.testcommands progress`, `.testcommands report`, and `.testcommands download`. Bare `.testcommands` displays help and does not start a long run.
+- QA runs in a disposable sandbox. It reports syntax files checked, per-test discovered/completed/pass/fail counters, phase start/end, and a final release verdict. WhatsApp progress updates are sent after the first test, every five completed tests, and immediately on a failure.
+- Do not collect/package a candidate version while the card says `PROSES MASIH BERJALAN`. A phase-level PASS is not the full release verdict; wait for `FULL TEST LULUS`.
+- Missing `sessions/pre-key-<id>.json` is classified separately as a Baileys session/runtime reference; QA never creates fake pre-keys or copies production sessions into its sandbox.
+- Implementation and operator guide: [`docs/OWNER-TESTCOMMAND-VERIFICATION.md`](docs/OWNER-TESTCOMMAND-VERIFICATION.md).
+
+## Stage 50 — Leveling Data Integrity & Recovery (v2.35.5)
+
+- Leveling writes now validate the current primary and preserve it through an atomic `.bak` write before replacing it. If the backup write fails, the mutation aborts and the primary remains unchanged.
+- Corrupt-primary recovery preserves the original file under a unique `.corrupt-*` name before using a valid backup/archive. Manual `.leveldb restore` follows the same preservation rule.
+- `.leveldb status` reports primary/backup health, both file sizes, aggregate XP, profile count, and archive count.
+- Stage 35 tests now use a unique OS-temp `WHISKAY_DATA_DIR` before importing the leveling module. Direct `npm run verify:stage35` / `npm run verify:all` no longer write synthetic players to production leveling data.
+- `npm run protect:runtime-data` removes every tracked `data/` (private runtime only; never committed), `sessions/`, environment-secret and database file from the Git index without deleting local bytes. All `data/` (private runtime only; never committed) is private and ignored; the static dungeon seed is maintained at `assets/dungeon/floors.json`. The guarded `scripts/auto-push.sh --push` path applies this protection before staging.
+- Implementation and test report: [`docs/STAGE-50-LEVELING-DATA-INTEGRITY.md`](docs/STAGE-50-LEVELING-DATA-INTEGRITY.md) · [`docs/TEST-REPORT-STAGE-50-LEVELING-DATA-INTEGRITY.md`](docs/TEST-REPORT-STAGE-50-LEVELING-DATA-INTEGRITY.md).
+
+Historical XP recovery is deliberately not automatic. A source snapshot must be matched to the exact group/user profile key and chosen as authoritative before restoring; this release does not rewrite production `data/leveling.json`.
+
+## Stage 51 — Adzan Personal Region Profiles, Delivery & Intelligence (v2.35.12 · Part 8)
+
+- `.adzan lokasi` asks the sender to share a static WhatsApp Current Location in a private chat. Coordinates are stored only after an explicit, expiring request; location messages are not silently harvested.
+- `.adzan default` is owner-only and sets the deployment-wide fallback region for users who have not configured a personal location. `.adzan status` shows the effective region and map link.
+- `.adzan timezone Asia/Jakarta` sets a personal IANA time zone; `.adzan default-timezone Asia/Jakarta` changes the owner default. The engine does not infer a time zone from GPS coordinates, so users must verify/set the correct IANA zone when their region differs from the owner default.
+- `.adzan clear` removes the personal override and falls back to the owner default. `.adzan clear-default` is owner-only.
+- Personal profiles and legacy group reminder settings now share `data/adzan-profiles.json`, with schema validation, atomic replace, fsync, cross-process lock, verified `.bak`, corruption quarantine and backup recovery. A valid old `data/adzan-settings.json` is migrated once and renamed with a `.migrated-*` suffix.
+- The supplied `@razzaq-ventures/adzan-engine` v1.3.0 is vendored under `vendor/razzaq-adzan-engine/` with its MIT license and upstream documentation. `.adzan jadwal` calculates five prayer times from the effective personal region; `.adzan on/off` controls opt-in personal DM notifications.
+- The 15-second scheduler persists each due prayer in a durable outbox before sending. Failed WhatsApp sends retry after 1, 5, 15, and 30 minutes, up to five attempts; terminal failures remain visible in the dead-letter count. The delivery model is at-least-once: a crash after WhatsApp accepts a message but before the local success record is saved can cause a duplicate on retry.
+- Stage 51 Part 4 adds local WhatsApp MP3 delivery with per-user audio preferences and automatic text fallback.
+- Stage 51 Part 5 adds retryable delivery outbox, bounded retry policy, delivery metrics, and owner-only `.adzan admin` control center. `.adzan audio check` checks local audio readiness.
+- Stage 51 Part 6 adds the personal dashboard, calculation method selection, per-prayer minute corrections, audio-pack preferences and delivery history.
+- Stage 51 Part 7 adds `.adzan kiblat`, `.adzan hijriah`, `.adzan berikutnya`, `.adzan mingguan`, `.adzan bulanan`, `.adzan ics`, and `.adzan pengingat 0..30`. Qibla is a true-north bearing; Hijri is tabular-civil and not official rukyat; schedules remain approximate and should be checked locally. Pre-alerts are text-only and use the durable delivery outbox.
+- Stage 51 Part 8 adds `.adzan automasi`, `.adzan jumat on|off|HH:mm`, `.adzan ramadan on|off`, `.adzan sahur 0..120`, and `.adzan iftar on|off|0..60`. Friday reminders use each user's IANA local time; Sahur and Iftar reminders are scheduled from the calculated Fajr/Maghrib only when the engine's tabular-civil date estimate is in Hijri month 9. All reminders are personal, text-only, opt-in DM notifications. Location/timezone/profile changes cancel queued stale events and the 15-second worker recalculates from the latest profile. The Hijri month estimate is not an official rukyat decision. See [`docs/STAGE-51-ADZAN-AUTOMATION.md`](docs/STAGE-51-ADZAN-AUTOMATION.md).
+- Existing manual group reminder controls remain compatible.
+- Private-chat-only location setup prevents GPS coordinates from being echoed into a group. Location data is not posted to a third-party geocoder.
+- Implementation and verification: [`docs/STAGE-51-ADZAN-PROFILES.md`](docs/STAGE-51-ADZAN-PROFILES.md) · [`docs/STAGE-51-ADZAN-ENGINE-INTEGRATION.md`](docs/STAGE-51-ADZAN-ENGINE-INTEGRATION.md) · [`docs/TEST-REPORT-STAGE-51-ADZAN-ENGINE.md`](docs/TEST-REPORT-STAGE-51-ADZAN-ENGINE.md) · [`docs/STAGE-51-ADZAN-RELIABILITY.md`](docs/STAGE-51-ADZAN-RELIABILITY.md) · [`docs/TEST-REPORT-STAGE-51-ADZAN-RELIABILITY.md`](docs/TEST-REPORT-STAGE-51-ADZAN-RELIABILITY.md) · [`docs/STAGE-51-ADZAN-AUTOMATION.md`](docs/STAGE-51-ADZAN-AUTOMATION.md) · [`docs/TEST-REPORT-STAGE-51-ADZAN-AUTOMATION.md`](docs/TEST-REPORT-STAGE-51-ADZAN-AUTOMATION.md).
+
+## Stage 43 — Canvas and Leveling Storage Reliability
+
+- Official Menu Canvas V1 and V2 are now distinct landscape designs. V2 includes a circular identity area for a user-specific avatar/logo.
+- Avatar setup is button-first: `.setmenu image` → **Ganti Avatar / Logo V2** → **Unggah Avatar Canvas V2** → reply to that exact bot message with an image. The image is automatically stored and applied; no caption or follow-up command is needed. JPG/PNG/WEBP, max 8 MB, 15-minute upload window.
+- Leveling storage uses a project-root-stable data path, atomic snapshots, backup generations, cross-process writer locking, corruption quarantine, and backup/archive recovery. `.leveldb status` is owner-only diagnostics; `.leveldb restore` restores the latest valid backup/archive.
+- At 1 GiB by default, a dated gzip snapshot with SHA-256 sidecar is written to `data/archives/leveling/`. Set `WHISKAY_DB_ARCHIVE_BYTES` to change the threshold. Active leveling data is intentionally retained in `leveling.json`; archives are recovery snapshots, not yet cold-storage shards.
+- Details and validation: [`STAGE-43-ITERATION-1.md`](docs/stages/STAGE-43-ITERATION-1.md) · [`TEST-REPORT-STAGE-43-ITERATION-1.md`](docs/stages/TEST-REPORT-STAGE-43-ITERATION-1.md).
+
+## Stage 37 — Experimental-Bell parity transplant
+
+- The command-family parity inventory is tracked in [`STAGE-37.md`](docs/stages/STAGE-37.md) and [`STAGE-37-EXPERIMENTAL-BELL-PARITY.json`](docs/stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json). Parity remains explicitly incomplete until every family has command-by-command evidence.
 
 ## Stage 41 — Game Transplant and Menu Visibility (Iteration 1)
 
@@ -46,7 +139,8 @@
 
 ## Stage 40 — Source/Downloader Parity Audit (Iteration 1–10)
 
-- Source-family audit ledger: [`STAGE-40-SOURCE-PARITY-AUDIT.json`](docs/stages/STAGE-40-SOURCE-PARITY-AUDIT.json). It maps all 17 recorded families and explicitly keeps full parity unconfirmed.
+- Machine-readable source-family audit: [`STAGE-40-SOURCE-PARITY-AUDIT.json`](docs/stages/STAGE-40-SOURCE-PARITY-AUDIT.json). Exact command-by-command parity is not claimed; see the Iteration 10 report for confirmed gaps and offline audit limitations.
+
 - Iteration 3 details and test report: [`STAGE-40-ITERATION-3.md`](docs/stages/STAGE-40-ITERATION-3.md) · [`TEST-REPORT-STAGE-40-ITERATION-3.md`](docs/stages/TEST-REPORT-STAGE-40-ITERATION-3.md). Iteration 4 alias audit and format-picker parity: [`STAGE-40-ITERATION-4.md`](docs/stages/STAGE-40-ITERATION-4.md) · [`TEST-REPORT-STAGE-40-ITERATION-4.md`](docs/stages/TEST-REPORT-STAGE-40-ITERATION-4.md). Iteration 5 provider URL hardening: [`STAGE-40-ITERATION-5.md`](docs/stages/STAGE-40-ITERATION-5.md) · [`TEST-REPORT-STAGE-40-ITERATION-5.md`](docs/stages/TEST-REPORT-STAGE-40-ITERATION-5.md). Iteration 6 hardens provider response validation and makes downloader selection tokens sender/chat-safe and bounded: [`STAGE-40-ITERATION-6.md`](docs/stages/STAGE-40-ITERATION-6.md) · [`TEST-REPORT-STAGE-40-ITERATION-6.md`](docs/stages/TEST-REPORT-STAGE-40-ITERATION-6.md). Iteration 7 adds a 1 MiB provider response cap and prevents unavailable format attempts from burning valid tokens: [`STAGE-40-ITERATION-7.md`](docs/stages/STAGE-40-ITERATION-7.md) · [`TEST-REPORT-STAGE-40-ITERATION-7.md`](docs/stages/TEST-REPORT-STAGE-40-ITERATION-7.md).
 
 - Added shared-provider downloader command adapters for Pinterest, MediaFire, Spotify, YouTube URL downloads, and RedNote/Xiaohongshu. Existing TikTok, Instagram, Facebook, and format selection are retained. Provider APIs must be configured externally using `MEDIA_DOWNLOADER_API_URLS` / `MEDIA_DOWNLOADER_API_URL`.
@@ -63,6 +157,44 @@
 - Per-group blacklist: `.blacklist @anggota` / `.unblacklist @anggota`; subsequent messages from blacklisted non-admin/non-owner members are suppressed and deleted when bot permissions allow.
 - Info alias: `.infogc` / `.infogroup` maps to `.groupinfo`.
 - Live WhatsApp compatibility depends on the installed Baileys version and actual group permissions; test in a non-production group before enabling moderation automation.
+
+## Stage 47 — WhatsApp connection recovery & startup preflight (v2.35.2)
+
+- Fixed startup preflight so absent optional bundled Cloudflared binaries are reported as informational; a valid system binary such as `/usr/local/bin/cloudflared` is verified with `--version` and remains usable.
+- Baileys reconnect is single-flight and socket-generation guarded. Old socket close events cannot spawn competing sockets; transient disconnects use capped exponential backoff with jitter and do not terminate the daemon after an arbitrary retry count.
+- `npm run status` continues to describe the daemon process, not WhatsApp connectivity. Inspect `.runtime/logs/whiskay-bot.log` for `Online`, `Connection closed`, and `WhatsApp reconnect scheduled` events.
+- Logged-out or invalid-auth states stop automatic reconnect and require owner re-pair/session repair; credentials are never deleted unless the existing explicit auto-clear setting is enabled.
+- Live WhatsApp recovery still requires verification on the owner's host and account.
+
+## Stage 46 — Startup, Config & GitHub Control (v2.35.1)
+
+- Iteration 2 binds the GitHub approval fingerprint to the exact `HEAD` commit and allows a previously committed local commit to be pushed after a failed transport attempt, even when the working tree is clean.
+
+- **Developer:** Arifi Razzaq · **Repository:** [razzaqinspires/whiskay-bot](https://github.com/razzaqinspires/whiskay-bot).
+- `npm start` now launches one detached bot process through `scripts/daemon.mjs`. The child startup prints `uname -m`, `which cloudflared`, and `ls -lah bin/cloudflared-linux-arm64 data/bin/cloudflared-linux-arm64`; Cloudflared and Jadibot run as managed children with retry. Logs are stored in `.runtime/logs/whiskay-bot.log`.
+- Cloudflared relative paths resolve from the repository root. If `spawn` returns `ENOENT`, the failed child reference is cleared so the retry worker can resolve the binary again rather than treating a dead child as active.
+- `.config` is an owner-only, full-button environment control center. Select a category and key, then reply to the prompt message with the new value. Secret/token values are masked and can only be entered from a private chat.
+- The `.env.example` / `.config` catalog currently covers 90 whitelisted keys in nine categories, including RPG URLs, Cloudflared/Jadibot mode, GitHub repositories, media-downloader provider endpoints, and runtime controls. Provider endpoints are treated as secrets because they may contain embedded credentials.
+- `.env` hot reload is debounced and serialized. Runtime-compatible values update in place; port, path, binary, and other boot-bound values are labeled restart-required. It never creates a second webhook or bot server.
+- `.gitpush` opens the GitHub Control Center: repository analysis → syntax + `npm test` QA → owner-bound **Commit & Push** button. Approval expires after 20 minutes and is invalidated if the content fingerprint changes. The shell script does not use `git reset --hard`, auto-stash, or automatic rebase.
+- If the terminal reports `cannot exec .../scripts/git-upload.sh: Permission denied` for `git upload`, run `bash scripts/install-git-upload-alias.sh` once (or `npm run fix:git-upload`). This restores `scripts/git-upload.sh` mode `0755` and configures the repository-local alias to invoke it through Bash.
+- `.owner` now uses `OWNER_NAME` from `.env` for the contact card. `OWNERS`/`OWNER_LIDS` remain the actual authorization sources.
+- Start with `cp .env.example .env`; fill `OWNERS`, WhatsApp owner phone, AI/API credentials, integration tokens and deployment-specific URLs. `.env` is ignored by Git and must not be uploaded.
+- Iteration 2 binds approvals to the exact `HEAD` commit and safely retries already-committed changes after a failed push, even when the working tree is clean. See [`STAGE-46-ITERATION-1.md`](docs/stages/STAGE-46-ITERATION-1.md), [`STAGE-46-ITERATION-2.md`](docs/stages/STAGE-46-ITERATION-2.md), and the corresponding test reports.
+
+### Stage 46 architecture
+
+```mermaid
+flowchart TD
+  A[npm start] --> B[Detached launcher + launch lock]
+  B --> C[Preflight diagnostics]
+  C --> D[Single bot process + PID lock]
+  D --> E[Background tunnel child]
+  D --> F[Debounced .env watcher]
+  G[.config buttons] --> H[Validated atomic .env write] --> F
+  F --> I[In-place config refresh]
+  J[.gitpush] --> K[Analysis] --> L[QA] --> M[Owner approval] --> N[Secret scan + push]
+```
 
 ## 🧩 Identity & responsibilities
 
@@ -95,22 +227,22 @@ graph TD
     L --> M[Next.js API Route]
     M --> N[(Supabase RPC / Player Snapshot)]
     N --> M --> L
+    T[TEAMDROP Portal] -->|HTTPS/local bearer webhook| W[Whiskay Bot document relay]
+    W -->|Baileys document attachment| X[Private WhatsApp recipient]
 ```
 
 ## 🔋 Smart Energy Middleware
 
-The energy estimator is a deterministic heuristic, not an LLM request. Unless a plugin declares a fixed `energyCost`, the middleware computes a bounded complexity estimate from the command text. The estimator considers token count (capped at 160), operator/math markers, quote markers, token uniqueness, character classes, a small deterministic lexical term, and Jaccard similarity to the five most recent commands. Similar repeated inputs receive a modest discount. The estimate is clamped to **0.25–8.75 energy points**; a plugin fixed cost is clamped to **0.05–10**. Actual charge is capped at the user's remaining energy.
+The energy estimator is a deterministic heuristic, not an LLM request. `energyMode: 'free'`, explicitly declared zero-cost plugins, and the recovery/control allowlist are exempt. `energyMode: 'static'` uses the declared cost (bounded to **0.05–10 energy points**); other commands receive a bounded workload estimate based on input size, network/AI/heavy classification, observed command latency, response size, and runtime pressure. Dynamic estimates are clamped to **0.15–9.75 points**. Energy Saver can reduce the charged estimate below its unlock threshold, while adding a cooldown multiplier.
 
 ```text
-raw = 0.38 + token_term + math_term + quote_term
-      + uniqueness_term + character_class_term
-      + deterministic_lexical_term - recent_similarity_discount
-estimated_cost = clamp(round(raw, 2), 0.25, 8.75)
-actual_cost = min(current_energy, estimated_cost)
-new_energy = clamp(current_energy - actual_cost, 0, 100)
+base = 0.18 + min(input_chars, 1600) × 0.0011
+             + min(tokens, 180) × 0.004
+cost = clamp(base + network_cost + ai_cost + heavy_cost + pressure_cost,
+             0.15, 9.75)
 ```
 
-Mutations are serialized within one Node.js process and written using temporary-file + rename. This protects concurrent writes in that process, but **does not provide distributed locking across multiple bot replicas**. The ledger is bounded to 5,000 users. Energy middleware fails open if its ledger throws, so an outage should be visible in logs and should not be mistaken for a successful charge.
+Before a paid command reaches its plugin, middleware verifies that the ledger balance covers the adjusted cost. A zero/insufficient balance blocks execution; malformed balance values and ledger read/write errors fail closed. Recovery/free commands remain available so users can inspect status or recharge. Ledger mutations are serialized within one Node.js process and written using temporary-file + rename. This protects concurrent writes in that process, but **does not provide distributed locking across multiple bot replicas**. The ledger is bounded to 5,000 users.
 
 ## 📊 Worker status & runtime statistics
 
@@ -232,6 +364,38 @@ WHISKAY_BOT_WEBHOOK_PORT=8787
 
 Do not expose the webhook on the public internet without HTTPS, firewall restrictions, and a long random secret. The same secret must be configured on both services. If the bot runs only on a phone/Termux behind NAT, the website cannot call its private localhost; use a secured public reverse proxy or disable the integration.
 
+
+## Stage 48 — TEAMDROP private document relay (2026-10-30)
+
+- Integrated the TEAMDROP upload portal with the existing Baileys session.
+- Added a dedicated bearer-authenticated raw-file endpoint, safe filename metadata, file-size/type validation, per-source rate limiting, and in-process idempotency.
+- Added recipient selection through `TEAMDROP_WHATSAPP_TO` with owner/session fallback; the target phone is never exposed to the browser.
+- Verification: `npm run verify:stage48` plus the existing Stage 46 environment tests.
+
+## 📁 TEAMDROP document relay
+
+Whiskay Bot exposes an authenticated `POST /webhooks/teamdrop/document` endpoint on `WHISKAY_BOT_WEBHOOK_PORT` (default `8787`). TEAMDROP posts the raw document bytes and safe metadata using a bearer token. The bot validates the submission ID, document extension, size, rate limit, and then sends the file to one configured recipient using Baileys `sendMessage()` with the `document` payload.
+
+Configure the bot `.env`:
+
+```dotenv
+TEAMDROP_WEBHOOK_SECRET=<long-random-shared-secret>
+TEAMDROP_WHATSAPP_TO=628xxxxxxxxxx
+TEAMDROP_MAX_FILE_MB=50
+TEAMDROP_WEBHOOK_RATE_LIMIT=18
+```
+
+Configure the TEAMDROP portal `.env` with the same secret:
+
+```dotenv
+WHISKAY_BOT_WEBHOOK_URL=http://127.0.0.1:8787/webhooks/teamdrop/document
+WHISKAY_BOT_WEBHOOK_TOKEN=<same-long-random-shared-secret>
+```
+
+`TEAMDROP_WHATSAPP_TO` is optional; when empty, the bot falls back to `OWNER_PHONE`, the first `OWNERS` entry, then the WhatsApp account connected to the bot. Set an explicit destination when the document must be delivered to a different number. Keep the webhook reachable only from the portal server; prefer loopback on a shared VPS, otherwise use HTTPS, firewall allowlisting, and a high-entropy shared secret. The existing Whiskay Quick Tunnel forwards the full webhook listener, so a separate portal host can use the latest `WHISKAY_BOT_WEBHOOK_PUBLIC_URL` base plus `/webhooks/teamdrop/document`; update the portal endpoint when a temporary TryCloudflare URL changes. The phone number and secret are never sent to team members' browsers.
+
+The relay uses the already-running Baileys socket; it does not create another WhatsApp login or a second listener. Uploaded documents are sent as WhatsApp document attachments, not as public links.
+
 ## 🚀 Install & configure
 
 ```bash
@@ -239,16 +403,22 @@ node --version   # Node.js 20+
 cp .env.example .env
 npm ci
 npm test
-npm start
+npm start                 # start one detached bot process
+npm run status             # check PID / runtime state
+npm run logs               # tail background log
+npm stop                   # graceful shutdown
+npm run restart            # graceful restart
+npm run start:foreground  # same bootstrap, attached to terminal
+npm run start:diagnostics  # run host checks only
 ```
 
-Set `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. Keep `.env`, Baileys auth state, and any service-role key out of Git. The bot does not need the Supabase service-role key; the website API owns database access.
+Set `OWNERS`, `OWNER_PHONE`, `TEAMDROP_WEBHOOK_SECRET` and (when needed) `TEAMDROP_WHATSAPP_TO`, the API credentials for the selected AI provider, `DUNGEON_WEBSITE_URL`, `DUNGEON_SYNC_TOKEN`, `WHISKAY_BOSS_WEBHOOK_PORT`, and `WHISKAY_BOSS_WEBHOOK_SECRET`. The owner can review supported settings using `.config`. For `.gitpush`, configure Git identity once with `git config user.name "Arifi Razzaq"` and `git config user.email "<your verified GitHub email or noreply address>"`; also configure the host Git remote credentials (SSH or a credential helper). The bot does not silently use `.env` tokens as Git transport credentials. Keep `.env`, Baileys auth state, and any service-role key out of Git. The bot does not need the Supabase service-role key; the website API owns database access.
 
 ## 🛡️ Security and operations
 
 - Keep bot and website as separate deployables with separate ZIPs and separate environment variables.
 - Never trust a browser-supplied Gold, item count, price, or seller identity. Auction state changes run inside SQL RPC transactions.
-- The webhook broadcasts only a fixed, validated announcement; it does not accept arbitrary broadcast text.
+- The World Boss webhook broadcasts only a fixed, validated announcement; TEAMDROP has a separate bearer secret and sends only validated document attachments to the configured recipient.
 - Test group moderation in a private test group before using real groups.
 - Use backups before applying `schema.sql`; review SQL migrations before running them in production.
 - A successful unit test does not prove WhatsApp login, public webhook reachability, or Supabase credentials work.
@@ -303,7 +473,7 @@ Settings are in `.env.example` under `JADIBOT_*`. Local development automaticall
 
 Use `.github` or `.githubstats` for repository stars, forks, open issues/PR, last push timestamp, and—when a repository traffic token is configured—page views, unique visitors and clones for the **last 14 days**. Additional commands: `.github commits`, `.github issues`, and `.github workflows`. Configure `WHISKAY_GITHUB_REPO`, and set `WHISKAY_GITHUB_TRAFFIC_TOKEN` if the running bot should read private traffic data. GitHub's traffic API does **not** provide a lifetime visitor total.
 
-The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refreshes repository metrics and README timestamp on a six-hour cadence, workflow dispatch, and relevant pushes. The existing repository update-history workflow appends source-update metadata with timestamps. History and snapshots live under `docs/metrics/` and `docs/history/`; check [GitHub metrics notes](docs/GITHUB-AUTOMATION.md). The generated README block is bounded by `GITHUB_METRICS_START/END`, so automation updates only that block and preserves the rest of the README.
+The workflows [`github-metrics.yml`](.github/workflows/github-metrics.yml) and [`repo-update-history.yml`](.github/workflows/repo-update-history.yml) are read-only: their generated workspace changes are not committed. The only bot writer is `automation-autopilot.yml`, which writes its state to the `automation` branch. `main` remains human-owned. Manual source uploads use `git upload`: it validates and commits to an `upload/*` branch, then opens a Pull Request for review. The local uploader never pushes directly to `main`. See [GitHub automation isolation](docs/GITHUB-AUTOMATION-ISOLATION.md) and [Git upload + QA reports](docs/GIT-UPLOAD-AND-QA-REPORTS.md).
 
 **Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
 
@@ -555,7 +725,7 @@ See [`docs/TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md`](docs/TEST-REPORT-2026-10-
 - **Balance and top-up:** `.saldo`, `.topup 10000`; owner commands `.topuppending` and `.topupapprove REF`. Pending top-up is not credited until verified.
 - **Jadibot billing:** non-owner premium users need enough balance before a new rental; renewals charge balance. Pairing portal now explains `Failed to fetch` and requires the configured URL to route `/pair/*` and `/api/pair/*` to the bot process.
 - **Fun games:** `.truth`, `.dare`, `.tod`; `.catur @opponent` starts an experimental button-driven chess session. Chess engine limitations are documented.
-- **Persistence:** `data/app-database.json` uses serialized writes, temp-file + rename, and `.bak` recovery. Keep `data/` on persistent disk.
+- **Persistence:** `data/app-database.json` uses serialized writes, temp-file + rename, and `.bak` recovery. Keep `data/` (private runtime only; never committed) on persistent disk.
 - **Menu widgets:** balance, all observed users, and registered users are independently toggleable in `.setmenu widget`.
 - **Validation:** new tests are under `test/app-database-anonymous.test.js`, `test/ai-trigger-and-registration.test.js`, and `test/chess-rules.test.js`.
 
@@ -585,13 +755,19 @@ Detailed notes: [`docs/ANONYMOUS-NEXORA-REGISTRATION-BALANCE.md`](docs/ANONYMOUS
 - Virtual pet: `.hatch`, `.feed [item-id]`, `.mypet`; data lives in the web RPG database and requires `DUNGEON_SYNC_TOKEN` plus the `/api/player/pet` route.
 - Visual slot: `.slot` or `.casino`; it is a no-stakes mini-game and sends a generated image when `canvas` or FFmpeg is available.
 - `.welcome on` enables Canvas V2 member cards for joins/leaves. `.antilink on` checks WhatsApp group invite links only. Default behavior is warning; automatic kick is opt-in and disabled by default.
-- See [`docs/STAGE-20-MILESTONE.md`](docs/STAGE-20-MILESTONE.md) for deployment notes. Never distribute `.env`, session credentials, or `data/`.
+- See [`docs/STAGE-20-MILESTONE.md`](docs/STAGE-20-MILESTONE.md) for deployment notes. Never distribute `.env`, session credentials, or `data/` (private runtime only; never committed).
 
 
-## Update 2.8.1 — Setmenu, Menu Card V2 & Owner Command Tester
+## Update 2.8.1 — Setmenu, Menu Card V2 & Owner Full Testcommand
 
-- `.testcommands` / `.testcmds` is an owner-only diagnostic command. It inventories registered plugin commands and runs the Node.js test suite, then returns a WhatsApp interactive response with **Simpan & Update README** and **Jangan Simpan** buttons.
-- Saving the audit creates `test/owner-command-audit-<id>.test.js` and appends the report summary to this README. The full temporary report is stored under `data/test-reports/`. Command plugins are not blindly invoked: some commands send messages, mutate balances/data, or trigger external side effects.
+- `.testcommands`, `.testcommand`, `.testcmd`, dan `.testcmds` tetap owner-only. Pemanggilan tanpa argumen membuka kartu WhatsApp native-flow Control Center dengan tombol Mulai Full QA, Status QA, dan Laporan Sukses; hanya `.testcommands run` yang memulai full QA orchestrator: `npm ci` → audit sintaks `node --check` → `npm run verify:all` → `npm test`.
+- Dependency installation dan seluruh suite dijalankan di salinan sandbox sementara. Bot aktif tidak kehilangan `node_modules`, `.env`, sesi WhatsApp, atau database runtime; data sandbox dipisahkan dan hanya aset statis dungeon yang disalin.
+- Jika seluruh fase lulus, satu laporan sukses khusus ditulis/ditimpa di `test/reports/WHISKAY-VERIFY-SUCCESS.md`. Laporan ini hanya diperbarui setelah semua fase exit code 0.
+- Jika fase mana pun gagal, runner otomatis membuat `test/reports/diagnostics/WHISKAY-VERIFY-FAILURE-<run-id>.zip`. Arsip mencakup manifest, log stdout/stderr tiap fase, deteksi error TAP, file/line/column dari stack, cuplikan source bernomor, serta metadata package yang diperlukan untuk reproduksi.
+- Arsip diagnostik tidak memuat `.env`, `.npmrc`, `node_modules`, sesi/auth WhatsApp, user database, atau runtime state. Credential patterns umum juga disensor dari log.
+- Perintah pendukung: `.testcommands run`, `.testcommands status`, `.testcommands report`, dan `.testcommands help`; alias `.testcommand`, `.testcmd`, dan `.testcmds` tersedia. Help, status, report, start acknowledgement, duplicate-run notice, dan hasil akhir menggunakan tombol native-flow kontekstual dengan fallback teks. Runner mengirim acknowledgement langsung, berjalan di latar belakang, memberi update fase utama, dan menolak run duplikat. Command bisnis hanya diinventaris; command tidak dieksekusi massal karena dapat mengirim pesan, mengubah saldo, atau memicu aksi eksternal.
+- Runner dapat dipanggil juga dari terminal: `node scripts/testcommand-runner.mjs`. Pengujian helper runner masuk ke `npm run verify:testcommand` dan `npm run verify:all`.
+- Desain, format ZIP diagnostik, sandbox dan batasan QA: [`docs/OWNER-TESTCOMMAND-VERIFICATION.md`](docs/OWNER-TESTCOMMAND-VERIFICATION.md).
 - `.setmenu order` now opens an interactive selector for `category`, `az`, and `za`.
 - Two templates added: `neon` and `zen`.
 - Added five optional operational widgets: `biocore` (runtime/plugin registry status), `events` (recorded command-hit counter), `messages` (sum of locally recorded user message counts), `uptime`, and `database` (local user count and last update time). The bio-core label is a runtime status label, not a claim that the bot is conscious.
@@ -711,7 +887,7 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - Ledger file memiliki lock dalam proses, tetapi tidak memberikan transaksi lintas replica. Payment gateway otomatis, webhook signature, dan settlement live belum diimplementasikan.
 - QA: `npm run verify:stage31` atau `npm run verify:all`. Laporan: [`TEST-REPORT-STAGE-31.md`](docs/stages/TEST-REPORT-STAGE-31.md). Tes lokal bukan bukti konektivitas WhatsApp/payment gateway live.
 - Troubleshooting: jika history kosong, record lama mungkin belum pernah memiliki transaksi tercatat; jika ledger JSON rusak, hentikan bot dan backup file sebelum restore; jangan edit saldo produksi tanpa audit.
-- Memori arahan lintas stage: [`MEMORY.md`](MEMORY.md).
+- Memori arahan lintas stage: [`docs/project/MEMORY.md`](docs/project/MEMORY.md).
 
 
 ## Stage 32 — Menu UX, energi, profile, dan leveling
@@ -724,7 +900,7 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - **Reset pabrik** (`.setmenu reset`): pilih reset menu, status, profile, atau semua tampilan. Progres RPG dan ekonomi tidak dihapus.
 - **Default global owner** (`.setmenu global-default apply`): menyimpan baseline konfigurasi menu/status/profile canvas owner. Per-user override yang ada tetap dipertahankan; reset memakai baseline global.
 - **Coin Mod** (`.modcoin`): menu interaktif menampilkan saldo, riwayat, beli koin, status baterai, dan upgrade. Coin Mod adalah saldo virtual internal, bukan uang fiat atau Gold RPG.
-- **Energi habis**: command berbiaya dihentikan ketika saldo sudah 0. Command pemulihan yang dibebaskan: `menu`, `help`, `setmenu`, `status`, `statusbaterai`, `profile`, `charge`, `modcoin`, `ping`, `owner`. Energi masih dihitung sebelum command berbiaya; kegagalan baca ledger tetap fail-open untuk menghindari outage total.
+- **Energi habis**: command berbiaya dihentikan sebelum plugin berjalan jika saldo tidak cukup untuk biaya yang telah disesuaikan. Command kontrol/pemulihan yang di-allowlist antara lain `menu`, `help`, `setmenu`, `status`, `statusbaterai`, `statusenergi`, `battery`, `batteryinfo`, `setenergy`, `resetenergy`, `profile`, `charge`, `modcoin`, `ping`, `owner`, `energy`, `cortex`, `typo`, `memory`, `reminder`, `reminders`, `reminder-audit`, `nsfw`, dan `energysaverbutton`; plugin `energyMode: 'free'` atau biaya numerik eksplisit `0` juga bebas. Ledger yang gagal dibaca/ditulis dan nilai saldo tidak valid menggunakan fail-closed: command berbayar tidak diteruskan.
 - **Leveling**: operasi write XP/profile/group diserialisasi dalam satu proses agar pesan paralel tidak menimpa perubahan XP. Penyimpanan tetap JSON lokal dan bukan transaksi lintas-instance.
 - **Serializer**: entrypoint adalah `src/core/serializer.js` yang menggunakan `src/core/serializer-compat.cjs`. File bernama `serializer-compact.cjs` tidak ditemukan dalam arsip yang diaudit.
 - **Verifikasi**: `npm run verify:stage32` dan `npm run verify:all`. Hasil tes lokal bukan bukti pengujian WhatsApp live.
@@ -745,21 +921,19 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - **Sengaja tidak diport secara otomatis**: pembuka pesan view-once/anti-delete yang dapat mengekspos pesan privat, eskalasi sudo, API key tertanam, pengaturan autoread/autotyping yang butuh runtime hook, serta remove-background/remini/gif/Spotify yang memerlukan provider/token/service berbeda. Kandidat ini dicatat untuk penilaian per fitur, bukan dianggap hilang tanpa audit.
 - **Konfigurasi**: tidak ada secret baru. `.cuaca`, `.translate`, `.anime`, dan `.manga` memerlukan akses internet keluar. Perubahan endpoint eksternal, timeout, dan fallback sudah dibatasi.
 - **QA**: `npm run verify:stage33` menjalankan tujuh regression tests; `npm run verify:all` juga mencakup semua verifikasi terdahulu. Tes provider live tidak dijalankan oleh unit test lokal.
-- Work record: [`docs/stages/STAGE-33.md`](docs/stages/STAGE-33.md), [`docs/stages/TEST-REPORT-STAGE-33.md`](docs/stages/TEST-REPORT-STAGE-33.md), [`docs/stages/STAGE-33-250-SUBCATEGORIES.md`](docs/stages/STAGE-33-250-SUBCATEGORIES.md). Memori kerja: [`MEMORY.md`](MEMORY.md).
+- Work record: [`docs/stages/STAGE-33.md`](docs/stages/STAGE-33.md), [`docs/stages/TEST-REPORT-STAGE-33.md`](docs/stages/TEST-REPORT-STAGE-33.md), [`docs/stages/STAGE-33-250-SUBCATEGORIES.md`](docs/stages/STAGE-33-250-SUBCATEGORIES.md). Memori kerja: [`docs/project/MEMORY.md`](docs/project/MEMORY.md).
 
 
 ## Stage 34 — Energy Intelligence, Chronos & Safe Autonomy (2026-10-29)
 
 - Independent widget symbols: `.setmenu symbols visible before on|off` and `.setmenu symbols visible after on|off`; hide/show retains stored values and is independent from widget design/template.
 - Workload-aware energy middleware classifies recovery/free, static and dynamic commands. A command is rejected before execution if its estimated cost exceeds available energy. Ledger failures fail closed for command execution.
-- `.energy status|saver on|off`: Saver unlocks only below 20%, reduces eligible cost by 45%, and increases cooldown by 2.5×. Active saver renders only the first five sorted menu categories while energy is below 20%.
+- `.energy status|saver on|off`: Saver unlocks only below 20%, reduces eligible cost by workload class (40% simple, 48% network, 55% AI, 62% heavy), and applies a workload-aware cooldown multiplier (base 1.35×; higher for network/AI/heavy jobs). Explicit free commands keep zero cost and use a 1.5× saver cooldown. Active saver renders only the first five sorted menu categories while energy is below 20%.
 - `.typo on|off|threshold 68` provides owner-controlled command typo suggestions with edit-distance similarity percentage.
-- Background `JobLoader` + `ChronosCortex` loads explicit interval jobs with duplicate rejection and bounded concurrency. `.reminder` persists reminders; `.adzan` supports admin-controlled manual group schedules with a per-group IANA timezone (default `Asia/Jakarta`).
+- Background `JobLoader` + `ChronosCortex` loads explicit interval jobs with duplicate rejection and bounded concurrency. `.reminder` persists reminders; `.adzan` supports legacy admin-controlled manual group schedules and personal/owner-default region profiles; the latter capture WhatsApp shared coordinates only after an explicit private-chat request.
 - Three failures within 15 minutes logically quarantine a command for 30 minutes; `.quarantine list|reset` is owner-only and never edits source code.
 - `.nsfw` currently controls the master switch, pause and token policy only. No NSFW content generators are enabled; group opt-in/provider audit remain a gap.
 - `.bc --preview pesan` counts targets without sending. RPG `WorldManager` supports bounded render radius/tree density and emits `whiskay:world-telemetry`; it still uses procedural low-poly trees rather than a new photorealistic asset pack.
-- Bell helper audit uses a Feature Gap Ledger and Event Shell Adapter; features already covered by Whiskay are not cloned.
-- Detail: [`docs/stages/STAGE-34.md`](docs/stages/STAGE-34.md), [`STAGE-34-BELL-GAP-LEDGER.md`](docs/stages/STAGE-34-BELL-GAP-LEDGER.md), [`STAGE-34-250-SUBCATEGORIES.md`](docs/stages/STAGE-34-250-SUBCATEGORIES.md), [`STAGE-34-LITERACY-6-OWNER-BACKLOG.md`](docs/stages/STAGE-34-LITERACY-6-OWNER-BACKLOG.md).
 - Verification: `npm run verify:stage34`; local tests do not replace live WhatsApp/API checks.
 
 
@@ -769,29 +943,9 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - Successfully executed commands award 3–5 XP with a 15-second per-command anti-farming cooldown; level-up notifications link to profile and leaderboard.
 - Unknown commands can display typo suggestions with similarity percentages; configure with `.typo`.
 - Low-energy and insufficient-energy flows expose interactive actions for energy status, charging and Energy Saver.
-- See `docs/stages/STAGE-35.md` for the feature-gap ledger and deployment caveats. Install dependencies with `npm install`; optional Canvas PNG rendering can be enabled with `npm install @napi-rs/canvas`.
-
-- Stage 35 details: `docs/stages/STAGE-35.md`, `STAGE-35-250-SUBCATEGORIES.md`, `STAGE-35-LITERACY-6-OWNER-BACKLOG.md`, and `STAGE-35-BELL-GAP-LEDGER.md`.
+- See `docs/STAGE-35-CHESS-XP.md` for the feature-gap ledger and deployment caveats. Install dependencies with `npm install`; optional Canvas PNG rendering can be enabled with `npm install @napi-rs/canvas`.
 
 
-## Stage 36 — Experimental-Bell audit and Werewolf MVP
-- Safe event registry and guards: `src/core/event-registry.js`; locale and normalization adapters: `src/core/event-locale.js`, `src/core/helper-feature-adapter.js`.
-- Newly added Werewolf engine, persistent room store and plugins: `src/lib/werewolf-engine.js`, `src/lib/werewolf-store.js`, `src/plugins/games/werewolf.js`, `src/plugins/games/werewolf-private.js`.
-- Source audit from the uploaded Experimental-Bell archive: `docs/stages/STAGE-36-SOURCE-AUDIT.md` and `docs/stages/STAGE-36-EXPERIMENTAL-BELL-INVENTORY.md`.
-- Literasi 1–5 (250 subcategories with actual status flags): `docs/stages/STAGE-36-LITERASI-1-5.md`.
-- Verify with `npm run verify:stage36` or `npm run verify:all`. Werewolf is an MVP, not complete parity; timers, automatic DM room binding, Mayor weighting, Hunter trigger, and role-edge-case tests remain gaps.
-
-- Third-party attribution and adaptation policy: `NOTICE-THIRD-PARTY.md`.
-
-
-## Stage 37 — Experimental-Bell parity transplant (work in progress)
-
-- **Tujuan:** transplantasi command per command dari [Rifza123/Experimental-Bell](https://github.com/Rifza123/Experimental-Bell) ke arsitektur plugin Whiskay; bukan menyalin runtime event lama secara mentah.
-- **Ledger parity:** [`docs/stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json`](docs/stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json) mencatat 17 keluarga event, target Whiskay, prioritas, dan status audit. Status `partial` berarti fitur belum terbukti setara penuh.
-- **Audit & kebijakan:** [`docs/stages/STAGE-37.md`](docs/stages/STAGE-37.md). Semua command dan alias harus punya target plugin atau alasan pengecualian yang terdokumentasi. Pertahankan seluruh game yang ada di sumber—termasuk `family100`, `susunkata`, `tebakgambar`, `tebakanime`, dan game lainnya—bukan hanya Werewolf.
-- **Keamanan:** pertahankan `PluginManager`, `CommandHandler`, serializer Whiskay, middleware izin/energi, dan transaksi RPG yang sudah menjadi otoritas. Tidak boleh menyalin `.env`, sesi WhatsApp, atau kredensial.
-- **Verifikasi:** `npm run verify:stage37` memeriksa ledger dan dokumentasi; `npm run verify:all` juga menjalankannya setelah suite sebelumnya. Hasil terbaru: [`docs/stages/TEST-REPORT-STAGE-37.md`](docs/stages/TEST-REPORT-STAGE-37.md). Tes lokal tidak membuktikan provider/API atau WhatsApp live.
-- **Status jujur:** ledger dan dokumentasi Stage 37 sudah disiapkan; transplantasi penuh belum boleh dinyatakan selesai sampai pemetaan command/alias dan pengujian tiap batch selesai.
 
 ## Stage 39 — Group administration parity (Iteration 4)
 
@@ -818,7 +972,6 @@ The AI menu mode is a configuration switch only until an AI provider integration
 
 ## Stage 39 — Group administration parity (Iteration 1)
 
-- Audit awal `helpers/Events/group.js` dari Experimental-Bell dibandingkan plugin grup Whiskay yang sudah ada; tidak menggandakan command yang telah tersedia.
 - Ditambahkan daftar blokir command per grup melalui `.bancmd` / `.unbancmd`, persisten, dengan command pemulihan yang dilindungi. Command yang diblokir hanya dicegah bagi anggota non-admin; admin grup dan owner tetap dapat mengelola kebijakan.
 - Ditambahkan `.ephemeral off|24h|7d|90d|status`; aksi memakai `groupToggleEphemeral` jika tersedia dan tidak mengaku berhasil jika transport tidak mendukungnya.
 - Belum dipindahkan pada iterasi ini: jadwal buka/tutup otomatis, template welcome/leave berbasis media, `totag` forwarding, invite-info lookup, dan perubahan foto grup. Perlu kontrak API, batasan keamanan, serta pengujian terpisah.
@@ -831,13 +984,8 @@ The AI menu mode is a configuration switch only until an AI provider integration
 - `.setdata` and `.deldata` do not accept arbitrary database paths/fields. Secret values and raw database exports are never included in responses. Existing `.bc`, `.opsstatus`, `.console`, `.eval`, `.reload`, `.testcommands`, `.groupbot`, `.setenergy`, `.saluran`, `.zip`, and related owner controls remain in place.
 - Iteration 3: `.addowner`, `.delowner`, `.listowners` backed by `data/owner-access.json`; only the primary owner from `OWNERS` may alter owner grants. `.blockuser` / `.unblockuser` call the native Baileys blocklist only after explicit `confirm`, accept PN JIDs only, and refuse self/owner targets. `.sessionstatus` reports session file metadata only; no session deletion or credential content access is exposed. See [`STAGE-38-OWNER-ACCESS-ITERATION-3.md`](docs/stages/STAGE-38-OWNER-ACCESS-ITERATION-3.md).
 - Iteration 4: `.offline <alasan>`, `.online`, and `.offlinestatus` persist a maintenance mode in runtime state. Non-owner commands are gated while the mode is active, essential help/registration/status commands remain available, and owner commands still work. Notices are rate-limited per sender in the current process. Remote auto-update is intentionally deferred until a trusted source and integrity/rollback contract are configured. See [`STAGE-38-OFFLINE-MODE-ITERATION-4.md`](docs/stages/STAGE-38-OFFLINE-MODE-ITERATION-4.md).
-- Detail/audit: [`docs/stages/STAGE-38.md`](docs/stages/STAGE-38.md), [`STAGE-38-OWNER-PARITY-AUDIT.md`](docs/stages/STAGE-38-OWNER-PARITY-AUDIT.md), [`STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md`](docs/stages/STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md), and [`TEST-REPORT-STAGE-38.md`](docs/stages/TEST-REPORT-STAGE-38.md).
+- Owner operations reference: [`docs/OWNER-OPERATIONS.md`](docs/OWNER-OPERATIONS.md).
 - Verify: `npm run verify:stage38`; full regression: `npm run verify:all`. Mock tests do not replace live WhatsApp validation.
-
-
-## Experimental-Bell parity audit
-
-The transplant is selective: Whiskay implementations are preserved where they are more mature, and missing behavior is adapted rather than copied wholesale. See [`docs/EXPERIMENTAL-BELL-PARITY-AUDIT.md`](docs/EXPERIMENTAL-BELL-PARITY-AUDIT.md) for the source-family matrix, known gaps, and verification limits. Stage 41 Iteration 2 adds multiplayer SOS, multiplayer Ular Tangga, and a safe Minigames directory.
 
 
 ## Stage 41 Iteration 3 — Quiz Multiple Choice
@@ -848,3 +996,221 @@ Quiz families (`tebakgambar`, `susunkata`, `family100`, `tebakanime`, `caklonton
 ## Stage 41 Iteration 4 — Poll User Authorization
 
 Every built-in quiz database row generates four distinct A–D options. Native polls accept only one choice and only the user who started the session is authorized; other participants' votes are ignored. Regular quiz rounds close after that user's first selection, and `.jawab` cannot bypass an active poll. Family 100 continues as multiple rounds with one authorized selection per poll. Polls use the project's serializer JID aliases and Baileys `messages.update` aggregation. Live WhatsApp delivery and poll decryption still require connected-device validation. See `docs/stages/STAGE-41-ITERATION-4.md`.
+
+
+## Stage 42 Iteration 1 — Runtime tunnel and Baileys diagnostics
+
+- World Boss tunnel now validates `CLOUDFLARED_BIN` and falls back to the architecture-matched `data/bin` binary, `./bin`, or `cloudflared` on PATH.
+- A stale absolute path no longer causes repeated `spawn ... ENOENT` when a working fallback exists.
+- Baileys LID identity changes and missing Signal sender-key/app-state sync errors are documented with safe recovery steps. Do not delete or mix session key files to silence these protocol logs.
+- Run `npm run verify:stage42` for tunnel resolver regression tests.
+
+
+## Stage 44 — Quiz Session Isolation and Poll Serializer
+
+- Classic quiz sessions are keyed by chat + game type; multiple different quiz modes can run at once in the same chat.
+- Use `.hint tebakgambar`, `.nyerah tebakgambar`, or `.cleargame tebakgambar` to target a specific active game. Without a type, these commands target the latest active quiz created by the sender.
+- Global game rankings: `.toptebakgambar` and `.toptebakanime`.
+- Each win persists game-specific XP/win statistics and credits XP/coins into the Stage 43 leveling database.
+- Poll vote upserts are normalized in `src/core/serializer.js`. `src/core/serializer-compat.cjs` is a protected, unchanged compatibility layer.
+- Verify with `npm run verify:stage44`.
+
+## Stage 45 — Adaptive Energy Intelligence (v2.34.0)
+- Dynamic command energy estimates combine command class, input complexity, historical p95 execution time, observed response payload size, process CPU/heap pressure, event-loop delay, and concurrent async workload.
+- Explicitly free commands remain at `0.00%`; static commands retain their declared fixed cost; other eligible commands use the adaptive workload model.
+- Energy consumption notices are sent once after command completion as interactive messages with quick-reply buttons and a measured runtime/payload/cooldown breakdown.
+- Energy Saver unlocks only below 20%, auto-disables at or above 20%, and applies command-class energy reductions plus adaptive cooldown multipliers. Free commands remain free but receive the saver cooldown multiplier while the mode is active.
+- Saver buttons use persistent owner-bound tokens. A different user gets one warning; a repeated attempt persistently blocks that user from future saver-button actions.
+- Workload telemetry is persisted in `data/workload-tracker.json`; it tracks concurrent asynchronous tasks and event-loop pressure. This is not a CPU-parallel `worker_threads` pool.
+
+```mermaid
+flowchart TD
+  A[Incoming command] --> B[Cooldown policy]
+  B --> C[Workload estimator]
+  C --> D{Energy Saver active and energy < 20%?}
+  D -->|Yes| E[Adaptive energy discount + longer cooldown]
+  D -->|No| F[Standard energy policy]
+  E --> G[Energy ledger transaction]
+  F --> G
+  G --> H[Command execution]
+  H --> I[Measure runtime and response payload]
+  I --> J[Persist Workload Tracker profile]
+  J --> K[Interactive energy notice + owner-bound button]
+  K --> L[Token ownership and abuse gate]
+```
+
+
+## Stage 49 — Runtime & Group Cache Foundations (v2.35.4 · Part 1/5)
+
+Part 1 establishes the durable infrastructure used by later Stage 49 work. It deliberately does not include bulk participant extraction or automated mass invitations.
+
+### TryCloudflare URL persistence
+
+- The World Boss webhook tunnel now writes its detected Quick Tunnel URL to the active `ENV_FILE` (or `.env` by default) after the URL is detected.
+- Saved values: `WHISKAY_BOT_WEBHOOK_URL` and `WHISKAY_BOT_WEBHOOK_PUBLIC_URL`.
+- The Jadibot portal stores its latest temporary URL under `JADIBOT_LAST_TRYCLOUDFLARE_URL`. This is informational only and is not used as a static public URL on the next boot, so an expired Quick Tunnel URL does not disable auto-tunnel discovery.
+- Both tunnel workers use the same serialized, atomic environment-file writer to prevent simultaneous `.env` updates from overwriting each other. GitHub URL manifest sync is opt-in (`WHISKAY_TUNNEL_GITHUB_SYNC=false` by default).
+- Terminal output includes the detected base URL, webhook endpoint, and whether `.env` persistence succeeded. If persistence fails, the tunnel reports a warning and prints the value that must be copied manually.
+
+### Persistent group metadata
+
+- New service: `src/services/groupMetadataStore.js`; durable cache: `data/group-metadata.json` (runtime data, not committed).
+- On first connection with no completed snapshot, the bot calls `groupFetchAllParticipating()` once and stores the returned group metadata. The snapshot completion marker prevents repeating that full fetch on every restart.
+- Later group changes are applied incrementally from `groups.upsert`, `groups.update`, `group-participants.update`, and `chats.delete`; participant add/remove/promote/demote/modify updates do not trigger a fresh metadata query.
+- `cachedGroupMetadata` is wired into the primary Baileys socket as recommended by the current Baileys README. Serializer, group guard, and group tools now consult the persistent cache before considering a one-time fallback lookup.
+- When the bot is removed from a group or a group chat is deleted locally, that group record is removed from the cache. `.joingc <invite-link>` fetches metadata once for the newly joined group and stores it.
+
+### Owner group commands
+
+- `.joingc <url>` — owner-only group invite join; `.join` remains as a compatibility alias.
+- `.listgc` — interactive selectable list, sourced from the local JSON cache without an API fetch for each command.
+- `.listgc detail <GROUP_ID>` — group name, JID, owner mention (when exposed by metadata), creation time, member/admin counts, group settings, description, and a member preview.
+- `.listgc members <GROUP_ID> [page]` — paginated participant details from the same cache.
+- `.groupbot list` reads the cache instead of requesting the full group list again. World Boss webhook target resolution also reads the current cache.
+
+### Stage 49 — Part 2: Group collaboration and consent-based invitations
+
+- Added owner-only `.copymember <GROUP_ID>` and `.copyptpt <GROUP_ID>` as cached source-group previews (name, cached participant count, and admin count). These commands do not harvest/export participant contacts or silently add members.
+- Added owner-only `.groupinvite <GROUP_ID_TUJUAN>` to create a destination-group invite link from cached metadata. It is private-chat-only to reduce accidental disclosure; share the link only with people who explicitly requested to join.
+- Group IDs and invite codes are validated. No bulk-add operation, unsolicited invitation, or anti-abuse evasion is included.
+- Verification: `npm run verify:stage49-part2` (3/3 automated tests; mocked socket, not a live WhatsApp test).
+- Full notes: [`docs/STAGE-49-PART-2.md`](docs/STAGE-49-PART-2.md) and [`test/STAGE-49-PART-2-TEST-REPORT.md`](test/STAGE-49-PART-2-TEST-REPORT.md).
+
+### Stage 49 delivery plan
+
+1. **Part 1 — Runtime foundations:** TryCloudflare `.env` persistence, durable group metadata events, `.joingc`, and cache-backed `.listgc`. Completed in v2.35.4.
+2. **Part 2 — Group collaboration controls:** review-safe group membership workflows with clear owner approval and participant consent; no covert extraction or indiscriminate bulk adding.
+3. **Part 3 — WorkloadTracker:** bounded queues, fairness, concurrency limits, backoff, observability, and explicit platform-compliant cooldowns.
+4. **Part 4 — XP and notification experience:** quality-aware XP ledger, user-level display preferences, energy/XP cards, and setmenu defaults/overrides.
+5. **Part 5 — Polling and release consolidation:** poll/serializer regression fixes, documentation normalization, and the complete cross-stage regression suite.
+
+### Verification
+
+- `npm run verify:stage49-part1` — 8 tests covering persistence, partial metadata merge, incremental participant updates, bot/group removal, listgc/joingc command contracts, socket event wiring, and concurrent `.env` writers.
+- Syntax checks: group cache service, bot runtime, serializer, group guard, group tools, owner parity plugin, both tunnel services, and webhook entrypoint.
+- Live WhatsApp delivery and an actual Cloudflare-issued URL are deployment-time checks; these are not simulated or claimed as live-tested here.
+- Baileys implementation reference: [Caching group metadata in the official README](https://github.com/WhiskeySockets/Baileys#caching-group-metadata) and [official event documentation](https://github.com/WhiskeySockets/docs/blob/main/concepts/events.mdx).
+
+Full implementation notes: [`docs/STAGE-49-PART-1.md`](docs/STAGE-49-PART-1.md).
+
+## Stage 49 Part 3 — Workload Scheduler
+
+Whiskay now includes a bounded, fair Workload Scheduler for network/background jobs. It applies global and per-lane concurrency limits, a configurable minimum interval, bounded queue backpressure, and owner pause/resume controls (`.workload status`, `.workload pause`, `.workload resume`). Runtime limits are configured with `WHISKAY_WORKER_CONCURRENCY`, `WHISKAY_WORKER_LANE_CONCURRENCY`, `WHISKAY_WORKER_MIN_INTERVAL_MS`, and `WHISKAY_WORKER_MAX_QUEUE`. See `docs/STAGE-49-PART-3.md`. Pending closures are intentionally not replayed after restart; only telemetry is persisted. This protects reliability and respects platform rate limits rather than attempting anti-abuse evasion.
+
+## Stage 49 Part 4 — XP Intelligence & Energy Canvas
+
+- XP for successful commands and successful Nexora passive conversations is credited to the existing `data/leveling.json` ledger; quiz wins and RPG profiles remain on the same store. Command/conversation XP uses activity-class weights, a 15-second same-command cooldown, and a 300 XP UTC-day cap per profile.
+- Leveling persistence now writes schema version 3 consistently and reports profile/group/quiz counts plus aggregate XP through `getLevelingStorageStatus()`.
+- `Energy Canvas V1` renders a local 1200×675 PNG with remaining capacity, circular progress, command energy cost, XP gain, workload class, runtime, and payload size.
+- `.setmenu notification` supports `hide`, `merge`, `separate`, and `card`. `merge` appends to text replies only; image/video/document messages are never rewritten as caption objects. `card` includes quick actions to disable notifications or reopen `.setmenu`.
+- `.setmenu energy-notice on|off`, `.setmenu xp-notice on|off`, and `.setmenu xp-widget on|off` control each user's preferences independently.
+- Owner global defaults become the baseline for new users. Existing user preference records are preserved; applying a new global default clears only the owner's own override so the owner follows the new baseline.
+- `src/core/BioCore.js` exposes a deterministic, local telemetry-driven runtime policy. It does not claim sentience and does not require an external model API key.
+- Verification: `npm run verify:stage49-part4`; implementation and test details: [`docs/STAGE-49-PART-4.md`](docs/STAGE-49-PART-4.md) and [`test/STAGE-49-PART-4-TEST-REPORT.md`](test/STAGE-49-PART-4-TEST-REPORT.md).
+
+## Stage 49 Part 5 — Polling & Serializer Reliability
+
+- Baileys `getMessage` now resolves retained poll-creation messages from the bounded message store.
+- Outgoing poll WAMessages are stored with their message context secret so encrypted votes can be decrypted by Baileys.
+- Poll aggregation consumes Baileys-decrypted `messages.update` payloads; encrypted upsert payloads are not treated as plaintext votes.
+- Run `npm run verify:stage49-part5` after `npm ci` for the Part 5 regression suite.
+- A live WhatsApp group test is still required to certify end-to-end vote delivery.
+
+
+## QA diagnostics — 2026-10-31
+- [Testcommand diagnostic delivery and full-suite regression repair](docs/TESTCOMMAND-DIAGNOSTIC-DELIVERY-AND-REGRESSION-FIX-2026-10-31.md)
+- [Test report — Testcommand diagnostic delivery and 15 regression fixes](docs/TEST-REPORT-TESTCOMMAND-DIAGNOSTIC-FIX-2026-10-31.md)
+
+## npm test ZIP reports and Git upload safety
+
+- [Implementation and verification report (2026-11-01)](docs/TEST-REPORT-GIT-UPLOAD-NPM-TEST-2026-11-01.md).
+- Every `npm test` run writes a detailed ZIP report to `data/test-reports/`; `data/test-reports/LATEST.txt` identifies the newest report. The terminal shows a compact summary instead of the full per-test log. Attach the ZIP when asking for failure analysis.
+- The archive contains test counts, discovered file names, per-test event data, failure stack/expected/actual details when available, source excerpts, and redacted full reporter logs. A failed `npm ci` is also archived as a dependency-failure ZIP before QA aborts.
+- `scripts/auto-push.sh --qa` checks the npm lockfile metadata and runs `npm ci --no-audit --no-fund` only when `node_modules/` is missing or stale. It then runs `npm test` and creates the QA fingerprint.
+- `scripts/git-upload.sh --dry-run` performs ANALYZE and QA, including dependency installation and report creation, but does not stage, commit, or push.
+- All shell entrypoints are under `scripts/`; no `.sh` files should remain in the repository root. The owner plugin, package scripts, tests, and `git upload` alias all invoke the relocated paths.
+- `main` is human-owned; GitHub autopilot writes only to `automation`. Metrics/history workflows are read-only and must not commit or push.
+- Details and the Mermaid phase diagram: [Git upload pipeline and QA reports](docs/GIT-UPLOAD-AND-QA-REPORTS.md).
+
+## npm test discovery and filesystem isolation
+
+- `npm test` now runs through `scripts/run-tests.mjs` instead of unrestricted `node --test` discovery from the repository root.
+- The runner selects only JavaScript test files physically located under `test/`, passes the discovered file list explicitly to `node --test`, and never follows symlinks.
+- `.testignore` is the maintained exclusion list. `sessions/`, `node_modules/`, `.git/`, runtime/cache/build directories and generated test reports are excluded from discovery.
+- `SESSION_DIR`, `WHISKAY_DATA_DIR`, `JADIBOT_DATA_DIR`, `TMPDIR`, `TMP` and `TEMP` are redirected to a disposable OS temp directory for the test process; the directory is removed when the child process exits.
+- Tests that are also exposed as direct `verify:*` commands must isolate their own state before importing runtime modules. Stage 35 now creates a dedicated temp leveling store even outside `npm test`.
+- Run `npm run protect:runtime-data` once after installing this release to remove legacy tracked runtime files under `data/` (private runtime only; never committed) from Git while keeping local database files; `npm run protect:leveling-data` remains as an alias.
+- Important distinction: `node_modules/` is never scanned, selected as a test path, copied, cleaned, installed into, or modified by `npm test`. Node.js still reads installed package files when tests import dependencies; completely forbidding reads would make dependency-backed tests impossible.
+- The full `.testcommands` QA pipeline performs `npm ci` only in its temporary sandbox, then runs syntax checks, all `verify:all` gates, and `npm test`. It does not replace the live bot's `node_modules/` or read the live WhatsApp session directory.
+- If `npm test` reports a missing `sessions/pre-key-*.json`, inspect the failing test's import/runtime path. The runner itself does not enumerate or create test targets in `sessions/` and never fabricates Baileys pre-keys.
+
+
+## Stage 51 Part 4 — WhatsApp Adzan Audio
+
+Scheduler personal kini mengirim MP3 sebagai pesan audio WhatsApp bila file lokal tersedia. Siapkan `media/adzan/subuh.mp3` dan `media/adzan/umum.mp3` (atau atur `ADZAN_AUDIO_DIR`). Subuh memakai file khusus; Zuhur, Asar, Magrib, dan Isya memakai file umum. Maksimum 20 MB per file. Jika file tidak ada atau pengiriman audio gagal, bot mengirim pengingat teks. Pengguna dapat memilih `.adzan audio on/off/status` melalui DM. Detail pemasangan ada di `docs/media/adzan/README.md`.
+
+## Stage 51 Part 5 — Adzan Delivery Reliability & Control Center
+
+Personal prayer notifications are first persisted to `personalAdzanEvents` as a durable outbox item, then sent to the opted-in user's DM. Transient send failures retry after 1, 5, 15, and 30 minutes (five total attempts). After the fifth failure, the event is marked `dead` and remains visible in owner diagnostics. Use `.adzan admin` as owner to inspect database, audio files, and outbox counts; `.adzan audio check` checks audio readiness. Delivery is at-least-once, so an extremely narrow crash window after WhatsApp accepts a message but before local success is persisted may produce a duplicate. See `docs/STAGE-51-ADZAN-RELIABILITY.md`.
+
+### Stage 51 Part 6 — Adzan Dashboard
+
+Personal controls: `.adzan status`, `.adzan jadwal`, `.adzan metode indonesia|mwl|egyptian`, `.adzan koreksi <salat> <menit>`, `.adzan audio pack default|custom`, and `.adzan riwayat`. See [`docs/STAGE-51-ADZAN-DASHBOARD.md`](docs/STAGE-51-ADZAN-DASHBOARD.md) for audio file names, supported calculation presets, correction limits, and verification.
+
+### Stage 51 Part 7 — Advanced Adzan Intelligence
+
+- `.adzan berikutnya` shows the next prayer and countdown using the user's effective location, IANA timezone, calculation method, and configured corrections.
+- `.adzan kiblat` returns the initial bearing to the Kaaba measured clockwise from true north. It is not a live compass; calibrate the phone and account for magnetic declination when using a magnetic compass.
+- `.adzan hijriah` returns a tabular-civil estimate only; it does not replace local rukyat or official government announcements.
+- `.adzan mingguan` and `.adzan bulanan` show seven-day and rolling 30-day schedules. `.adzan ics` sends a one-day iCalendar attachment that can be imported into a calendar application.
+- `.adzan pengingat 0..30` sets a personal text reminder before each prayer. `0` disables the pre-alert; `1–30` is the lead time in minutes. Main Adzan notification still requires `.adzan on`.
+- All personal intelligence commands are private-chat-only. Calculation outputs are estimates and should be compared with the local mosque/authority timetable.
+- Implementation and focused QA: [`docs/STAGE-51-ADZAN-INTELLIGENCE.md`](docs/STAGE-51-ADZAN-INTELLIGENCE.md) · [`docs/TEST-REPORT-STAGE-51-ADZAN-INTELLIGENCE.md`](docs/TEST-REPORT-STAGE-51-ADZAN-INTELLIGENCE.md).
+
+```mermaid
+flowchart TD
+  WA[WhatsApp DM] --> CMD[.adzan dashboard commands]
+  CMD --> PROFILE[AdzanProfileStore]
+  PROFILE --> DB[(adzan-profiles.json + backup)]
+  PROFILE --> ENGINE[AdzanEngineService]
+  ENGINE --> CALC[Razzaq Adzan Engine]
+  CALC --> INTEL[Qibla · Hijri · Countdown · Range · ICS]
+  INTEL --> WA
+  CALC --> SCHED[Personal scheduler + pre-alert]
+  SCHED --> OUTBOX[Durable delivery outbox]
+  OUTBOX --> AUDIO[AdzanAudioService]
+  AUDIO --> SEND[Baileys audio or text fallback]
+  SEND --> WA
+```
+
+## QA regression hotfix — v2.35.13
+
+The v2.35.13 hotfix removes the duplicate `grouphelp` handler from `group-safety` (the interactive handler in `group-tools` is authoritative, with legacy safety tests updated to match) and makes Stage 46/47 release checks validate current semantic-version consistency instead of hard-coding the historical `2.35.4` value. See `docs/project/CHANGELOG.md` for the exact verification scope. The full test run must be repeated on the owner host after dependencies are installed; the previously supplied TAP excerpt omits one of its four failure details.
+
+## Repository integrity audit (Stage 54)
+
+Run `npm run audit:repository` to validate relative local imports and ensure `package.json` and `package-lock.json` release metadata match. Run `npm run verify:stage54` for its regression tests. Historical patch files under `docs/archive/patches/*.patch` are local-only because diffs may contain credential-like fixtures; keep any required local copy outside Git. Runtime databases, `data/`, WhatsApp sessions, and credentials remain excluded from uploads.
+
+
+## Stage 55 — Plugin & Command Intelligence
+
+Run `npm run audit:plugins` to inspect plugin command/alias declarations and receive advisory duplicate candidates. The audit is static and never removes or disables plugins automatically. Git upload halts safely on unresolved base-branch conflicts. See `docs/STAGE-55-PLUGIN-COMMAND-INTELLIGENCE.md`.
+
+
+## Stage 55 — Plugin & Command Intelligence
+
+Run `npm run audit:plugins` to inspect plugin command/alias declarations and receive advisory duplicate candidates. The audit is static and never removes or disables plugins automatically. Git upload now snapshots approved local changes before base synchronization and halts safely on unresolved conflicts. See `docs/STAGE-55-PLUGIN-COMMAND-INTELLIGENCE.md`.
+
+
+## Stage 56 — Git History & Move Intelligence
+
+`npm run audit:git-intelligence` inspects commits pending against the base branch, staged/unstaged rename and deletion states, and legacy root shell scripts that may have moved into `scripts/`. Before snapshot and publish, `git upload` compares the root script with its `scripts/` counterpart. A near-identical match (similarity >= 65%) is treated as a confirmed move: the obsolete root index entry and duplicate worktree copy are removed so Git can record one rename. A weaker match is never deleted automatically; upload halts for review. After staging, a second check ensures no tracked root duplicate remains. This is designed to preserve distinct scripts and avoid blind filename-based deletion. Run `npm run verify:stage56` for regression tests.
+
+## Stage 57 — Git Commit Lineage & Recovery Intelligence
+
+`npm run audit:git-recovery` audits commit ancestry, ahead/behind counts, and patch-equivalent commits already represented in the base branch. `npm run git:upload` now resumes an existing `upload/*` branch after an interrupted run instead of rejecting it or creating a duplicate branch. Recovery analysis is read-only: it never resets, rebases, amends, force-pushes, or deletes existing commits. The recovery gate also skips empty PRs when all pending patches already exist in base. The upload QA pipeline now records `npm audit --json` details and blocks a clean QA result when High/Critical vulnerabilities are present or the audit service is unreachable. The Stage 53 dungeon-data test now checks Git tracking state rather than requiring an ignored local legacy file to be physically absent. See [`docs/STAGE-57-GIT-COMMIT-LINEAGE-RECOVERY.md`](docs/STAGE-57-GIT-COMMIT-LINEAGE-RECOVERY.md).
+
+
+## Upload Whitespace Hotfix — v2.35.21
+
+The upload snapshot and publish whitespace gate reported three existing formatting defects. Removed trailing whitespace from `src/plugins/general/adzan.js:248` and normalized the end-of-file newline in `test/stage48-teamdrop-relay.test.js` and `vendor/razzaq-adzan-engine/src/prayer-times.mjs`. The strict whitespace check remains enabled; it was not bypassed or weakened.
