@@ -43,14 +43,29 @@ test('menu settings include independent widget design, battery visibility, pagin
   } finally { process.chdir(original); if (oldDataDir === undefined) delete process.env.WHISKAY_DATA_DIR; else process.env.WHISKAY_DATA_DIR = oldDataDir; await rm(temp, { recursive: true, force: true }); }
 });
 
-test('energy middleware explicitly blocks non-recovery commands at zero energy', async () => {
+test('energy middleware blocks paid commands without enough energy and exempts recovery/free commands', async () => {
   const source = await readFile(new URL('../src/middlewares/energy-worker.js', import.meta.url), 'utf8');
-  assert.match(source, /current\.energy<adjusted\.cost/);
+  assert.match(source, /canExecuteWithEnergy/);
   assert.match(source, /fail closed|Ledger energi tidak dapat mencatat biaya/i);
   assert.match(source, /ctx\.aborted=true/);
-  const workload = await readFile(new URL('../src/core/WorkloadCortex.js', import.meta.url), 'utf8');
-  assert.match(workload, /ZERO_COST/);
-  assert.match(workload, /energyMode === 'free'/);
+
+  const { estimateWorkload, canExecuteWithEnergy } = await import('../src/core/WorkloadCortex.js');
+  const freeMode = estimateWorkload({ command: 'custom-free', plugin: { energyMode: 'free' } });
+  const zeroCost = estimateWorkload({ command: 'custom-zero', plugin: { energyCost: 0 } });
+  const paid = estimateWorkload({ command: 'custom-paid', plugin: { energyMode: 'static', energyCost: 1.25 } });
+
+  assert.equal(freeMode.mode, 'exempt');
+  assert.equal(freeMode.cost, 0);
+  assert.equal(zeroCost.mode, 'exempt');
+  assert.equal(zeroCost.cost, 0);
+  assert.equal(paid.mode, 'static');
+  assert.equal(paid.cost, 1.25);
+  assert.equal(canExecuteWithEnergy(0, paid.cost, paid.cost), false, 'zero energy must block a paid command');
+  assert.equal(canExecuteWithEnergy(0.5, paid.cost, paid.cost), false, 'insufficient energy must block a paid command');
+  assert.equal(canExecuteWithEnergy(paid.cost, paid.cost, paid.cost), true, 'exact balance is sufficient');
+  assert.equal(canExecuteWithEnergy(0, freeMode.cost, freeMode.cost), true, 'recovery/free commands do not require energy');
+  assert.equal(canExecuteWithEnergy(Number.NaN, paid.cost, paid.cost), false, 'invalid ledger values fail closed');
+  assert.equal(canExecuteWithEnergy(100, Number.NaN), false, 'invalid workload estimates fail closed');
 });
 
 test('serializer implementation is compat layer, not a separate compact serializer', async () => {

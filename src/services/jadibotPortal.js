@@ -7,6 +7,7 @@ import { Readable } from 'node:stream';
 import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { updateEnvFileValues } from '../lib/env-file.js';
 
 const ROOT = path.resolve(process.env.JADIBOT_DATA_DIR || './data/jadibot');
 const TICKETS_FILE = path.join(ROOT, 'pairing-tickets.json');
@@ -232,6 +233,13 @@ async function ensureCloudflared() {
   await chmod(dest, 0o700);
   return dest;
 }
+async function persistLastTryCloudflareUrl(value) {
+  const file = process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.resolve('.env');
+  await updateEnvFileValues(file, { JADIBOT_LAST_TRYCLOUDFLARE_URL: value });
+  console.log(`[jadibot-portal] URL TryCloudflare tersimpan otomatis ke ${file}`);
+  console.log(`[jadibot-portal] Portal: ${value}`);
+}
+
 function startTunnel(executable) {
   return new Promise(resolve => {
     stopRequested = false;
@@ -241,7 +249,20 @@ function startTunnel(executable) {
     const inspect = chunk => {
       const text = String(chunk || '');
       const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-      if (match) { tunnelUrl = match[0]; publicBaseUrl = tunnelUrl; portalMode = 'trycloudflare'; console.log(`[jadibot-portal] TryCloudflare active: ${publicBaseUrl}`); finish(publicBaseUrl); }
+      if (match && !tunnelUrl) {
+        tunnelUrl = match[0].replace(/\/+$/, '');
+        publicBaseUrl = tunnelUrl;
+        portalMode = 'trycloudflare';
+        persistLastTryCloudflareUrl(tunnelUrl)
+          .then(() => {
+            console.log(`[jadibot-portal] TryCloudflare active: ${publicBaseUrl}`);
+            finish(publicBaseUrl);
+          })
+          .catch(error => {
+            console.warn(`[jadibot-portal] URL aktif, tetapi .env gagal diperbarui: ${error.message}`);
+            finish(publicBaseUrl);
+          });
+      }
       if (/failed to start|authentication error|failed to create quick tunnel/i.test(text)) console.warn('[jadibot-portal] Cloudflare tunnel log indicates startup trouble.');
     };
     tunnel.stdout.on('data', inspect); tunnel.stderr.on('data', inspect);

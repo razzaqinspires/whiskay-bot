@@ -9,14 +9,16 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 import { getRazzaqWebsiteContent } from '../../services/razzaqWebsite.js';
-import { getEnergy, complexityScore, getHits } from '../../lib/energy-worker.js';
+import { getEnergy, getHits } from '../../lib/energy-worker.js';
+import { estimateWorkload } from '../../core/WorkloadCortex.js';
 import { getEnergySaver } from '../../lib/energy-saver.js';
 import { getProfile, getLeaderboard } from '../../lib/leveling.js';
-import { renderMenuCardV2 } from '../../services/canvas-v2.js';
+import { getBioCoreSnapshot } from '../../core/BioCore.js';
+import { renderMenuCardV1, renderMenuCardV2 } from '../../services/canvas-v2.js';
 import { getUser, getUserStats, readAppDatabase } from '../../lib/app-database.js';
 
 
-async function renderOfficialCanvas(kind, botName, avatarPath = null) { return renderMenuCardV2({ botName, avatarPath, subtitle: kind === 'rpg' ? 'PLAYER PROFILE / LEVEL · XP · INVENTORY' : 'PERSONALIZED COMMAND CENTER' }); }
+async function renderOfficialCanvas(kind, botName, avatarPath = null, version = 'v2') { const options={botName,avatarPath,subtitle:kind==='rpg'?'PLAYER PROFILE / LEVEL · XP · INVENTORY':'PERSONALIZED COMMAND CENTER'}; return version==='v1'?renderMenuCardV1(options):renderMenuCardV2(options); }
 
 function mapChars(text, upper, lower, digits = null) {
   return String(text).replace(/[A-Za-z0-9]/g, c => {
@@ -149,13 +151,13 @@ async function renderMenu(ctx) {
   if(settings.widgets.includes('toprank')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.toprank=widgetLine(settings,`Top Rank: ${board.length?board.map((p,i)=>`${i+1}. ${String(p.user||'player').split('@')[0]} · Lv.${p.level||1}`).join(' | '):'belum ada data'}`); } catch { widgetLines.toprank=widgetLine(settings,'Top Rank: data belum tersedia'); } }
   if(settings.widgets.includes('toplevels')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.toplevels=widgetLine(settings,`Top Level: ${board.length?board.map((p,i)=>`${i+1}. ${String(p.user||'player').split('@')[0]} · Lv.${p.level||1}`).join(' | '):'belum ada data'}`); } catch { widgetLines.toplevels=widgetLine(settings,'Top Level: data belum tersedia'); } }
   if(settings.widgets.includes('modcoins')) { try { const energyInfo=await getEnergy(ctx.sender||ctx.chat); widgetLines.modcoins=widgetLine(settings,`Coin Mod: ${Number(energyInfo.modCoins||0).toLocaleString('id-ID')}`); } catch { widgetLines.modcoins=widgetLine(settings,'Coin Mod: data belum tersedia'); } }
-  if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=widgetLine(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')} · XP ${p.xp||0}`); } catch { widgetLines.rpgstatus=widgetLine(settings,'RPG: data karakter belum tersedia'); } }
+  if(settings.widgets.includes('rpgstatus')) { try { const p=await getProfile(ctx.chat,ctx.sender); widgetLines.rpgstatus=widgetLine(settings,`RPG: Level ${p.level||1} · Gold/Coin ${Number(p.coin||0).toLocaleString('id-ID')}${settings.showXpInMenu===false?'':` · XP ${p.xp||0}`}`); } catch { widgetLines.rpgstatus=widgetLine(settings,'RPG: data karakter belum tersedia'); } }
   if(settings.widgets.includes('leaderboard')) { try { const board=await getLeaderboard(ctx.chat,3); widgetLines.leaderboard=widgetLine(settings,`Leaderboard: ${board.length?board.map((p,i)=>`${i+1}.${String(p.user||'player').split('@')[0]} Lv.${p.level||1}`).join(' · '):'belum ada data'}`); } catch { widgetLines.leaderboard=widgetLine(settings,'Leaderboard: data belum tersedia'); } }
   if(settings.widgets.includes('commandhits')) { try { const hits=await getHits(); widgetLines.commandhits=widgetLine(settings,`Total hit command: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.commandhits=widgetLine(settings,'Total hit command: tidak tersedia'); } }
   if(settings.widgets.includes('balance')) { try { const user=await getUser(ctx.sender); widgetLines.balance=widgetLine(settings,`Saldo: Rp${Number(user?.balance||0).toLocaleString('id-ID')}`); } catch { widgetLines.balance=widgetLine(settings,'Saldo: data belum tersedia'); } }
   if(settings.widgets.includes('totalusers') || settings.widgets.includes('registeredusers')) { try { const stats=await getUserStats(); if(settings.widgets.includes('totalusers')) widgetLines.totalusers=widgetLine(settings,`Total pengguna terpantau: ${stats.total}`); if(settings.widgets.includes('registeredusers')) widgetLines.registeredusers=widgetLine(settings,`Pengguna terdaftar: ${stats.registered}`); } catch {} }
   if(settings.widgets.includes('websiteProducts')) { try { const content=await getRazzaqWebsiteContent(); const products=content.products||content.catalog?.products||content.items||content.data?.products||[]; widgetLines.websiteProducts=widgetLine(settings,`Produk website: ${Array.isArray(products)?products.length:'data tidak tersedia'}`); } catch { widgetLines.websiteProducts=widgetLine(settings,'Produk website: data live tidak tersedia'); } }
-  if(settings.widgets.includes('biocore')) widgetLines.biocore=widgetLine(settings,`Bio Core: runtime aktif · ${registry.plugins?.plugins?.size||0} plugin terdaftar`);
+  if(settings.widgets.includes('biocore')) { const bio=getBioCoreSnapshot(); widgetLines.biocore=widgetLine(settings,`Bio Core: ${bio.state} · pressure ${bio.pressure} · ${bio.telemetry.activeWorkers} worker · ${registry.plugins?.plugins?.size||0} plugin`); }
   if(settings.widgets.includes('events')) { try { const hits=await getHits(); widgetLines.events=widgetLine(settings,`Event/command tercatat: ${Number(hits.total||0).toLocaleString('id-ID')}`); } catch { widgetLines.events=widgetLine(settings,'Event runtime: tidak tersedia'); } }
   if(settings.widgets.includes('messages') || settings.widgets.includes('database')) { try { const db=await readAppDatabase(); const users=Object.values(db.users||{}); const totalMessages=users.reduce((n,u)=>n+Math.max(0,Number(u.messageCount)||0),0); if(settings.widgets.includes('messages')) widgetLines.messages=widgetLine(settings,`Pesan masuk tercatat: ${totalMessages.toLocaleString('id-ID')}`); if(settings.widgets.includes('database')) widgetLines.database=widgetLine(settings,`Database: lokal · ${users.length} user · update ${db.updatedAt?new Date(db.updatedAt).toLocaleString('id-ID'):'belum ada'}`); } catch { if(settings.widgets.includes('messages')) widgetLines.messages=widgetLine(settings,'Pesan masuk: data tidak tersedia'); if(settings.widgets.includes('database')) widgetLines.database=widgetLine(settings,'Database: tidak tersedia'); } }
   if(settings.widgets.includes('uptime')) { const seconds=Math.floor(process.uptime()); const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60); widgetLines.uptime=widgetLine(settings,`Uptime proses: ${hours}j ${minutes}m`); }
@@ -166,9 +168,10 @@ async function renderMenu(ctx) {
   rows.forEach((row,index)=>{
     if(settings.categoriesVisible!==false&&settings.widgets.includes('category')&&row.category!==lastCategory){lastCategory=row.category;lines.push('',line(settings,`〔 ${titleCase(lastCategory)} 〕`,'category'));}
     const plugin=registry.plugins.resolve(row.command);
-    const energyMark=plugin?.energyMode==='static'?'📌':'⚡';
+    const policy=estimateWorkload({command:row.command,args:[],plugin:plugin||{},runtime:{}});
+    const energyMark=policy.mode==='exempt'?'·':policy.mode==='static'?'📌':'⚡';
     const showEnergy=(settings.energyDetails||settings.showEnergyNumbers);
-    const energyValue=settings.showEnergyNumbers?` ${Number(plugin?.energyCost ?? complexityScore(`${row.command} ${row.description}`)).toFixed(2).replace('.',',')}%`:'';
+    const energyValue=settings.showEnergyNumbers?` ${Number(policy.cost||0).toFixed(2).replace('.',',')}%`:'';
     const energySuffix=showEnergy?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${energyValue}`:'';
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
@@ -176,7 +179,7 @@ async function renderMenu(ctx) {
     const commandText=emphasized(settings,`${String(index+1).padStart(2,'0')}. ${ctx.prefix}${row.command}${mark}${accessMarks}${energySuffix}`,'command'); const descText=desc&&isBold(settings,'description')?` — *${row.description}*`:desc; lines.push(`${gap}${line(settings,`${commandText}${descText}`,'none')}`);
   });
   if(settings.widgets.includes('footer')) lines.push('',line(settings,`Atur tampilan: ${ctx.prefix}setmenu`,'footer'));
-  if(settings.widgets.includes('footer')) lines.push('',line(settings,'Legenda: ⚡ Energi dinamis · 📌 Energi statis · 🔢 angka biaya · 🎟️ memakai Limit · 💎 Premium eksklusif','footer'));
+  if(settings.widgets.includes('footer')) lines.push('',line(settings,'Legenda: ⚡ Energi dinamis · 📌 Energi statis · · Gratis/tanpa energi · 🔢 angka biaya · 🎟️ memakai Limit · 💎 Premium eksklusif','footer'));
   if(settings.bottomBorder!==false) lines.push(style(emphasized(settings,t.bottom,'border'),settings.font));
   const text=lines.join('\n');
   if(saverCompact) return ctx.reply(`🔒 SAVER MODE · 5 kategori teratas untuk menghemat bandwidth\n\n${text}`);
@@ -205,11 +208,11 @@ async function renderMenu(ctx) {
     let validUrl=false;try{const parsed=new URL(officialUrl);validUrl=['http:','https:'].includes(parsed.protocol);}catch{}
     if(validUrl) image={url:officialUrl};
     else {
-      let avatarPath = null;
+      let avatarPath = settings.canvasAvatarPath || null;
       const configuredAvatar = settings.canvasAvatarSource === 'logo' ? process.env.BOT_LOGO_PATH : process.env.OWNER_AVATAR_PATH;
-      if (configuredAvatar) avatarPath = configuredAvatar;
+      if (!avatarPath && configuredAvatar) avatarPath = configuredAvatar;
       if (!avatarPath && settings.canvasAvatarSource !== 'logo') { try { const profile = await getProfile(ctx.chat, ctx.sender); if (profile?.profileImageMode === 'manual' && profile?.profileImagePath) avatarPath = profile.profileImagePath; } catch {} }
-      const canvas = await renderOfficialCanvas(String(settings.imageMode).startsWith('official-rpg')?'rpg':'menu', config.botName, avatarPath);
+      const canvas = await renderOfficialCanvas(String(settings.imageMode).startsWith('official-rpg')?'rpg':'menu', config.botName, avatarPath, isCanvasV2?'v2':'v1');
       if(canvas) image=canvas;
       else imageWarning='Kanvas official gagal dibuat pada host ini. Pastikan FFmpeg tersedia; menu teks tetap dapat digunakan.';
     }

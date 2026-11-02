@@ -1,12 +1,13 @@
 import { mkdir, readFile, rename, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Worker } from 'node:worker_threads';
 const execFileAsync = promisify(execFile);
 import { syncDashboardPlayer, dashboardUrl } from '../../services/dungeonWebsiteSync.js';
 const DATA = path.resolve('data/dungeon-rpg.json');
-const FLOOR_DATA = path.resolve('data/dungeon/floors.json');
+const FLOOR_DATA = fileURLToPath(new URL('../../../assets/dungeon/floors.json', import.meta.url));
 async function getFloorDefinition(floor){try{const d=JSON.parse(await readFile(FLOOR_DATA,'utf8'));return d.floors?.[clamp(Number(floor||1)-1,0,(d.floors?.length||1)-1)]||null;}catch{return null;}}
 function predictBattle(player,enemy){return new Promise(resolve=>{let settled=false;const finish=v=>{if(settled)return;settled=true;resolve(v);};let worker;try{worker=new Worker(new URL('../../workers/dungeon-predictor.js',import.meta.url));worker.once('message',data=>{finish(data);worker.terminate().catch(()=>{});});worker.once('error',()=>{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});worker?.terminate().catch(()=>{});});worker.postMessage({player,enemy});setTimeout(()=>{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});worker?.terminate().catch(()=>{});},1500).unref?.();}catch{finish({winProbability:50,estimatedTurns:1,estimatedIncoming:0,confidence:55});}});}
 

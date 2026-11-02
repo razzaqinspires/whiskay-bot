@@ -1,0 +1,101 @@
+name: Whiskay automation autopilot
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 */6 * * *'
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: whiskay-automation-branch
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout human-owned main (read source only)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: source
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run audit with exponential retry
+        id: audit
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TRAFFIC_TOKEN: ${{ secrets.WHISKAY_GITHUB_TRAFFIC_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule || '' }}
+          SOURCE_DIR: source
+        run: |
+          set +e
+          for attempt in 1 2 3; do
+            python3 source/.github/scripts/automation_autopilot.py --source source
+            status=$?
+            if [ "$status" -eq 0 ]; then echo "safe_mode=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "Attempt $attempt failed (exit $status)."
+            sleep $((2 ** attempt * 5))
+          done
+          echo "safe_mode=true" >> "$GITHUB_OUTPUT"
+          python3 source/.github/scripts/automation_autopilot.py --source source --safe-mode || true
+          exit 0
+      - name: Preserve generated automation state
+        run: |
+          mkdir -p /tmp/automation-output
+          if [ -d source/automation ]; then cp -a source/automation/. /tmp/automation-output/; fi
+      - name: Checkout automation branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -C source config user.name 'github-actions[bot]'
+          git -C source config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Generated files were copied to /tmp; clean the ephemeral checkout before switching refs.
+          git -C source reset --hard HEAD
+          git -C source clean -fd
+          git -C source fetch origin automation || true
+          if git -C source show-ref --verify --quiet refs/remotes/origin/automation; then
+            git -C source checkout -B automation origin/automation
+          else
+            git -C source checkout -B automation origin/main
+          fi
+          rm -rf source/automation
+          mkdir -p source/automation
+          cp -a /tmp/automation-output/. source/automation/
+          python3 - <<'PY'
+          import subprocess, sys
+          changed = subprocess.check_output(['git','-C','source','status','--porcelain'], text=True)
+          allowed = all(line[3:].startswith('automation/') for line in changed.splitlines() if line.strip())
+          if not allowed:
+              print('GUARDRAIL VIOLATION: changes outside automation/; refusing to commit.')
+              sys.exit(23)
+          branch = subprocess.check_output(['git','-C','source','branch','--show-current'], text=True).strip()
+          if branch != 'automation':
+              print(f'GUARDRAIL VIOLATION: current branch is {branch!r}; refusing to commit.')
+              sys.exit(24)
+          PY
+          git -C source add automation/
+          if git -C source diff --cached --quiet; then echo 'No automation changes.'; exit 0; fi
+          git -C source commit -m 'chore(automation): refresh audit state [skip ci]'
+          git -C source push origin HEAD:automation
+      - name: Open issue for severe incidents
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if grep -Rqi 'SEVERITY: critical' /tmp/automation-output/incidents 2>/dev/null; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title 'Whiskay automation: critical incident' --body 'The scheduled automation recorded a critical incident. See automation/incidents/ on the automation branch.' || true
+          fi

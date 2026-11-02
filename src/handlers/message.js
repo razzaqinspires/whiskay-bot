@@ -1,12 +1,16 @@
 import Logger from '../core/Logger.js';
 import { serializeMessage } from '../core/serializer.js';
-import { awardMessageXP, getProfile } from '../lib/leveling.js';
+import { awardMessageXP, awardCommandXP, getProfile } from '../lib/leveling.js';
+import { getMenuSettings } from '../lib/menu-settings.js';
 import { observeUser, getUser } from '../lib/app-database.js';
 import aiChatPlugin from '../plugins/tools/ai-chat.js';
 import { relayAnonymousMessage } from '../plugins/general/anonymous.js';
 import { getGroupSettings } from '../lib/group-settings.js';
 import { updateUser } from '../lib/app-database.js';
 import { recordMessageMetric } from '../lib/stage26-observability.js';
+import { consumePendingMenuAvatar } from '../services/menu-avatar-upload.js';
+import { consumePendingEnvReply } from '../lib/env-config.js';
+import { saveAdzanSharedLocation } from '../services/AdzanProfileStore.js';
 
 export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
   if (upsert.type !== 'notify') return;
@@ -16,6 +20,29 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
       recordMessageMetric('received');
+      if (!ctx.isBot && await consumePendingEnvReply(ctx).catch(error => { Logger.warn({ err: error.message }, '.env reply handling failed'); return false; })) continue;
+      // A static WhatsApp location is accepted only when the sender explicitly armed
+      // an Adzan location request with `.adzan lokasi` or the owner used `.adzan default`.
+      if (!ctx.isBot && ctx.type === 'locationMessage' && ctx.sender) {
+        const location = ctx.msg || {};
+        try {
+          const saved = await saveAdzanSharedLocation(ctx.sender, {
+            latitude: location.degreesLatitude, longitude: location.degreesLongitude,
+            name: location.name || '', address: location.address || '', isOwner: Boolean(ctx.isOwner)
+          });
+          if (saved.saved) {
+            await ctx.reply(`✅ Lokasi ${saved.target === 'ownerDefault' ? 'default owner' : 'pribadi'} berhasil disimpan.\nKoordinat: ${saved.location.latitude.toFixed(5)}, ${saved.location.longitude.toFixed(5)}\nPeta: ${saved.location.mapUrl}\n\nZona waktu saat ini mengikuti default. Jika berbeda, atur dengan .adzan timezone <IANA>, misalnya Asia/Makassar.`);
+            continue;
+          }
+          if (saved.reason === 'owner-only') { await ctx.reply('Lokasi default hanya dapat disimpan oleh owner.'); continue; }
+        } catch (error) {
+          Logger.warn({ err: error.message }, 'Adzan location capture failed');
+          await ctx.reply(`Lokasi tidak dapat disimpan: ${error.message}`).catch(() => {});
+          continue;
+        }
+      }
+      // A photo reply to the explicit Canvas V2 upload prompt is saved automatically.
+      if (!ctx.isBot && ctx.type === 'imageMessage' && await consumePendingMenuAvatar(ctx).catch(err => { Logger.warn({ err: err.message }, 'menu avatar upload failed'); return false; })) continue;
       eventBus.emit('message', ctx);
       eventBus.emit('message:received', { correlationId: ctx.correlationId, receivedAt: ctx.receivedAt, chat: ctx.chat, sender: ctx.sender, isGroup: Boolean(ctx.isGroup), fromMe: Boolean(ctx.isBot) });
       // Group blacklist is per-group and deliberately excludes admins and owners.
@@ -114,8 +141,12 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       const prompt = incoming.replace(/@(?:nexora|whiskay)\b/ig, '').trim();
       if (!prompt) { await ctx.reply('🤖 Nexora siap. Tulis pertanyaan setelah mention.').catch(() => {}); continue; }
       const aiCtx = { ...ctx, args: [prompt], command: 'ai', prefix: '', text: prompt };
-      try { await aiChatPlugin.execute(aiCtx); }
-      catch (aiError) { Logger.warn({ err: aiError.message }, 'passive AI skipped'); }
+      try {
+        await aiChatPlugin.execute(aiCtx);
+        const xp = await awardCommandXP(ctx.chat || ctx.sender, ctx.sender, 'nexora-chat').catch(() => null);
+        const prefs = await getMenuSettings(ctx.sender || ctx.chat).catch(() => ({}));
+        if (xp?.gain > 0 && prefs.xpNotificationEnabled !== false) await ctx.reply(`⭐ +${xp.gain} XP diperoleh dari percakapan Nexora.`).catch(() => {});
+      } catch (aiError) { Logger.warn({ err: aiError.message }, 'passive AI skipped'); }
     } catch (e) {
       recordMessageMetric('errors');
       Logger.error({ err: e.message }, 'message handler error');

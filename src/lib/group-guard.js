@@ -1,6 +1,7 @@
 import { isGroupMuted, inspectGroupText } from './group-policy.js';
 import { sameUser } from './security.js';
 import { getGroupSettings as getOperationalGroupSettings } from './group-settings.js';
+import { groupMetadataStore } from '../services/groupMetadataStore.js';
 const noticeAt = new Map();
 const antiLinkHits = new Map();
 const participantIsAdmin = participant => ['admin', 'superadmin'].includes(String(participant?.admin || participant?.role || '').toLowerCase()) || Boolean(participant?.isAdmin || participant?.isSuperAdmin);
@@ -12,10 +13,11 @@ export async function applyGroupGuard(ctx) {
   if (isGroupMuted(ctx.chat) && !ownerControl) return { action:'muted' };
   if (ctx.fromMe || ctx.isBaileys || ctx.isOwner) return { action:'allow' };
 
-  let metadata = ctx.groupMetadata;
-  // Tests and plugin callers may supply the socket without preloaded group metadata.
-  // An explicit null remains a fail-open sentinel: we do not moderate without role data.
-  if (metadata === undefined && typeof ctx.sock?.groupMetadata === 'function') {
+  const hasExplicitMetadata = Object.prototype.hasOwnProperty.call(ctx, 'groupMetadata');
+  let metadata = hasExplicitMetadata ? ctx.groupMetadata : groupMetadataStore.get(ctx.chat);
+  // An explicit null is a deliberate no-metadata sentinel. A cache miss (null from
+  // GroupMetadataStore) is different: fetch one authoritative snapshot from Baileys.
+  if (!hasExplicitMetadata && !metadata && typeof ctx.sock?.groupMetadata === 'function') {
     try { metadata = await ctx.sock.groupMetadata(ctx.chat); } catch {}
   }
   if (!metadata) return { action:'allow', reason:'group_metadata_unavailable' };
@@ -78,8 +80,8 @@ export async function sendGroupParticipantNotice(sock, update) {
   if (!group.endsWith('@g.us') || !['add','remove','leave'].includes(action) || !Array.isArray(update?.participants)) return;
   const settings = await getOperationalGroupSettings(group).catch(() => ({ welcome: false }));
   if (!settings.welcome) return;
-  let groupName = 'WhatsApp Group';
-  try { groupName = String((await sock.groupMetadata(group))?.subject || groupName); } catch {}
+  let groupName = String(groupMetadataStore.get(group)?.subject || 'WhatsApp Group');
+  if (groupName === 'WhatsApp Group') { try { const meta = await sock.groupMetadata(group); if (meta) { groupMetadataStore.upsert(meta, group); groupName = String(meta.subject || groupName); } } catch {} }
   for (const participant of update.participants.slice(0, 10)) {
     const jid = String(typeof participant === 'string' ? participant : participant?.id || participant?.jid || '');
     if (!jid || !jid.includes('@')) continue;

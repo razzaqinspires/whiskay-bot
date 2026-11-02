@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';import path from 'node:path';
+const dir=await mkdtemp(path.join(os.tmpdir(),'whiskay-stage49-p4-notice-'));process.env.WHISKAY_DATA_DIR=dir;
+const {updateMenuSettings}=await import('../src/lib/menu-settings.js');
+const {default:energyWorker}=await import('../src/middlewares/energy-worker.js');
+const makeCtx=()=>{const sent=[];return {sent,command:'weather',args:[],sender:'notice-user@s.whatsapp.net',chat:'notice-chat@g.us',prefix:'.',plugin:{workload:'network',cooldown:1000},isBot:false,reply:async v=>{sent.push({type:'reply',v});},send:async v=>{sent.push({type:'send',v});},sendInteractive:async v=>{sent.push({type:'interactive',v});}};};
+test('merge mode appends energy footer to text response',async()=>{await updateMenuSettings('notice-user@s.whatsapp.net',{batteryNotification:'merge'});const c=makeCtx();await energyWorker(c,async()=>true);await c.reply('Weather ready');await c.completeEnergyTelemetry({durationMs:50});assert.match(c.sent.find(x=>x.type==='reply').v,/baterai digunakan/);});
+test('merge mode never injects energy into media captions',async()=>{await updateMenuSettings('notice-user@s.whatsapp.net',{batteryNotification:'merge'});const c=makeCtx();await energyWorker(c,async()=>true);await c.send({image:Buffer.from('fake')});await c.completeEnergyTelemetry({durationMs:50});const media=c.sent.find(x=>x.type==='send');assert.equal(media.v.caption,undefined);assert.ok(c.sent.some(x=>x.type==='reply'&&/baterai digunakan/.test(x.v)));});
+test('card mode emits image payload without media caption',async()=>{await updateMenuSettings('notice-user@s.whatsapp.net',{batteryNotification:'card'});const c=makeCtx();await energyWorker(c,async()=>true);await c.reply('Weather ready');await c.completeEnergyTelemetry({durationMs:50});const card=c.sent.find(x=>x.type==='interactive');assert.ok(card?.v?.image);assert.equal(card.v.caption,undefined);assert.ok(card.v.buttons.some(b=>String(b.id).includes('energy-notice off')));});
+test('cleanup',async()=>{await rm(dir,{recursive:true,force:true});});

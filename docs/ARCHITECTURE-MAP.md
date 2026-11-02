@@ -58,3 +58,22 @@ flowchart TD
 ## Documentation continuity note (2026-10-29)
 
 This file is retained as part of the historical implementation record. For the current cross-stage status, recent fixes, test commands and known limitations, see [Master Stage Archive](STAGE-1-22-MASTER-ARCHIVE.md) and the [documentation index](README.md). Newer behavior supersedes earlier implementation details only where the dated update explicitly says so; previous decisions and history are not deleted.
+
+
+## Leveling data integrity (Stage 50)
+
+```mermaid
+flowchart TD
+    CMD[XP / profile mutation] --> LOCK[Cross-process writer lock]
+    LOCK --> VALIDATE[Validate payload and current primary]
+    VALIDATE --> BACKUP[Atomic previous-generation backup]
+    BACKUP -->|Failure| ABORT[Abort mutation; keep primary]
+    BACKUP -->|Success| PRIMARY[Atomic primary replacement]
+    PRIMARY --> ARCHIVE[Optional gzip + SHA-256 recovery snapshot]
+    TEST[Direct verify:* tests] --> TEMP[Isolated OS temp data directory]
+    TEMP --> TESTDB[Test-only leveling database]
+    PUSH[Explicit repository push] --> GUARD[Untrack leveling runtime paths]
+    GUARD --> SOURCE[Stage source and docs only]
+```
+
+The production leveling ledger is runtime data and must not be versioned. `.gitignore` cannot untrack files already present in the Git index; run `npm run protect:runtime-data` once after deployment. See [Stage 50](STAGE-50-LEVELING-DATA-INTEGRITY.md).

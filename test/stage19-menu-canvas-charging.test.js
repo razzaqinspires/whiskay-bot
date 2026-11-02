@@ -17,11 +17,12 @@ test('Stage 19 menu has category spacing and dynamic RPG/leaderboard/hit widgets
 test('Stage 19 timed charging math and charging lock are documented in runtime code', async () => {
   const energy = await read('../src/lib/energy-worker.js');
   const middleware = await read('../src/middlewares/energy-worker.js');
+  const raidboss = await read('../src/plugins/games/raidboss.js');
   const plugin = await read('../src/plugins/owner/energy-system.js');
   assert.match(energy, /252000/); // 4.2 minutes per percentage point
   assert.match(energy, /chargingEndsAt/);
   assert.match(energy, /setInterval\(async \(\) =>/);
-  assert.match(middleware, /Peringatan CPU: Cabut charger/);
+  assert.match(raidboss, /Peringatan CPU: Cabut charger/);
   assert.ok(plugin.includes("ctx.command==='statusbaterai'") && plugin.includes("ctx.command==='setenergy'"));
 });
 

@@ -10,7 +10,7 @@ All metrics below are operational measurements or deterministic heuristics. They
 | `energy.rejected_insufficient` | Count of commands rejected before execution for insufficient energy | Energy middleware / `WorkloadTracker` task counters | In-process counters | PARTIAL: aggregate rejection count, not durable per-command series |
 | `energy.saver_enabled` | User's saved saver preference | `data/energy-saver.json` | Atomic JSON rename, per user | IMPLEMENTED |
 | `energy.saver_unlocked` | `available < 20%` | Workload/energy middleware | Calculated per command | IMPLEMENTED |
-| `cooldown.multiplier` | 2.5× for eligible commands in saver below 20% | Cooldown middleware | Calculated per command | IMPLEMENTED |
+| `cooldown.multiplier` | Workload-aware: 1.35× base + 0.35 network / 0.45 AI / 0.70 heavy; bounded at 2.8×. Free zero-cost commands use 1.5× in saver mode. | Cooldown middleware | Calculated per command | IMPLEMENTED; Stage 45 supersedes initial fixed multiplier |
 | `workload.cpu_percent` | Process CPU delta over elapsed wall time, normalized by CPU core count | `WorkloadTracker.sample()` | On message/command; rolling max 60 samples | IMPLEMENTED, heuristic |
 | `workload.heap_percent` | `heapUsed / heapTotal × 100` | Node `process.memoryUsage()` | On message/command; rolling max 60 samples | IMPLEMENTED |
 | `workload.rss_mb` | Resident set size in MiB | Node `process.memoryUsage()` | On message/command | IMPLEMENTED |
@@ -36,8 +36,8 @@ All metrics below are operational measurements or deterministic heuristics. They
 ## Operational thresholds
 
 - Energy Saver: unlocked only when energy is strictly below `20%`.
-- Saver cost factor: `0.55×` of eligible original estimate (about 45% lower); cooldown multiplier `2.5×`.
-- Workload score: `NORMAL < 50`, `ELEVATED 50–74.9`, `HIGH 75–89.9`, `CRITICAL ≥ 90`.
+- Saver cost reduction is workload-specific: 40% simple, 48% network, 55% AI, and 62% heavy. Cooldown multiplier is `1.35 + 0.35(network) + 0.45(AI) + 0.70(heavy)`, capped at `2.8×`; free commands retain zero cost and use `1.5×` when saver mode is active.
+- Workload score: `NORMAL < 50`, `ELEVATED 50–74.9`, `HIGH 75–89.9`, `CRITICAL ≥ 90`; heap pressure is weighted at `0.85×` while CPU, queue and event-loop pressure use their own scores.
 - Failure Memory Shard: 3 command failures in a rolling 15-minute window → 30-minute logical quarantine.
 - SyntaxDoctor: max 50 `.js` files per run, each subprocess timeout 5 seconds.
 - Reminder delivery: 3 attempts maximum; stale `processing` claim reclaimed after 5 minutes.

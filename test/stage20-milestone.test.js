@@ -7,7 +7,7 @@ test('serializer runtime export fixes Bot.js named import', async () => {
   const source = await read('../src/core/serializer.js');
   const bot = await read('../src/core/Bot.js');
   assert.match(source, /export const attachSerializerRuntime = compat\.extendSocket/);
-  assert.match(bot, /import \{ attachSerializerRuntime \} from '\.\/serializer\.js'/);
+  assert.match(bot, /import \{[^}]*attachSerializerRuntime[^}]*\} from '\.\/serializer\.js'/);
 });
 
 test('Nexora system prompt is prefilled and below the model input cap', async () => {

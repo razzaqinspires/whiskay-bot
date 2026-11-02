@@ -14,7 +14,7 @@ Literasi 1: Fondasi, Bug Fix, Energi, dan Kualitas
     · Subkategori runtime.5: [Bug Fix] Pisahkan command pemulihan dari command berbiaya agar pengguna tetap bisa mengisi energi.
     · Subkategori runtime.6: [Test] Uji level energi 0, 0.01, dan nilai positif di atas biaya.
     · Subkategori runtime.7: [Dokumentasi] Tambahkan troubleshooting jika command dihentikan oleh energi habis.
-    · Subkategori runtime.8: [Dokumentasi] Jelaskan bahwa kegagalan baca ledger masih fail-open.
+    · Subkategori runtime.8: [Bug Fix/Dokumentasi] Tegaskan kebijakan fail-closed saat baca/tulis ledger gagal; command berbayar tidak dijalankan tanpa pencatatan.
     · Subkategori runtime.9: [Bukti] Simpan hasil `npm run verify:all` Stage 32.
     · Subkategori runtime.10: [Rencana] Tambah integration test menggunakan socket Baileys mock untuk blok energi nol.
 

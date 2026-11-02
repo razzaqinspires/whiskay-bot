@@ -1,0 +1,20 @@
+# Directory names below are enforced by scripts/run-tests.mjs during test discovery.
+node_modules/
+sessions/
+data/
+.git/
+.runtime/
+.test-runtime/
+.cache/
+coverage/
+.next/
+.turbo/
+auth_info_baileys/
+logs/
+tmp/
+temp/
+downloads/
+cache/
+dist/
+build/
+reports/

@@ -23,11 +23,13 @@ WHISKAY_GITHUB_TRAFFIC_TOKEN=
 
 `WHISKAY_GITHUB_REPO` must name the real repository in `owner/repo` format. `WHISKAY_GITHUB_TOKEN` is optional for public metadata but can help with rate limits/private repository access. `WHISKAY_GITHUB_TRAFFIC_TOKEN` is optional and is required for the privileged traffic endpoint. Use a fine-grained token with repository access and **Administration: Read** permission for traffic endpoints; keep it only in `.env` or repository secrets. Reference: [GitHub REST repository traffic API](https://docs.github.com/en/rest/metrics/traffic).
 
-## Metrics workflow
+## Metrics workflow — read-only
 
-`.github/workflows/github-metrics.yml` is scheduled every six hours, can be started with `workflow_dispatch`, and also runs on relevant source pushes. `.github/scripts/update_github_metrics.py` calls the GitHub REST API, stores a current snapshot in `docs/metrics/github-metrics.json`, appends a bounded history in `docs/metrics/history.json`, generates Mermaid charts, and updates only the section between `<!-- GITHUB_METRICS_START -->` and `<!-- GITHUB_METRICS_END -->` in the root README. Generated commits use `[skip ci]` and `GITHUB_TOKEN` to avoid an update loop.
+`.github/workflows/github-metrics.yml` runs on its schedule, manual dispatch, and relevant pushes to `main`. It may calculate metrics in the ephemeral Actions workspace, but its permission is `contents: read` and it has no commit/push step. README metrics therefore do not auto-update in the repository; refresh or commit a reviewed snapshot manually when desired.
 
-To enable traffic data, create the Actions secret `WHISKAY_GITHUB_TRAFFIC_TOKEN` at repository Settings → Secrets and variables → Actions. The workflow still reports public metadata if this secret is absent, but explicitly displays traffic as unavailable.
+The `repo-update-history.yml` workflow is also read-only. It can create a temporary history entry during the job, but it does not append that change to the repository. This deliberately retires the legacy bot writers that previously advanced `main` after each human push.
+
+The sole GitHub automation writer is `automation-autopilot.yml`, which checks out human-owned `main` read-only and writes generated automation state only to the bot-owned `automation` branch. The human `git upload` route publishes source changes only to `upload/*` and opens a reviewed Pull Request; it never writes directly to `main`.
 
 ## What “visitor count” means
 
@@ -38,7 +40,7 @@ GitHub's traffic endpoint returns view and clone totals broken down over **the l
 - Clones and unique cloners: `GET /repos/{owner}/{repo}/traffic/clones`.
 - Workflow run summaries: `GET /repos/{owner}/{repo}/actions/runs`.
 
-The existing `.github/workflows/repo-update-history.yml` is preserved. It appends source-update metadata to `docs/history/updates.jsonl` after eligible pushes; that log describes code updates and is separate from website analytics or repository traffic metrics.
+The existing `.github/workflows/repo-update-history.yml` is retained as a read-only workflow. It does not commit or push the generated ledger; see [GitHub automation isolation](GITHUB-AUTOMATION-ISOLATION.md).
 
 ---
 

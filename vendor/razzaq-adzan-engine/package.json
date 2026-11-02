@@ -1,0 +1,40 @@
+{
+  "name": "@razzaq-ventures/adzan-engine",
+  "version": "1.3.0",
+  "description": "Modular prayer-time engine, diagnostics, reference-data adapters, API and IoT payload tooling.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./solar": "./src/solar.mjs",
+    "./methods": "./src/methods.mjs",
+    "./scheduler": "./src/scheduler.mjs",
+    "./qibla": "./src/qibla.mjs",
+    "./ical": "./src/ical.mjs",
+    "./errors": "./src/errors.mjs",
+    "./timezone": "./src/timezone.mjs",
+    "./hijri": "./src/hijri.mjs",
+    "./diagnostics": "./src/diagnostics.mjs",
+    "./reference-data": "./src/reference-data.mjs",
+    "./device": "./src/device.mjs",
+    "./persistence": "./src/persistence.mjs",
+    "./api": "./src/api.mjs"
+  },
+  "scripts": {
+    "test": "node --test",
+    "example": "node examples/medan.mjs",
+    "check": "for file in src/*.mjs examples/*.mjs test/*.mjs; do node --check \"$file\" || exit 1; done",
+    "start:api": "node examples/api-server.mjs",
+    "test:ci": "node --test"
+  },
+  "keywords": [
+    "prayer-times",
+    "adhan",
+    "islamic-calendar",
+    "solar-position",
+    "esm"
+  ]
+}

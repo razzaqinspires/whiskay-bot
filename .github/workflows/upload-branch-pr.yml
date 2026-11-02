@@ -1,0 +1,277 @@
+name: Whiskay upload branch → Pull Request + QA
+
+on:
+  push:
+    branches:
+      - 'upload/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: whiskay-upload-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  submit-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout uploaded branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Create or update Pull Request
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const head = context.ref.replace('refs/heads/', '');
+            const base = 'main';
+            const runId = head.split('/').at(-1);
+            const reportPath = `docs/reports/git-upload/${runId}.md`;
+            const reportUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${head}/${reportPath}`;
+            let report = '';
+            try { report = fs.readFileSync(reportPath, 'utf8'); } catch {}
+            const localQa = report ? (/qa_status:\s*FAIL/i.test(report) ? 'FAIL' : 'PASS') : 'UNKNOWN';
+            core.setOutput('run_id', runId);
+            core.setOutput('report_path', reportPath);
+            core.setOutput('local_qa', localQa);
+            const title = `chore(whiskay): automated upload ${runId}`;
+            const body = [
+              '## Automated Whiskay Bot upload',
+              '',
+              `- **Source branch:** \`${head}\``,
+              `- **Base branch:** \`${base}\``,
+              `- **Commit:** \`${context.sha}\``,
+              `- **Local QA:** **${localQa}**`,
+              `- **Local diagnostic report:** [${reportPath}](${reportUrl})`,
+              `- **GitHub validation run:** [Open workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              '',
+              'This branch was uploaded by `scripts/git-upload.sh`. It does not write to `main`.',
+              'The workflow runs a second clean install, syntax validation and full regression suite.',
+              'A failed validation creates or updates a detailed GitHub Issue and keeps the PR unmerged.',
+              '',
+              '### Local report excerpt',
+              '',
+              report ? report.slice(0, 9000) : 'Report file was not found on this branch. Check the workflow artifact.',
+            ].join('\n');
+            try {
+              const { data: existing } = await github.rest.pulls.list({
+                owner: context.repo.owner, repo: context.repo.repo,
+                state: 'open', head: `${context.repo.owner}:${head}`, base, per_page: 20,
+              });
+              let pr;
+              if (existing.length) {
+                pr = (await github.rest.pulls.update({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  pull_number: existing[0].number, title, body,
+                })).data;
+              } else {
+                pr = (await github.rest.pulls.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  head, base, title, body, maintainer_can_modify: true,
+                })).data;
+              }
+              core.setOutput('number', String(pr.number));
+              core.setOutput('pr_status', 'PASS');
+              core.info(`Pull Request: ${pr.html_url}`);
+            } catch (error) {
+              core.setOutput('pr_status', 'FAIL');
+              core.setOutput('pr_error', String(error?.message || error).slice(0, 3000));
+              core.warning(`Pull Request creation failed; continuing diagnostics: ${error?.message || error}`);
+            }
+
+      - name: Prepare CI diagnostic directory
+        run: mkdir -p ci-artifacts
+
+      - name: Install locked dependencies (clean npm ci)
+        id: install
+        shell: bash
+        run: |
+          set +e
+          npm ci --no-audit --no-fund --fetch-retries=2 --fetch-timeout=30000 > ci-artifacts/npm-ci.log 2>&1
+          result=$?
+          if [ "$result" -ne 0 ]; then
+            echo 'Retrying npm ci with --prefer-offline...' >> ci-artifacts/npm-ci.log
+            npm ci --no-audit --no-fund --prefer-offline --fetch-retries=2 --fetch-timeout=30000 >> ci-artifacts/npm-ci.log 2>&1
+            result=$?
+          fi
+          cat ci-artifacts/npm-ci.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      - name: Syntax-check all project JavaScript
+        id: syntax
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          find src scripts test config automation .github/scripts -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) -print0 |
+            while IFS= read -r -d '' file; do node --check "$file" || exit 1; done > ci-artifacts/syntax.log 2>&1
+          result=$?
+          cat ci-artifacts/syntax.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      - name: Run full regression test suite
+        id: tests
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npm test > ci-artifacts/npm-test.log 2>&1
+          result=$?
+          cat ci-artifacts/npm-test.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      - name: Upload complete CI logs and test ZIPs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whiskay-upload-${{ steps.pr.outputs.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-artifacts/
+            data/test-reports/
+            docs/reports/git-upload/${{ steps.pr.outputs.run_id }}.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create detailed issue and update Pull Request
+        id: report
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
+          SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
+          TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+          LOCAL_QA: ${{ steps.pr.outputs.local_qa || 'UNKNOWN' }}
+          PR_NUMBER: ${{ steps.pr.outputs.number || '' }}
+          RUN_REPORT_PATH: ${{ steps.pr.outputs.report_path || '' }}
+          PR_RESULT: ${{ steps.pr.outputs.pr_status || 'FAIL' }}
+          PR_ERROR: ${{ steps.pr.outputs.pr_error || '' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const install = process.env.INSTALL_RESULT;
+            const syntax = process.env.SYNTAX_RESULT;
+            const tests = process.env.TEST_RESULT;
+            const localQa = process.env.LOCAL_QA;
+            const prResult = process.env.PR_RESULT;
+            const prError = process.env.PR_ERROR;
+            const prNumber = Number(process.env.PR_NUMBER || 0);
+            const sha = context.sha;
+            const marker = `<!-- whiskay-upload-validation:${sha} -->`;
+            const scrub = value => String(value || '')
+              .replace(/(authorization\s*[:=]\s*(?:bearer\s+)?)[^\s,;]+/gi, '$1[REDACTED]')
+              .replace(/(gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_./+=-]{12,}/g, '[REDACTED_TOKEN]')
+              .replace(/-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----[\s\S]*?-----END ([A-Z ]+ )?PRIVATE KEY-----/g, '[REDACTED_PRIVATE_KEY]');
+            const read = file => { try { return scrub(fs.readFileSync(file, 'utf8')); } catch { return ''; } };
+            const logs = {
+              'npm ci': read('ci-artifacts/npm-ci.log'),
+              'syntax': read('ci-artifacts/syntax.log'),
+              'npm test': read('ci-artifacts/npm-test.log'),
+            };
+            const failed = install !== 'PASS' || syntax !== 'PASS' || tests !== 'PASS' || localQa !== 'PASS' || prResult !== 'PASS';
+            const extract = text => text.split(/\r?\n/)
+              .map((line, index) => ({ line, index }))
+              .filter(x => /not ok|AssertionError|\bError:|\bERR!|npm error|SyntaxError|ReferenceError|TypeError|EAI_AGAIN|ENOTFOUND|ECONNRESET|ETIMEDOUT|failed|FAIL/i.test(x.line))
+              .slice(0, 100)
+              .map(x => `${x.index + 1}: ${x.line}`)
+              .join('\n')
+              .slice(0, 18000);
+            const details = Object.entries(logs).map(([name, content]) => {
+              const lines = extract(content);
+              return `### ${name}\n\n${lines ? '```text\n' + lines + '\n```' : 'No failure markers captured.'}`;
+            }).join('\n\n');
+            const reportPath = process.env.RUN_REPORT_PATH;
+            const reportUrl = reportPath
+              ? `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${context.ref.replace('refs/heads/','')}/${reportPath}`
+              : '';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const summary = [
+              '## Validation status', '',
+              `| Check | Result |`, '|---|---|',
+              `| Pull Request creation | ${prResult} |`,
+              `| Local QA | ${localQa} |`,
+              `| GitHub npm ci | ${install} |`,
+              `| Syntax check | ${syntax} |`,
+              `| Full npm test | ${tests} |`,
+              '',
+              `- Branch: \`${context.ref.replace('refs/heads/','')}\``,
+              `- Commit: \`${sha}\``,
+              prError ? `- Pull Request API error: ${prError}` : '',
+              `- Workflow: [${context.runId}](${runUrl})`,
+              reportUrl ? `- Local diagnostics: [${reportPath}](${reportUrl})` : '',
+              '- Complete redacted logs and generated test ZIPs are attached to the workflow run under **Artifacts**.',
+            ].filter(Boolean).join('\n');
+
+            let issueUrl = '';
+            if (failed) {
+              const issueBody = [marker, '# Whiskay automated upload validation failed', '', summary, '', '## Extracted error / bug details', '', details, '',
+                '## Next action', '',
+                'Download the attached `whiskay-upload-*` artifact for the complete install, syntax, and test logs. Fix the reported root cause on this upload branch, then run `git upload` again. Do not merge this PR while validation is failing.',
+              ].join('\n');
+              const { data: openIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100,
+              });
+              const previous = openIssues.find(item => !item.pull_request && (item.body || '').includes(marker));
+              let issue;
+              if (previous) {
+                issue = (await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: previous.number,
+                  title: `Whiskay upload validation failed · ${sha.slice(0, 8)}`, body: issueBody,
+                })).data;
+              } else {
+                issue = (await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title: `Whiskay upload validation failed · ${sha.slice(0, 8)}`,
+                  body: issueBody,
+                })).data;
+              }
+              issueUrl = issue.html_url;
+              if (prNumber) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber,
+                  body: `Automated validation did not pass. Detailed issue: ${issueUrl}\n\n${summary}`,
+                });
+              }
+              core.setOutput('result', 'FAIL');
+              core.warning(`Validation failed; issue ${issue.html_url} recorded.`);
+            } else {
+              if (prNumber) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber,
+                  body: `Automated branch validation passed. npm ci, syntax check and npm test are green.\n\n${summary}`,
+                });
+              }
+              core.setOutput('result', 'PASS');
+              core.info('All upload branch validations passed.');
+            }
+
+      - name: Enforce validation verdict
+        if: always()
+        env:
+          INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
+          SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
+          TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+          LOCAL_QA: ${{ steps.pr.outputs.local_qa || 'UNKNOWN' }}
+          PR_RESULT: ${{ steps.pr.outputs.pr_status || 'FAIL' }}
+        run: |
+          if [ "$PR_RESULT" != PASS ] || [ "$INSTALL_RESULT" != PASS ] || [ "$SYNTAX_RESULT" != PASS ] || [ "$TEST_RESULT" != PASS ] || [ "$LOCAL_QA" != PASS ]; then
+            echo 'UPLOAD_VALIDATION=FAIL'
+            exit 1
+          fi
+          echo 'UPLOAD_VALIDATION=PASS'

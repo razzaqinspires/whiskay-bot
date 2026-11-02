@@ -15,8 +15,10 @@ test('Coin Mod audit entry validates balances and sanitizes metadata', () => {
 test('Coin Mod credit/spend writes balance and bounded history together; insufficient spend is unchanged', async () => {
   const original = process.cwd();
   const temp = await mkdtemp(path.join(os.tmpdir(), 'whiskay-stage31-'));
+  const previousDataDir = process.env.WHISKAY_DATA_DIR;
   try {
     process.chdir(temp);
+    process.env.WHISKAY_DATA_DIR = path.join(temp, 'data');
     const worker = await import('../src/lib/energy-worker.js?stage31-isolated');
     assert.deepEqual(await worker.addModCoins('user-1', 120, { reason: 'verified-payment', reference: 'INV-1', at: 1000 }), { ok: true, modCoins: 120 });
     assert.deepEqual(await worker.spendModCoins('user-1', 35, { reason: 'fast-charge', reference: '15V', at: 2000 }), { ok: true, modCoins: 85 });
@@ -34,6 +36,8 @@ test('Coin Mod credit/spend writes balance and bounded history together; insuffi
     assert.equal(ledger['user-1'].modCoins, 190);
   } finally {
     process.chdir(original);
+    if (previousDataDir === undefined) delete process.env.WHISKAY_DATA_DIR;
+    else process.env.WHISKAY_DATA_DIR = previousDataDir;
     await rm(temp, { recursive: true, force: true });
   }
 });

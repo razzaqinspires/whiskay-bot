@@ -91,4 +91,4 @@ Production verification must additionally test an invalid/no-token visit, a vali
 
 - Existing stage files and `docs/archive/**` are historical records. Do not delete them to “clean up” the index.
 - If a claim is superseded, add a dated correction note rather than silently rewriting the earlier statement.
-- Root `README.md`, `docs/README.md`, `CHANGELOG.md`, this stage register, and a dated test report must be updated on every meaningful release.
+- Root `README.md`, `docs/README.md`, `docs/project/CHANGELOG.md`, this stage register, and a dated test report must be updated on every meaningful release.

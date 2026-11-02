@@ -8,7 +8,8 @@ import qrcode from 'qrcode-terminal';
 import path from 'node:path';
 import Logger from './Logger.js';
 import EventBus from './EventBus.js';
-import { attachSerializerRuntime } from './serializer.js';
+import { attachSerializerRuntime, extractPollUpdateEvents } from './serializer.js';
+import compatSerializer from './serializer-compat.cjs';
 import { PluginManager } from './PluginManager.js';
 import { AutoCleaner } from './AutoCleaner.js';
 import { CommandHandler } from './CommandHandler.js';
@@ -25,6 +26,7 @@ import { registry } from './registry.js';
 import config from '../config/index.js';
 import { getGroupSettings } from '../lib/group-settings.js';
 import { runGroupSchedules } from '../lib/group-scheduler.js';
+import { groupMetadataStore, loadGroupMetadataStore } from '../services/groupMetadataStore.js';
 import { renderGroupMemberCardV2 } from '../services/canvas-v2.js';
 import { ChronosCortex } from './ChronosCortex.js';
 import { JobLoader } from './JobLoader.js';
@@ -34,6 +36,12 @@ export class Bot {
     this._pm = new PluginManager(config.pluginDir);
     this._cmd = new CommandHandler(this._pm);
     this._restart = false;
+    this._connectPromise = null;
+    this._reconnectTimer = null;
+    this._reconnectAttempt = 0;
+    this._connectionState = 'starting';
+    this._socketGeneration = 0;
+    this._stopping = false;
     this._chronos = new ChronosCortex({ concurrency: 2 });
     this._jobLoader = new JobLoader({ chronos: this._chronos, context: () => ({ sock: this._sock }) });
     this._chronos.register({ name: 'group-schedule-check', intervalMs: 30000, initialDelayMs: 5000, run: async ({ now }) => {
@@ -245,7 +253,19 @@ export class Bot {
   }
 
   async connect() {
+    if (this._stopping) return null;
+    if (this._connectPromise) return this._connectPromise;
+    this._connectPromise = this._connectOnce();
+    try { return await this._connectPromise; }
+    finally { this._connectPromise = null; }
+  }
+
+  async _connectOnce() {
+    if (this._stopping) return null;
+    const generation = ++this._socketGeneration;
+    this._connectionState = 'connecting';
     const { state, saveCreds } = await useMultiFileAuthState(config.sessionDir);
+    await loadGroupMetadataStore();
     const { version } = await fetchLatestBaileysVersion();
 
     const browserTuple = this._parseBrowser(config.pairing.browser);
@@ -262,10 +282,15 @@ export class Bot {
       syncFullHistory: false,
       printQRInTerminal: false,
       generateHighQualityLinkPreview: true,
-      getMessage: async () => ({ conversation: '' })
+      cachedGroupMetadata: async jid => groupMetadataStore.get(jid) || undefined,
+      getMessage: async key => {
+        const stored = compatSerializer.getStoredMessage?.(key?.id, key?.remoteJid);
+        return stored?.message || { conversation: '' };
+      }
     });
 
     this._sock = sock;
+    registry.sock = sock;
     this._chronos.start();
     this._pairingRequested = false;
 
@@ -321,9 +346,7 @@ export class Bot {
       }
     });
 
-    let attempt = 0;
-    const MAX_ATTEMPTS = 10;
-    const BACKOFF = [1000, 2000, 4000, 8000, 15000];
+    let initialGroupSnapshotAttempted = false;
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr, isNewLogin } = update;
@@ -335,18 +358,38 @@ export class Bot {
         } catch {}
       }
 
+      if (generation !== this._socketGeneration || sock !== this._sock) return;
+
       if (connection === 'open') {
-        attempt = 0;
+        this._connectionState = 'open';
+        this._reconnectAttempt = 0;
+        if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
         this._restart = false;
         this._botInfo = { userJid: sock.user?.id, userLid: sock.user?.lid };
         Logger.info('✅ Online: ' + sock.user?.id);
         if (this._log) this._log.push({ kind: 'connection-open', user: sock.user?.id });
+        if (!initialGroupSnapshotAttempted && !groupMetadataStore.hasInitialSnapshot() && typeof sock.groupFetchAllParticipating === 'function') {
+          initialGroupSnapshotAttempted = true;
+          try {
+            // One initial snapshot only. Future metadata changes are maintained from socket events.
+            const snapshot = await sock.groupFetchAllParticipating();
+            for (const [jid, metadata] of Object.entries(snapshot || {})) groupMetadataStore.upsert(metadata, jid);
+            groupMetadataStore.markInitialSnapshot();
+            await groupMetadataStore.flush();
+            Logger.info({ groups: groupMetadataStore.count() }, 'Group metadata initial snapshot stored');
+          } catch (error) {
+            Logger.warn({ err: error?.message || String(error) }, 'Initial group metadata snapshot failed; cache remains available');
+          }
+        }
       }
 
       if (connection === 'close') {
+        this._connectionState = 'closed';
         const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const reason = lastDisconnect?.error?.message || 'unknown';
-        Logger.warn({ code: statusCode, reason, attempt }, 'Connection closed');
+        Logger.warn({ code: statusCode, reason, attempt: this._reconnectAttempt }, 'Connection closed');
+        if (this._sock === sock) this._sock = null;
+        if (registry.sock === sock) registry.sock = null;
 
         if (statusCode === DisconnectReason.loggedOut) {
           Logger.error('🚪 Logged out (device unlinked).');
@@ -354,7 +397,8 @@ export class Bot {
             try { await rmAsync(config.sessionDir, { recursive: true, force: true }); } catch {}
             Logger.warn('🧹 Session cleared. Restart untuk pairing ulang.');
           }
-          process.exit(1);
+          this._connectionState = 'logged-out';
+          return;
         }
 
         if (statusCode === DisconnectReason.badSession ||
@@ -365,25 +409,12 @@ export class Bot {
             try { await rmAsync(config.sessionDir, { recursive: true, force: true }); } catch {}
             Logger.warn('🧹 Session cleared. Restart untuk pairing ulang.');
           }
-          process.exit(1);
-        }
-
-        if (statusCode === DisconnectReason.restartRequired) {
-          try { await this.connect(); } catch (e) { Logger.error(e.message); }
+          this._connectionState = 'auth-error';
           return;
         }
 
-        if (attempt < MAX_ATTEMPTS) {
-          attempt++;
-          const wait = BACKOFF[Math.min(attempt - 1, BACKOFF.length - 1)];
-          Logger.info('🔁 Reconnect ' + attempt + '/' + MAX_ATTEMPTS + ' in ' + (wait / 1000) + 's');
-          setTimeout(async () => {
-            try { await this.connect(); } catch (e) { Logger.error(e.message); }
-          }, wait);
-        } else {
-          Logger.fatal('❌ Reconnect menyerah setelah ' + MAX_ATTEMPTS + ' percobaan');
-          process.exit(1);
-        }
+        const immediate = statusCode === DisconnectReason.restartRequired;
+        this._scheduleReconnect({ immediate, reason, statusCode });
       }
 
       if (isNewLogin) Logger.info('🆕 Device baru login');
@@ -401,6 +432,33 @@ export class Bot {
       handleClassicQuizPollUpdates(sock, updates).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll update handling skipped'));
     });
 
+    // Baileys may deliver a vote as a pollUpdateMessage in messages.upsert,
+    // rather than only as messages.update. Normalize it in serializer.js.
+    sock.ev.on('messages.upsert', upsert => {
+      const pollEvents = extractPollUpdateEvents(upsert);
+      if (pollEvents.length) handleClassicQuizPollUpdates(sock, pollEvents).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll upsert handling skipped'));
+    });
+
+    // Persist group metadata incrementally; never refetch per participant event.
+    sock.ev.on('groups.upsert', async updates => {
+      try { groupMetadataStore.applyGroupUpdates(updates); }
+      catch (error) { Logger.warn({ err: error?.message || String(error) }, 'groups.upsert cache update failed'); }
+    });
+    sock.ev.on('groups.update', async updates => {
+      try { groupMetadataStore.applyGroupUpdates(updates); }
+      catch (error) { Logger.warn({ err: error?.message || String(error) }, 'groups.update cache update failed'); }
+    });
+    sock.ev.on('group-participants.update', async update => {
+      try {
+        groupMetadataStore.applyParticipantUpdate(update, [sock.user?.id, sock.user?.lid]);
+      } catch (error) { Logger.warn({ err: error?.message || String(error), groupId: update?.id }, 'group participant cache update failed'); }
+    });
+    sock.ev.on('chats.delete', async ids => {
+      try {
+        for (const jid of Array.isArray(ids) ? ids : []) if (String(jid).endsWith('@g.us')) groupMetadataStore.remove(jid);
+      } catch (error) { Logger.warn({ err: error?.message || String(error) }, 'group cache cleanup failed'); }
+    });
+
     // Canvas V2 join/leave cards are opt-in per group through .welcome on.
     sock.ev.on('group-participants.update', async update => {
       const groupId = String(update?.id || '');
@@ -409,8 +467,7 @@ export class Bot {
       if (!['add', 'remove', 'leave'].includes(action)) return;
       const settings = await getGroupSettings(groupId).catch(() => ({ welcome: false }));
       if (!settings.welcome) return;
-      let groupName = 'WhatsApp Group';
-      try { groupName = String((await sock.groupMetadata(groupId))?.subject || groupName); } catch {}
+      const groupName = String(groupMetadataStore.get(groupId)?.subject || 'WhatsApp Group');
       for (const item of update.participants.slice(0, 10)) {
         const jid = String(typeof item === 'string' ? item : item?.id || item?.jid || '');
         if (!jid || !jid.includes('@') || jid.endsWith('@g.us')) continue;
@@ -442,6 +499,26 @@ export class Bot {
     return sock;
   }
 
+  _scheduleReconnect({ immediate = false, reason = 'connection closed', statusCode = null } = {}) {
+    if (this._stopping || this._reconnectTimer) return;
+    this._reconnectAttempt += 1;
+    const base = immediate ? 250 : Math.min(60000, 1000 * (2 ** Math.min(this._reconnectAttempt - 1, 6)));
+    const jitter = immediate ? 0 : Math.floor(Math.random() * Math.min(1500, base * 0.25));
+    const wait = base + jitter;
+    this._connectionState = 'reconnecting';
+    Logger.warn({ attempt: this._reconnectAttempt, delayMs: wait, statusCode, reason }, 'WhatsApp reconnect scheduled');
+    this._reconnectTimer = setTimeout(async () => {
+      this._reconnectTimer = null;
+      if (this._stopping || this._sock) return;
+      try { await this.connect(); }
+      catch (error) {
+        Logger.error({ err: error?.message || String(error) }, 'WhatsApp reconnect attempt failed');
+        this._scheduleReconnect({ reason: error?.message || 'socket creation failed' });
+      }
+    }, wait);
+    this._reconnectTimer.unref?.();
+  }
+
   _parseBrowser(name) {
     const preset = {
       ubuntu:  ['Ubuntu', 'Chrome', '20.0.04'],
@@ -455,8 +532,15 @@ export class Bot {
   }
 
   async stop() {
+    this._stopping = true;
+    this._connectionState = 'stopping';
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
     this._chronos?.stop();
     if (this._watcher) await this._watcher.stop();
     if (this._sock) this._sock.end(undefined);
+    await groupMetadataStore.flush().catch(error => Logger.warn({ err: error?.message || String(error) }, 'Final group metadata cache flush failed'));
+    this._sock = null;
+    registry.sock = null;
+    this._connectionState = 'stopped';
   }
 }
