@@ -308,14 +308,14 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 **Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
 
 <!-- GITHUB_METRICS_START -->
-> Snapshot terakhir: **2026-11-01T21:23:39+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
+> Snapshot terakhir: **2026-11-02T02:50:55+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
 
 | Metrik | Nilai |
 |---|---:|
 | Repository | [`razzaqinspires/whiskay-bot`](https://github.com/razzaqinspires/whiskay-bot) |
 | ⭐ Stars | 2 |
 | 🍴 Forks | 0 |
-| 🧩 Open issues / PR | 0 |
+| 🧩 Open issues / PR | 3 |
 | 👥 Pengunjung unik (14 hari terakhir) | Belum tersedia — token traffic belum punya akses |
 | 👁️ Tampilan halaman (14 hari terakhir) | Belum tersedia |
 | 📦 Clone (14 hari terakhir) | Belum tersedia |
@@ -329,12 +329,12 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 ```mermaid
 xychart-beta
     title "Commit activity · last 14 days"
-    x-axis ["10-23", "10-24", "10-25", "10-26", "10-27", "10-28", "10-29", "10-30", "10-31", "11-01"]
+    x-axis ["10-24", "10-25", "10-26", "10-27", "10-28", "10-29", "10-30", "10-31", "11-01", "11-02"]
     y-axis "Count" 0 --> 33
-    line [0, 2, 1, 5, 8, 6, 27, 4, 4, 2]
+    line [2, 1, 5, 8, 6, 27, 4, 4, 3, 0]
 ```
 
-Riwayat snapshot tersimpan: **13** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
+Riwayat snapshot tersimpan: **14** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
 <!-- GITHUB_METRICS_END -->
 
 ## 🛡️ Stage 2 — Pairing Portal Hardening (2026-10-26)
