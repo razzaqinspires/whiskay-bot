@@ -1,11 +1,11 @@
 # Whiskay Automation Status
 
-- Last run (UTC): 2026-11-05T23:28:43+00:00
-- Source: `main` @ `dd2f5ab16975` (read-only)
+- Last run (UTC): 2026-11-06T05:51:35+00:00
+- Source: `main` @ `3121b4b2c155` (read-only)
 - Schedule: every 6 hours; daily health audit at 03:00 UTC
 - Mode: normal
 - Self-score: 97/100 (completeness 100, accuracy 100, uptime proxy 90)
 - Latest findings: 0
 - Guardrail: bot commits are restricted to `automation/` on branch `automation`; main/develop/release branches are human-owned.
 
-See `reports/2026-11-05.json`, `insights.json`, `self-score.json`, `self-review.md`, and `incidents/` for details.
+See `reports/2026-11-06.json`, `insights.json`, `self-score.json`, `self-review.md`, and `incidents/` for details.
