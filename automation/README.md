@@ -1,7 +1,7 @@
 # Whiskay Automation Status
 
-- Last run (UTC): 2026-11-07T12:42:46+00:00
-- Source: `main` @ `eadd2d3762e1` (read-only)
+- Last run (UTC): 2026-11-07T21:38:05+00:00
+- Source: `main` @ `dbcff2000388` (read-only)
 - Schedule: every 6 hours; daily health audit at 03:00 UTC
 - Mode: normal
 - Self-score: 97/100 (completeness 100, accuracy 100, uptime proxy 90)
