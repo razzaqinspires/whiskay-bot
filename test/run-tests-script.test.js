@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { discoverTestFiles, buildNodeTestArgs } from '../scripts/run-tests.mjs';
+import { discoverTestFiles, buildNodeTestArgs, inspectRequiredDependencies } from '../scripts/run-tests.mjs';
 
 test('npm test discovery is confined to test/ and ignores sessions, node_modules and symlinks', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'whiskay-test-discovery-'));
@@ -30,4 +30,17 @@ test('npm test runner forwards supported reporter flags and only explicit discov
   ]);
   assert.throws(() => buildNodeTestArgs(['test/a.test.js'], ['sessions/pre-key-1.json']), /tidak diizinkan/i);
   assert.throws(() => buildNodeTestArgs(['test/a.test.js'], ['--test-reporter']), /membutuhkan nilai/i);
+});
+
+
+test('npm test preflight reports missing direct dependencies before running tests', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'whiskay-test-dependency-preflight-'));
+  try {
+    await mkdir(path.join(root, 'node_modules', 'dotenv'), { recursive: true });
+    await writeFile(path.join(root, 'node_modules', 'dotenv', 'package.json'), JSON.stringify({ name: 'dotenv', version: '1.0.0' }));
+    const missing = await inspectRequiredDependencies(root, ['dotenv', 'baileys']);
+    assert.deepEqual(missing, ['baileys']);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

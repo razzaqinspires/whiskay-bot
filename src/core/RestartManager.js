@@ -1,4 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import Logger from './Logger.js';
 
 /**
@@ -17,6 +19,10 @@ export function detectSupervisor() {
 export function syntaxCheck(files = []) {
   const errors = [];
   for (const f of files) {
+    if (path.extname(String(f)).toLowerCase() !== '.js') continue;
+    // Deleted files do not need syntax validation; unlink events still require
+    // a restart so importers can stop referencing the removed module.
+    if (!existsSync(f)) continue;
     const r = spawnSync(process.execPath, ['--check', f], { encoding: 'utf8' });
     if (r.status !== 0) {
       errors.push({ file: f, error: (r.stderr || '').trim().split('\n').slice(0, 3).join('\n') });
@@ -48,7 +54,7 @@ export class RestartManager {
 
   markShutdown() { this._shuttingDown = true; }
 
-  async restart({ reason = 'manual', files = [] } = {}) {
+  async restart({ reason = 'manual', files = [], changedFiles = [] } = {}) {
     if (this._shuttingDown) {
       Logger.warn(`Restart ignored (shutdown in progress): ${reason}`);
       return { ok: false, reason: 'shutting-down' };
@@ -71,6 +77,7 @@ export class RestartManager {
       t: new Date().toISOString(),
       reason,
       files: files.slice(0, 10),
+      changedFiles: changedFiles.slice(0, 20),
       supervisor: this.supervisor
     };
     this._history.push(info);

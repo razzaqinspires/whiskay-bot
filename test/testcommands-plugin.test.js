@@ -42,7 +42,7 @@ test('testcommands plugin registers every spelling used in chat and remains owne
   assert.deepEqual(plugin.command, ['testcommands', 'testcommand', 'testcmd', 'testcmds']);
   assert.equal(plugin.owner, true);
   assert.equal(plugin.energyMode, 'free');
-  assert.equal(plugin.cooldown, 2500);
+  assert.equal(plugin.skipCooldown, true);
 });
 
 test('bare testcommand displays help and never starts the expensive QA pipeline', async () => {
@@ -71,7 +71,7 @@ test('non-owner receives a clear denial without invoking any pipeline', async ()
   assert.equal(interactive[0].buttons[0].id, '.menu');
 });
 
-test('run acknowledges immediately, rejects duplicate runs, and sends the final interactive result', async () => {
+test('run starts silently, rejects duplicate runs, and emits no automatic completion messages', async () => {
   let resolveRun;
   let runCount = 0;
   const deferred = new Promise(resolve => { resolveRun = resolve; });
@@ -85,61 +85,53 @@ test('run acknowledges immediately, rejects duplicate runs, and sends the final 
   const first = makeContext({ args: ['run'] });
   await plugin.execute(first.ctx);
   assert.equal(runCount, 1);
-  assert.match(first.interactive[0].title, /FULL VERIFICATION DIMULAI/);
-  assert.match(first.interactive[0].body, /background/);
+  assert.equal(first.interactive.length, 0);
+  assert.equal(first.replies.length, 0);
+  assert.equal(first.ctx.suppressPostCommandXp, true);
 
   const duplicate = makeContext({ args: ['run'] });
   await plugin.execute(duplicate.ctx);
   assert.equal(runCount, 1);
-  assert.match(duplicate.interactive[0].title, /QA SEDANG BERJALAN/i);
-  assert.equal(duplicate.interactive[0].buttons.length, 2);
+  assert.equal(duplicate.interactive.length, 0);
+  assert.equal(duplicate.replies.length, 0);
 
   resolveRun(successfulReport());
   await new Promise(resolve => setTimeout(resolve, 30));
-  assert.equal(first.interactive.length, 3);
-  assert.match(first.interactive[1].title, /Instalasi dependency/);
-  assert.match(first.interactive[0].title, /VERIFICATION DIMULAI/);
-  assert.equal(first.interactive[0].buttons.length, 2);
-  assert.match(first.interactive[2].title, /FULL TEST LULUS/);
-  assert.equal(first.interactive[2].buttons.length, 2);
+  assert.equal(first.interactive.length, 0);
+  assert.equal(first.replies.length, 0);
+  const status = makeContext({ args: ['status'] });
+  await plugin.execute(status.ctx);
+  assert.match(status.interactive[0].body, /Status: SUCCESS/);
+  assert.match(status.interactive[0].body, /Tahap: selesai/);
 });
 
 test('status is available while verification runs and reports the active run', async () => {
   let resolveRun;
   const deferred = new Promise(resolve => { resolveRun = resolve; });
-  const plugin = createTestCommandsPlugin({ runVerification: async () => deferred });
+  const plugin = createTestCommandsPlugin({
+    runVerification: async () => deferred,
+    readText: async () => '# OLD SUCCESS REPORT',
+    readDirectory: async () => ['WHISKAY-VERIFY-FAILURE-old.zip'],
+    getStat: async () => ({ mtime: new Date('2026-11-01T00:00:00Z') }),
+  });
   const run = makeContext({ args: ['run'] });
   await plugin.execute(run.ctx);
   const status = makeContext({ args: ['status'] });
   await plugin.execute(status.ctx);
   assert.equal(status.interactive.length, 1);
-  assert.match(status.interactive[0].body, /Tahap aktif/);
+  assert.match(status.interactive[0].body, /Tahap:|Tahap aktif/);
   assert.doesNotMatch(status.interactive[0].body, /📊 WHISKAY QA STATUS/);
   assert.doesNotMatch(status.interactive[0].body, /Tidak ada proses QA yang sedang berjalan/);
-  assert.equal(status.interactive[0].buttons.length, 3);
+  assert.equal(status.interactive[0].buttons.length, 2);
+  assert.match(status.interactive[0].body, /hasil sukses dari run sebelumnya disembunyikan/);
+  assert.match(status.interactive[0].body, /arsip dari run sebelumnya tidak ditampilkan/);
+  assert.doesNotMatch(status.interactive[0].body, /WHISKAY-VERIFY-FAILURE-old\.zip|OLD SUCCESS REPORT/);
   resolveRun(successfulReport());
   await new Promise(resolve => setTimeout(resolve, 30));
 });
 
 
-test('final-result delivery falls back to plain text if interactive transport is unavailable', async () => {
-  const plugin = createTestCommandsPlugin({ runVerification: async () => successfulReport() });
-  const replies = [];
-  const ctx = {
-    isOwner: true, args: ['run'], prefix: '.',
-    reply: async text => { replies.push(String(text)); return true; },
-    sendInteractive: async () => { throw new Error('interactive transport unavailable'); },
-  };
-  await plugin.execute(ctx);
-  for (let attempt = 0; attempt < 20 && !replies.some(text => text.includes('FULL TEST LULUS')); attempt++) {
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
-  assert.ok(replies.some(text => text.includes('WHISKAY FULL VERIFICATION DIMULAI')));
-  assert.ok(replies.some(text => text.includes('FULL TEST LULUS')));
-});
-
-
-test('testcommands emits live per-test progress and keeps the run marked active until final result', async () => {
+test('testcommands stores test progress locally and exposes it only on manual status request', async () => {
   let finish;
   const deferred = new Promise(resolve => { finish = resolve; });
   const plugin = createTestCommandsPlugin({ runVerification: async options => {
@@ -152,8 +144,8 @@ test('testcommands emits live per-test progress and keeps the run marked active 
   const run = makeContext({ args: ['run'] });
   await plugin.execute(run.ctx);
   await new Promise(resolve => setTimeout(resolve, 20));
-  assert.ok(run.interactive.some(item => item.title === '🧭 TEST DISCOVERY SELESAI'));
-  assert.ok(run.interactive.some(item => item.title === '⚠️ QA MENEMUKAN TEST GAGAL'));
+  assert.equal(run.interactive.length, 0);
+  assert.equal(run.replies.length, 0);
   const status = makeContext({ args: ['progress'] });
   await plugin.execute(status.ctx);
   assert.match(status.interactive[0].body, /5 selesai/);
@@ -161,6 +153,8 @@ test('testcommands emits live per-test progress and keeps the run marked active 
   assert.match(status.interactive[0].body, /1 gagal/);
   finish(successfulReport());
   await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(run.interactive.length, 0);
+  assert.equal(run.replies.length, 0);
 });
 
 test('status and report screens expose actionable native-flow buttons', async () => {
@@ -184,6 +178,36 @@ test('status and report screens expose actionable native-flow buttons', async ()
   assert.equal(report.interactive.length, 1);
   assert.match(report.interactive[0].body, /All gates passed/);
   assert.equal(report.interactive[0].buttons.length, 3);
+});
+
+
+test('report and diagnostic download never expose a stale previous run while QA is active', async () => {
+  let finish;
+  const deferred = new Promise(resolve => { finish = resolve; });
+  const sent = [];
+  const plugin = createTestCommandsPlugin({
+    runVerification: async () => deferred,
+    readText: async () => '# OLD SUCCESS REPORT',
+    readDirectory: async () => ['WHISKAY-VERIFY-FAILURE-old.zip'],
+    getStat: async () => ({ isFile: () => true, size: 20, mtime: new Date() }),
+  });
+  const run = makeContext({ args: ['run'] });
+  await plugin.execute(run.ctx);
+
+  const report = makeContext({ args: ['report'] });
+  await plugin.execute(report.ctx);
+  assert.match(report.interactive[0].title, /MASIH BERJALAN/);
+  assert.doesNotMatch(report.interactive[0].body, /OLD SUCCESS REPORT/);
+
+  const download = makeContext({ args: ['download'] });
+  download.ctx.chat = '628111111111@s.whatsapp.net';
+  download.ctx.sock = { async sendMessage(...args) { sent.push(args); } };
+  await plugin.execute(download.ctx);
+  assert.match(download.interactive[0].title, /MASIH BERJALAN/);
+  assert.equal(sent.length, 0);
+
+  finish(successfulReport());
+  await new Promise(resolve => setTimeout(resolve, 30));
 });
 
 test('unknown action returns an interactive help panel instead of a text-only dead end', async () => {

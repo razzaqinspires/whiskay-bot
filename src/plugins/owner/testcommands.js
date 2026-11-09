@@ -61,10 +61,10 @@ function helpText(prefix) {
     '🧪 WHISKAY BOT · FULL QA CONTROL CENTER',
     '━━━━━━━━━━━━━━━━━━━━',
     'TUJUAN',
-    'Menjalankan pemeriksaan repository secara menyeluruh pada sandbox sementara. QA tidak mengeksekusi semua command WhatsApp satu per satu dan tidak menyentuh database/session produksi.',
+    'Menjalankan pemeriksaan repository pada sandbox sementara. QA tidak menjalankan command WhatsApp dan tidak menyentuh database/session produksi. Proses berjalan senyap; gunakan status untuk polling manual.',
     '',
     'PERINTAH UTAMA',
-    `${prefix}testcommands run — mulai full verification.`,
+    `${prefix}testcommands run — mulai full verification secara senyap.`,
     `${prefix}testcommands status / progress — status run aktif, hitungan test, laporan sukses, dan ZIP kegagalan terakhir.`,
     `${prefix}testcommands report — baca laporan sukses terakhir.`,
     `${prefix}testcommands download — kirim ZIP diagnostik terakhir sebagai dokumen WhatsApp.`,
@@ -84,15 +84,15 @@ function helpText(prefix) {
     'ZIP diagnostik memuat manifest, log per tahap, exit code, stack/error, lokasi file:line:column bila dapat diparse, dan cuplikan source yang sudah disanitasi.',
     '',
     'KEAMANAN & KONTROL',
-    '• Owner-only; run kedua ditolak selama QA aktif.',
+    '• Owner-only; run kedua ditolak selama QA aktif. Worker QA tidak mengirim notifikasi otomatis.',
     '• npm ci dijalankan di salinan sementara; node_modules bot aktif tidak diganti.',
     '• npm test tidak melakukan discovery di root repository: hanya file test di test/ yang dipilih secara eksplisit. sessions/ tidak dibaca sebagai target test dan seluruh state test diarahkan ke temp OS.',
     '• node_modules/ dikecualikan dari discovery, audit source, dan salinan sandbox. Node hanya membacanya sebagai dependency resolver saat import; test tidak menjalankan install/uninstall di folder tersebut.',
     '• Aturan pengecualian terpusat di .testignore dan ditegakkan oleh scripts/run-tests.mjs; symlink test tidak diikuti.',
     '• .env, .npmrc, sesi WhatsApp, dan database runtime tidak dimasukkan ke ZIP.',
     '• Bot tetap dapat menerima command lain selama QA berlangsung.',
-    '• Tombol Kirim ZIP Diagnostik mengirim arsip .zip langsung ke chat owner sebagai dokumen WhatsApp.',
-    '• Progres dikirim saat test pertama selesai, setiap 5 test, dan langsung saat ada kegagalan; status tetap dapat diperiksa dengan tombol Refresh.',
+    '• ZIP diagnostik hanya dikirim setelah owner meminta .testcommands download.',
+    '• QA berjalan senyap: worker tidak mengirim progress, pesan tahap, atau pesan hasil otomatis. Status hanya dikirim ketika owner meminta .testcommands status.',
     '• Total test yang ditemukan dapat bertambah selama discovery; angka final dan denominator pasti dikunci setelah test runner selesai.',
     '• Error sesi/pre-key Baileys diklasifikasikan terpisah; runner tidak membuat pre-key palsu atau menghapus sessions/.',
     '• Kegagalan registry/DNS dicatat sebagai kegagalan instalasi, bukan dianggap tes lulus.',
@@ -133,6 +133,7 @@ export function createTestCommandsPlugin({
   projectRoot = ROOT,
 } = {}) {
   let activeRun = null;
+  let lastRunState = null;
   let lastReport = null;
 
   async function latestStatus() {
@@ -145,18 +146,23 @@ export function createTestCommandsPlugin({
         .sort()
         .reverse();
     } catch {}
-    const activeDetails = activeRun
-      ? `Dimulai: ${new Date(activeRun.startedAt).toISOString()}\nTahap aktif: ${activeRun.step || 'inisialisasi'}\nProgres test: ${activeRun.progress ? `${activeRun.progress.completed} selesai · ${activeRun.progress.passed} lulus · ${activeRun.progress.failed} gagal · ${activeRun.progress.discovered} ditemukan` : 'belum memasuki tahap test'}`
-      : '';
-    const successText = success
-      ? `Laporan sukses terakhir: test/reports/WHISKAY-VERIFY-SUCCESS.md (diubah ${success.mtime.toISOString()})`
-      : 'Belum ada laporan sukses penuh.';
-    const latestFailure = failures[0]
-      ? `ZIP diagnostik terakhir: test/reports/diagnostics/${failures[0]}`
-      : 'Belum ada ZIP diagnostik kegagalan.';
-    const lastRun = lastReport ? `Eksekusi terakhir pada proses ini: ${lastReport.id} · ${lastReport.status}` : '';
-    const lastCounters = lastReport ? lastReport.steps.filter(step => step.summary?.tests !== null && step.summary?.tests !== undefined).map(step => `${step.name}: ${step.summary.passed ?? 0}/${step.summary.tests} lulus · ${step.summary.failed ?? 0} gagal`).join('\n') : '';
-    const lastSyntax = lastReport?.syntax ? `Syntax terakhir: ${lastReport.syntax.checked - lastReport.syntax.failed}/${lastReport.syntax.checked} file lulus` : '';
+    const visibleRun = activeRun || lastRunState;
+    const activeDetails = visibleRun
+      ? `Run: ${visibleRun.id}\nStatus: ${visibleRun.status || (activeRun ? 'RUNNING' : 'UNKNOWN')}\nDimulai: ${new Date(visibleRun.startedAt).toISOString()}\n${visibleRun.finishedAt ? `Selesai: ${new Date(visibleRun.finishedAt).toISOString()}\n` : ''}Tahap: ${visibleRun.step || 'inisialisasi'}\nProgres test: ${visibleRun.progress ? `${visibleRun.progress.completed || 0} selesai · ${visibleRun.progress.passed || 0} lulus · ${visibleRun.progress.failed || 0} gagal · ${visibleRun.progress.discovered || 0} ditemukan` : 'belum memasuki tahap test'}${visibleRun.error ? `\nError: ${visibleRun.error}` : ''}`
+      : 'Belum ada eksekusi QA pada proses bot ini.';
+    const successText = activeRun
+      ? 'Laporan final run aktif belum tersedia; hasil sukses dari run sebelumnya disembunyikan sampai run ini selesai.'
+      : success
+        ? `Laporan sukses terakhir: test/reports/WHISKAY-VERIFY-SUCCESS.md (diubah ${success.mtime.toISOString()})`
+        : 'Belum ada laporan sukses penuh.';
+    const latestFailure = activeRun
+      ? 'ZIP diagnostik run aktif belum tersedia; arsip dari run sebelumnya tidak ditampilkan.'
+      : failures[0]
+        ? `ZIP diagnostik terakhir: test/reports/diagnostics/${failures[0]}`
+        : 'Belum ada ZIP diagnostik kegagalan.';
+    const lastRun = !activeRun && lastReport ? `Eksekusi terakhir pada proses ini: ${lastReport.id} · ${lastReport.status}` : '';
+    const lastCounters = !activeRun && lastReport ? lastReport.steps.filter(step => step.summary?.tests !== null && step.summary?.tests !== undefined).map(step => `${step.name}: ${step.summary.passed ?? 0}/${step.summary.tests} lulus · ${step.summary.failed ?? 0} gagal`).join('\n') : '';
+    const lastSyntax = !activeRun && lastReport?.syntax ? `Syntax terakhir: ${lastReport.syntax.checked - lastReport.syntax.failed}/${lastReport.syntax.checked} file lulus` : '';
     return [
       '━━━━━━━━━━━━━━━━━━━━',
       activeDetails,
@@ -186,7 +192,7 @@ export function createTestCommandsPlugin({
       title: '📊 WHISKAY QA STATUS',
       subtitle: activeRun ? `Run aktif: ${activeRun.id}` : 'Tidak ada run aktif',
       body: await latestStatus(),
-      buttons: actionButtons(prefix, 'status'),
+      buttons: actionButtons(prefix, activeRun ? 'running' : 'status'),
     });
   }
 
@@ -236,94 +242,43 @@ export function createTestCommandsPlugin({
     });
   }
 
-  async function finishRun(ctx, report, inventoryCount, prefix) {
-    const summary = formatRunSummary(report, projectRoot);
-    const title = report.status === 'SUCCESS' ? '✅ FULL TEST LULUS' : '❌ FULL TEST GAGAL';
-    const buttons = report.status === 'SUCCESS'
-      ? [
-          { name: 'quick_reply', title: 'Lihat Laporan Sukses', id: `${prefix}testcommands report` },
-          { name: 'quick_reply', title: 'Status QA', id: `${prefix}testcommands status` },
-        ]
-      : [
-          { name: 'quick_reply', title: '📦 Kirim ZIP Diagnostik', id: `${prefix}testcommands download` },
-          { name: 'quick_reply', title: '📊 Status & Lokasi ZIP', id: `${prefix}testcommands status` },
-          { name: 'quick_reply', title: '🧭 Bantuan', id: `${prefix}testcommands help` },
-        ];
-    await sendInteractive(ctx, {
-      title,
-      subtitle: `Run ${report.id} · ${inventoryCount} command terdaftar`,
-      body: summary,
-      buttons,
-    });
-  }
-
-  async function runInBackground(ctx, prefix, inventoryCount, runState) {
+  async function runInBackground(runState) {
     try {
       const report = await runVerification({
         projectRoot,
         onProgress: event => {
           if (event.id) runState.id = event.id;
-          if (event.type === 'step-start') {
-            runState.step = event.step;
-            const label = event.step === 'npm-ci' ? 'Instalasi dependency (npm ci)'
-              : event.step === 'verify-all' ? 'Menjalankan seluruh release gate (verify:all)'
-                : event.step === 'npm-test' ? 'Menjalankan seluruh test discovery (npm test)'
-                  : event.message;
-            Promise.resolve(sendInteractive(ctx, { title: `⏳ ${label}`, subtitle: `Run ${runState.id}`, body: 'Tahap berjalan di sandbox sementara. Gunakan Refresh Status untuk melihat tahap aktif; hasil akhir baru dinyatakan setelah semua gate selesai.', buttons: actionButtons(prefix, 'running') })).catch(() => {});
-            return;
-          }
+          if (event.type === 'step-start') runState.step = event.step;
           if (event.type === 'syntax-progress') {
+            runState.step = 'node-check';
             runState.progress = { completed: event.completed, discovered: event.total, passed: event.passed, failed: event.failed };
-            Promise.resolve(sendInteractive(ctx, {
-              title: event.failed ? '⚠️ SYNTAX AUDIT MENEMUKAN ERROR' : '🔎 SYNTAX AUDIT PROGRESS',
-              subtitle: `Run ${runState.id}`,
-              body: `File diperiksa: ${event.completed}/${event.total}\nLulus: ${event.passed}\nGagal: ${event.failed}\n\nStatus: ${event.completed >= event.total ? 'PEMERIKSAAN FILE SELESAI' : 'MASIH BERJALAN'}\n${event.latest?.file || ''}`,
-              buttons: actionButtons(prefix, 'running'),
-            })).catch(() => {});
-            return;
           }
           if (event.type === 'test-discovery') {
+            runState.step = 'npm-test';
             runState.progress = { completed: 0, discovered: event.files, passed: 0, failed: 0 };
-            Promise.resolve(sendInteractive(ctx, {
-              title: '🧭 TEST DISCOVERY SELESAI',
-              subtitle: `Run ${runState.id} · ${event.files} file test`,
-              body: `Validasi test selesai.\nFile test yang dipilih: ${event.files}\nRoot discovery: test/\nPengecualian: ${(event.ignored || []).join(', ')}\nIsolasi direktori runtime: ${event.isolated ? 'AKTIF' : 'TIDAK AKTIF'}\n\nStatus: TEST BELUM SELESAI — proses masih berjalan.`,
-              buttons: actionButtons(prefix, 'running'),
-            })).catch(() => {});
-            return;
+            runState.discovery = { files: event.files, ignored: event.ignored || [], isolated: Boolean(event.isolated) };
           }
           if (event.type === 'test-progress') {
-            runState.progress = event.counts;
-            const counts = event.counts || {};
-            const latest = event.latest?.name ? `\nTerakhir: ${event.latest.name}` : '';
-            const isFailure = event.latest?.type === 'fail';
-            const discoveredNow = Math.max(counts.discovered || 0, counts.completed || 0);
-            const body = [
-              discoveredNow > 0 ? `Selesai: ${counts.completed || 0}/${discoveredNow} ditemukan (sementara)` : `Selesai: ${counts.completed || 0} test`,
-              `Lulus: ${counts.passed || 0}`, `Gagal: ${counts.failed || 0}`,
-              discoveredNow > 0 ? `Total ditemukan sementara: ${discoveredNow}` : 'Total test: dihitung oleh test runner; angka final muncul setelah discovery selesai.',
-              discoveredNow > 0 ? `Masih berjalan/menunggu: ${Math.max(0, discoveredNow - (counts.completed || 0))}` : 'Test selesai dihitung secara live; denominator final belum tersedia pada reporter tahap ini.',
-              '', 'Status: PROSES MASIH BERJALAN. Jangan kumpulkan versi sebelum pesan FULL TEST LULUS muncul.', latest,
-            ].join('\n');
-            Promise.resolve(sendInteractive(ctx, { title: isFailure ? '⚠️ QA MENEMUKAN TEST GAGAL' : '🔄 QA PROGRESS UPDATE', subtitle: `${event.step} · Run ${runState.id}`, body, buttons: actionButtons(prefix, 'running') })).catch(() => {});
-            return;
+            runState.step = event.step || 'npm-test';
+            runState.progress = { ...(event.counts || {}) };
           }
           if (event.type === 'step-complete') {
             runState.step = `${event.step} selesai`;
-            const summary = event.summary;
-            const summaryText = summary ? `\nTest: ${summary.tests ?? '—'} · Lulus: ${summary.passed ?? '—'} · Gagal: ${summary.failed ?? '—'}` : '';
-            const categoryText = event.classification ? `\nKategori: ${event.classification.category} (${event.classification.code})` : '';
-            Promise.resolve(sendInteractive(ctx, { title: event.ok ? '✅ TAHAP QA SELESAI' : '❌ TAHAP QA GAGAL', subtitle: `${event.step} · Run ${runState.id}`, body: `Exit code: ${event.exitCode ?? 'unknown'}${summaryText}${categoryText}\n\n${event.ok ? 'Lanjut ke tahap berikutnya.' : 'Pipeline tetap melanjutkan tahap berikutnya untuk mengumpulkan diagnosis lengkap.'}`, buttons: actionButtons(prefix, 'running') })).catch(() => {});
+            runState.lastStep = { name: event.step, ok: Boolean(event.ok), exitCode: event.exitCode ?? null, summary: event.summary || null, classification: event.classification || null };
           }
         },
       });
       lastReport = report;
-      await finishRun(ctx, report, inventoryCount, prefix);
+      runState.status = report.status || 'UNKNOWN';
+      runState.report = report;
+      runState.step = 'selesai';
     } catch (error) {
-      const message = String(error?.stack || error?.message || error).slice(0, 2600);
-      try { await sendInteractive(ctx, { title: '❌ TEST RUNNER ERROR', subtitle: `Run ${runState.id}`, body: `${message}\n\nPeriksa folder test/reports/diagnostics.`, buttons: [{ name: 'quick_reply', title: '📦 Kirim ZIP Diagnostik', id: `${prefix}testcommands download` }, ...actionButtons(prefix, 'status').slice(0, 2)] }); } catch {}
+      runState.status = 'ERROR';
+      runState.error = String(error?.message || error).slice(0, 1000);
     } finally {
+      runState.finishedAt = Date.now();
       if (activeRun === runState) activeRun = null;
+      lastRunState = runState;
     }
   }
 
@@ -331,12 +286,13 @@ export function createTestCommandsPlugin({
     name: 'owner-command-tester',
     command: COMMANDS,
     menuCommands: ['testcommands'],
-    description: 'Owner-only: isolated npm ci, complete verification, async progress, success report and failure ZIP diagnostics',
+    description: 'Owner-only: silent background verification; manual status/report/diagnostic requests only',
     category: 'owner',
     owner: true,
     energyMode: 'free',
     energyCost: 0,
-    cooldown: 2500,
+    cooldown: 0,
+    skipCooldown: true,
     async execute(ctx) {
       const prefix = ctx.prefix || '.';
       if (!ctx.isOwner) return sendInteractive(ctx, {
@@ -350,6 +306,12 @@ export function createTestCommandsPlugin({
       if (action === 'help') return sendHelp(ctx, prefix);
       if (action === 'status' || action === 'progress') return sendStatus(ctx, prefix);
       if (action === 'report') {
+        if (activeRun) return sendInteractive(ctx, {
+          title: '⏳ QA MASIH BERJALAN',
+          subtitle: `Run ${activeRun.id}`,
+          body: 'Laporan final belum tersedia untuk run aktif. Gunakan .testcommands status untuk melihat progres. Tidak ada hasil dari run sebelumnya yang ditampilkan sebagai hasil run ini.',
+          buttons: actionButtons(prefix, 'running'),
+        });
         try {
           const report = await readText(path.join(projectRoot, 'test', 'reports', 'WHISKAY-VERIFY-SUCCESS.md'), 'utf8');
           return sendInteractive(ctx, {
@@ -366,40 +328,30 @@ export function createTestCommandsPlugin({
           });
         }
       }
-      if (['download', 'zip', 'diagnostic'].includes(action)) return sendLatestDiagnostic(ctx, prefix);
+      if (['download', 'zip', 'diagnostic'].includes(action)) {
+        if (activeRun) return sendInteractive(ctx, {
+          title: '⏳ QA MASIH BERJALAN',
+          subtitle: `Run ${activeRun.id}`,
+          body: 'ZIP diagnostik final belum tersedia untuk run aktif. Gunakan .testcommands status dan minta download setelah proses selesai.',
+          buttons: actionButtons(prefix, 'running'),
+        });
+        return sendLatestDiagnostic(ctx, prefix);
+      }
       if (!['run', 'start'].includes(action)) {
         return sendInteractive(ctx, { title: '⚠️ SUBPERINTAH TIDAK DIKENAL', body: `Input: ${action}\n\n${helpText(prefix)}`, buttons: actionButtons(prefix, 'help') });
       }
-      if (activeRun) {
-        return sendInteractive(ctx, { title: '⏳ QA SEDANG BERJALAN', subtitle: activeRun.id, body: `Mulai: ${new Date(activeRun.startedAt).toISOString()}\nRun duplikat ditolak agar tidak terjadi instalasi atau verifikasi paralel.`, buttons: actionButtons(prefix, 'running') });
-      }
+      // QA run/start is intentionally silent, including duplicate requests while a run is active.
+      // The owner must explicitly request `.testcommands status` to receive a WhatsApp message.
+      ctx.suppressPostCommandXp = true;
+      if (activeRun) return;
 
+      // Suppress generic post-command XP/level-up notifications as well as QA progress.
       const inventory = commandRows();
-      const runState = { id: `QA-${Date.now().toString(36).toUpperCase()}`, startedAt: Date.now(), step: 'inisialisasi', progress: null };
+      const runState = { id: `QA-${Date.now().toString(36).toUpperCase()}`, startedAt: Date.now(), status: 'RUNNING', step: 'inisialisasi', progress: null, commandInventory: inventory.length };
       activeRun = runState;
-      try {
-        await sendInteractive(ctx, {
-          title: '🧪 WHISKAY FULL VERIFICATION DIMULAI',
-          subtitle: `Run ${runState.id} · ${inventory.length} command terdaftar`,
-          body: [
-            'Pipeline berjalan di background; bot tetap menerima command lain.',
-            '',
-            '1. Preflight dependency dan konfigurasi',
-            '2. npm ci pada sandbox sementara',
-            '3. Audit sintaks JavaScript',
-            '4. npm run verify:all (seluruh release gate)',
-            '5. npm test (test discovery)',
-            '6. Buat laporan sukses atau ZIP diagnostik otomatis',
-            '',
-            'Data live, sesi WhatsApp, .env, dan node_modules aktif tidak disentuh.',
-          ].join('\n'),
-          buttons: actionButtons(prefix, 'running'),
-        });
-      } catch (error) {
-        activeRun = null;
-        throw error;
-      }
-      runState.promise = runInBackground(ctx, prefix, inventory.length, runState);
+      // Deliberately silent: the QA worker never emits progress or completion messages.
+      // The owner polls .testcommands status and requests report/download explicitly.
+      runState.promise = runInBackground(runState);
       return;
     },
   };

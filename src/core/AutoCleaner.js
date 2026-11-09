@@ -1,4 +1,4 @@
-import { readdir, stat, unlink } from 'node:fs/promises';
+import { readdir, lstat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import Logger from './Logger.js';
 
@@ -12,7 +12,11 @@ export const DEFAULT_IGNORE = [
   /node_modules/,
   /[\\/]\.git[\\/]/,
   /[\\/]sessions[\\/]/,
+  /[\\/]data[\\/]/,
+  /[\\/]\.runtime[\\/]/,
   /[\\/]\.cache[\\/]/,
+  /(^|[\\/])\.env(?:\.|$)/i,
+  /\.lock$/i,
   /\.zip$/i, /\.tar\.gz$/i
 ];
 
@@ -31,7 +35,8 @@ export class AutoCleaner {
     ignore = DEFAULT_IGNORE,
     intervalMs = 300_000,
     onEvent = null,
-    dryRun = false
+    dryRun = false,
+    minAgeMs = 60 * 60 * 1000
   } = {}) {
     this.paths = paths;
     this.patterns = patterns;
@@ -39,9 +44,11 @@ export class AutoCleaner {
     this.intervalMs = intervalMs;
     this.onEvent = onEvent;
     this.dryRun = dryRun;
+    this.minAgeMs = Math.max(60 * 60 * 1000, Number(minAgeMs) || 0);
 
     this._timer = null;
     this._running = false;
+    this._idleWaiters = [];
     this._stats = {
       scans: 0,
       deleted: 0,
@@ -50,7 +57,9 @@ export class AutoCleaner {
       lastDuration: 0,
       lastReason: null,
       lastDeleted: [],
-      lastError: null
+      lastError: null,
+      skippedFresh: 0,
+      skippedNonRegular: 0
     };
   }
 
@@ -61,7 +70,8 @@ export class AutoCleaner {
       active: Boolean(this._timer),
       busy: this._running,
       intervalMs: this.intervalMs,
-      paths: this.paths
+      paths: this.paths,
+      minAgeMs: this.minAgeMs
     };
   }
   get active() { return Boolean(this._timer); }
@@ -77,6 +87,16 @@ export class AutoCleaner {
     if (this._timer.unref) this._timer.unref();
     Logger.info(`🧹 AutoCleaner: ON (interval ${Math.round(this.intervalMs / 1000)}s)`);
     return this;
+  }
+
+  async waitForIdle({ timeoutMs = 5000 } = {}) {
+    if (!this._running) return true;
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = value => { if (settled) return; settled = true; clearTimeout(timer); this._idleWaiters = this._idleWaiters.filter(fn => fn !== finish); resolve(value); };
+      const timer = setTimeout(() => finish(false), Math.max(0, timeoutMs));
+      this._idleWaiters.push(finish);
+    });
   }
 
   stop() {
@@ -102,6 +122,8 @@ export class AutoCleaner {
     const t0 = Date.now();
     const deleted = [];
     let bytes = 0;
+    let skippedFresh = 0;
+    let skippedNonRegular = 0;
     let err = null;
 
     try {
@@ -112,7 +134,9 @@ export class AutoCleaner {
 
         for (const f of files) {
           try {
-            const st = await stat(f);
+            const st = await lstat(f);
+            if (!st.isFile() || st.isSymbolicLink()) { skippedNonRegular++; continue; }
+            if (Date.now() - st.mtimeMs < this.minAgeMs) { skippedFresh++; continue; }
             if (!dryRun) await unlink(f);
             bytes += st.size;
             deleted.push({ file: path.relative(process.cwd(), f), size: st.size });
@@ -130,6 +154,8 @@ export class AutoCleaner {
       this._stats.lastReason = reason;
       this._stats.lastDeleted = deleted.slice(0, 50);
       this._stats.lastError = err;
+      this._stats.skippedFresh = skippedFresh;
+      this._stats.skippedNonRegular = skippedNonRegular;
 
       if (deleted.length && !dryRun) {
         Logger.info(
@@ -145,14 +171,17 @@ export class AutoCleaner {
           dryRun,
           count: deleted.length,
           bytes,
+          skippedFresh,
+          skippedNonRegular,
           duration: this._stats.lastDuration,
           files: deleted.slice(0, 15).map(d => d.file)
         });
       } catch {}
 
-      return { deleted, bytes, duration: this._stats.lastDuration, dryRun };
+      return { deleted, bytes, skippedFresh, skippedNonRegular, duration: this._stats.lastDuration, dryRun };
     } finally {
       this._running = false;
+      for (const finish of [...this._idleWaiters]) finish(true);
     }
   }
 
@@ -165,8 +194,9 @@ export class AutoCleaner {
     const out = [];
     for (const f of found) {
       try {
-        const st = await stat(f);
-        out.push({ file: path.relative(process.cwd(), f), size: st.size });
+        const st = await lstat(f);
+        if (!st.isFile() || st.isSymbolicLink()) continue;
+        out.push({ file: path.relative(process.cwd(), f), size: st.size, modifiedAt: st.mtime.toISOString(), eligible: Date.now() - st.mtimeMs >= this.minAgeMs });
       } catch {}
     }
     return out;
@@ -179,7 +209,7 @@ export class AutoCleaner {
 
     for (const e of entries) {
       const full = path.join(dir, e.name);
-      if (this.ignore.some(rx => rx.test(full))) continue;
+      if (this.ignore.some(rx => { rx.lastIndex = 0; return rx.test(full); })) continue;
       if (e.isDirectory()) {
         out.push(...await this._scan(full));
       } else if (e.isFile() && this._matches(e.name)) {
@@ -190,7 +220,7 @@ export class AutoCleaner {
   }
 
   _matches(name) {
-    return this.patterns.some(rx => rx.test(name));
+    return this.patterns.some(rx => { rx.lastIndex = 0; return rx.test(name); });
   }
 }
 

@@ -6,10 +6,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(ROOT);
-// Load the project .env before importing modules that snapshot ports/path defaults.
+// Reconcile .env against the authoritative .env.example before importing modules
+// that snapshot ports/path defaults. Existing values are preserved; missing keys
+// are appended; keys removed from the template are pruned only when previously managed.
 const dotenvModule = await import('dotenv');
 const dotenv = dotenvModule.default || dotenvModule;
-dotenv.config({ path: process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.join(ROOT, '.env') });
+const selectedEnvFile = process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.join(ROOT, '.env');
+dotenv.config({ path: selectedEnvFile });
+const { synchronizeEnvTemplate } = await import('../src/config/EnvTemplateSynchronizer.js');
+const envSync = await synchronizeEnvTemplate();
+if (envSync.addedKeys.length || envSync.removedKeys.length) {
+  console.log(`[env-sync] added=${envSync.addedKeys.length} removed=${envSync.removedKeys.length} preserved=${envSync.preservedKeys.length}`);
+}
+dotenv.config({ path: selectedEnvFile });
 
 function acquireSingleInstanceLock() {
   const lockPath = path.join(ROOT, '.runtime', 'whiskay-bot.pid');

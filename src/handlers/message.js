@@ -11,14 +11,18 @@ import { recordMessageMetric } from '../lib/stage26-observability.js';
 import { consumePendingMenuAvatar } from '../services/menu-avatar-upload.js';
 import { consumePendingEnvReply } from '../lib/env-config.js';
 import { saveAdzanSharedLocation } from '../services/AdzanProfileStore.js';
+import { runWithOutboundContext } from '../core/OutboundTrafficGuard.js';
 
-export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
+export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => runWithOutboundContext({ source: 'message:ingress', command: 'message-handler' }, async () => {
   if (upsert.type !== 'notify') return;
   for (const raw of upsert.messages) {
     if (!raw.message) continue;
     try {
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
+      // Drop self-authored updates before emitting events or invoking any feature.
+      // Echoed bot messages must never reach command, AI, XP, or plugin listeners.
+      if (ctx.isBot) continue;
       recordMessageMetric('received');
       if (!ctx.isBot && await consumePendingEnvReply(ctx).catch(error => { Logger.warn({ err: error.message }, '.env reply handling failed'); return false; })) continue;
       // A static WhatsApp location is accepted only when the sender explicitly armed
@@ -116,25 +120,17 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       if (!ctx.isGroup && await relayAnonymousMessage(ctx).catch(() => false)) continue;
       const user = await getUser(ctx.sender).catch(() => null);
       if (!user?.registered) continue;
-      // Safe allow-listed natural-language intent routing. Never auto-execute admin,
-      // payment, destructive, or external actions from an AI guess.
-      if (/\b(?:buka|tampilkan|jalankan|pakai|gunakan|mau)\b.*\b(?:kalkulator telur|hitung telur|kalkulator penjualan telur)\b/i.test(incoming)) {
-        const egg = commandHandler._pm?.resolve?.('telur');
-        if (egg?.execute) {
-          ctx.prefix = config.prefixes?.[0] || '.';
-          ctx.command = 'telur'; ctx.args = []; ctx.text = ''; ctx.plugin = egg;
-          await egg.execute(ctx);
-          continue;
-        }
-      }
-      // Nexora's conversational layer: private DM defaults to auto-chat; groups require
-      // an explicit mention or a reply to the bot to avoid unsolicited group replies.
-      const mode = String(process.env.AI_CHAT_MODE || 'auto-private-mention-group').toLowerCase();
+      // Nexora's conversational layer is mention-driven by default. Private auto-response
+      // requires the separate WHISKAY_AI_PRIVATE_AUTO_ENABLED opt-in below.
+      const mode = String(process.env.AI_CHAT_MODE || 'mention-only').toLowerCase();
       const botJids = [ctx.sock?.user?.id, ctx.sock?.user?.lid, ctx.bot?.user?.id].filter(Boolean).map(value => String(value).split(':')[0]);
       const mentionsBot = (ctx.mentionedJid || []).some(jid => botJids.includes(String(jid).split(':')[0])) ||
         /(?:@nexora|@whiskay)\b/i.test(incoming);
       const quotedBot = Boolean(ctx.quoted?.fromMe || ctx.quoted?.key?.fromMe);
-      const isPrivateAuto = !ctx.isGroup && ['auto','auto-private-mention-group','all'].includes(mode);
+      // Private auto-response requires a second explicit opt-in. A legacy AI_CHAT_MODE
+      // value alone must not unexpectedly create outbound DM traffic after an upgrade.
+      const privateAutoOptIn = String(process.env.WHISKAY_AI_PRIVATE_AUTO_ENABLED || 'false').toLowerCase() === 'true';
+      const isPrivateAuto = privateAutoOptIn && !ctx.isGroup && ['auto','auto-private-mention-group','all'].includes(mode);
       const shouldAI = mode !== 'off' && (isPrivateAuto || (mode !== 'mention-only' && (mentionsBot || quotedBot)) || (mode === 'mention-only' && mentionsBot));
       if (!shouldAI) continue;
       if (mode === 'mention-only' && !mentionsBot) continue;
@@ -152,4 +148,4 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       Logger.error({ err: e.message }, 'message handler error');
     }
   }
-};
+});

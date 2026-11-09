@@ -1,5 +1,7 @@
 # Owner Full Testcommand — Verification Engine
 
+> **Policy update — v2.35.23 / Stage 58:** the live-progress and automatic WhatsApp notification behavior described in earlier historical sections is retired. `.testcommands run` is now silent; only an explicit `.testcommands status`, `report`, or `download` command can send a response.
+
 ## Command surface
 
 The owner-only WhatsApp command and terminal entry point are:
@@ -18,13 +20,13 @@ The owner-only WhatsApp command and terminal entry point are:
 node scripts/testcommand-runner.mjs
 ```
 
-`.testcommands`, `.testcommand`, `.testcmd`, and `.testcmds` are registered command names. Bare invocation defaults to `help`; it never starts a long install/test run accidentally. Only the explicit `run` or `start` subcommand launches the pipeline. The runner acknowledges immediately, continues in the background, reports major phases, prevents duplicate in-process runs, and sends the final interactive result. A short command cooldown allows `.status` to remain usable while QA is active. Unauthorized users are rejected before the runner is invoked.
+`.testcommands`, `.testcommand`, `.testcmd`, and `.testcmds` are registered command names. Bare invocation defaults to `help`; it never starts a long install/test run accidentally. Only the explicit `run` or `start` subcommand launches the pipeline. The run action returns without sending an acknowledgement. It remains silent for the entire worker lifetime: no stage notices, per-test progress, failure alert, completion message, duplicate-run notice, or automatic command-level XP notification. Duplicate run requests are ignored; poll with `.testcommands status`. The owner-only plugin skips its per-command cooldown so status can be requested immediately, while the global incoming-message rate limiter remains active. Unauthorized users are rejected before the runner is invoked.
 
 ## Verification pipeline
 
 ```mermaid
 flowchart TD
-  A[Owner invokes testcommands run] --> B[Send immediate acknowledgement and mark active run]
+  A[Owner invokes testcommands run] --> B[Mark active run silently]
   B --> C[Acquire exclusive run lock and create disposable sandbox]
   C --> D[npm ci --no-audit --no-fund]
   D --> E{Install successful?}
@@ -38,8 +40,9 @@ flowchart TD
   J --> L[Parse TAP errors and stack locations]
   L --> M[Collect numbered source excerpts and logs]
   M --> N[Create failure ZIP]
-  K --> O[Remove sandbox and release lock, then notify WhatsApp]
-  N --> O
+  K --> P[Remove sandbox and release lock]
+  N --> P
+  P --> Q[Owner manually requests status/report/download]
 ```
 
 ### Pipeline phases
@@ -47,7 +50,7 @@ flowchart TD
 1. **Lock and preflight.** Verify that `package.json`, `package-lock.json`, and `scripts.verify:all` exist. An exclusive lock prevents two owner QA runs from racing. A stale lock is recovered when its PID no longer exists.
 2. **Disposable sandbox.** Copy project source into a unique OS temporary directory. Exclude `.git`, `node_modules`, `.env` files except `.env.example`, `.npmrc`, `.netrc`, sessions/auth, runtime logs, generated report output, and user data. Keep static `assets/dungeon` assets required by tests. Set test-only data/session directories and `JADIBOT_TUNNEL=off`.
 3. **Dependency install.** Execute `npm ci --no-audit --no-fund` in the sandbox. The live bot's dependency directory is not removed or rewritten.
-4. **Syntax audit.** Run `node --check` on `.js`, `.mjs`, and `.cjs` files at the project root and under `src/`, `scripts/`, `test/`, `config/`, and `automation/`, using bounded concurrency and per-file results. WhatsApp progress is sent after the first file, every 10 files, on every syntax failure, and at completion.
+4. **Syntax audit.** Run `node --check` on `.js`, `.mjs`, and `.cjs` files at the project root and under `src/`, `scripts/`, `test/`, `config/`, and `automation/`, using bounded concurrency and per-file results. Per-file progress is written only to local run state; it is never sent to WhatsApp automatically.
 5. **Configured release gate.** Execute the project's actual `npm run verify:all`; no parallel rewriting or inferred replacement of its order is performed. The sandbox sets `NODE_OPTIONS=--test-reporter=tap` for this phase so each nested `node --test` emits a stream the progress parser can count consistently across Node versions.
 6. **Full Node test discovery.** Execute `npm test` as a second pass so tests not explicitly wired into `verify:all` are also discovered. The `verify:all` phase uses TAP output for streaming; this pass uses `scripts/testcommand-reporter.mjs`, a custom Node.js test reporter that consumes the `node:test` TestsStream events and emits machine-readable JSON progress. It reports discovered, completed, passed, failed, skipped, test name, source file and duration; final counters are taken from the reporter summary.
 7. **Result handling.** Only when every phase exits successfully, atomically write `test/reports/WHISKAY-VERIFY-SUCCESS.md`. If any phase fails, create a uniquely named diagnostic ZIP in `test/reports/diagnostics/`.
@@ -101,7 +104,7 @@ It is atomically replaced only after `npm ci`, the syntax audit, `npm run verify
 
 ## WhatsApp delivery and duplicate protection
 
-The WhatsApp plugin runs the pipeline asynchronously after the acknowledgement so the message handler is not held open for the duration of `npm ci` and the complete suite. It sends phase start/completion notices, syntax counts, and live test counts. For test events, updates are sent after the first completed test, every five completed tests, and immediately on a failure. Example: `Selesai 25 · Lulus 24 · Gagal 1 · Ditemukan 31 (sementara)`. The discovered denominator can grow while Node loads more test files; the exact total is final only when the runner emits its summary. `.testcommands status` and `.testcommands progress` show the active run ID, phase and latest counters. The run remains `RUNNING` until dependency installation, syntax audit, `verify:all`, and `npm test` have all completed; only the final `FULL TEST LULUS` card means it is safe to use the tested source as a release candidate. A failed phase is not presented as a completed success. If interactive delivery is unavailable, the plugin falls back to readable text.
+The QA worker runs asynchronously, but the WhatsApp transport is not used by its progress callbacks. Syntax counts, test discovery, pass/fail events, and phase summaries remain in local run state. `.testcommands status` (or the `progress` alias) sends the latest snapshot only after the owner explicitly requests it. While a run is active, status deliberately hides the previous run's success report and diagnostic ZIP, and the status card offers only refresh/help actions. This prevents stale artifacts from being mistaken for the active run's result. The run remains `RUNNING` until dependency installation, syntax audit, `verify:all`, and `npm test` have all completed; `SUCCESS` is written only when every required phase exits with code 0. Failure ZIPs and the success report are delivered only after explicit owner requests. This is a silence guarantee for the QA worker, not a global mute of unrelated configured reminders, scheduled notifications, or replies to other user commands.
 
 Supported names: `.testcommands`, `.testcommand`, `.testcmd`, `.testcmds`. Bare invocation and `help` display instructions; use `.testcommands run` to start work.
 
@@ -112,11 +115,11 @@ npm run verify:testcommand
 npm run verify:all
 ```
 
-The focused regression tests cover stack path normalization, TAP and JSON reporter summary extraction, missing-pre-key classification, sandbox exclusions, credential redaction, reporter event aggregation, live WhatsApp progress cards, and ZIP container integrity.
+The focused regression tests cover stack path normalization, TAP and JSON reporter summary extraction, missing-pre-key classification, sandbox exclusions, credential redaction, reporter event aggregation, silent background execution, manual status polling, active-run report/download protection, and ZIP container integrity. Historical live-progress cards are covered only as archived legacy behavior, not current delivery behavior.
 
 ## Interactive command experience
 
-The help/control-center response is a native-flow interactive card, not a text-only reply. It explains the command purpose, preflight, isolated `npm ci`, syntax audit, `verify:all`, `npm test`, success/failure artifacts, security exclusions, and operational constraints. It offers three quick replies: start QA, inspect status, and open the success report. Status, report, unknown-action, duplicate-run, start acknowledgement, and final result views expose contextual buttons. If native-flow delivery is unavailable, the plugin falls back to readable text.
+The help/control-center response is a native-flow interactive card, not a text-only reply. It explains the command purpose, preflight, isolated `npm ci`, syntax audit, `verify:all`, `npm test`, success/failure artifacts, security exclusions, and operational constraints. It offers actions to start QA, inspect status, and open the success report. Status, report, unknown-action and explicit download responses expose contextual buttons. There is no start acknowledgement, duplicate-run notice, or automatic final-result message. If native-flow delivery is unavailable, an explicitly requested response falls back to readable text.
 
 
 ## Missing Baileys pre-key diagnostics

@@ -8,6 +8,7 @@ export default async function cooldown(ctx,next){
  let switches;try{switches=await getRuntimeSwitches();}catch{switches={globalCooldown:true};}
  const globalCooldownDisabled=switches.globalCooldown===false;
  const uid=ctx.senderNumber||ctx.sender||ctx.chat,plugin=ctx.plugin||{};
+ if(plugin.skipCooldown===true)return next();
  let cd=Number(plugin.cooldown)||config.cooldown||1500,energy=100,saver={enabled:false};
  try{
   const e=await getEnergy(uid);energy=Number(e.energy);saver=await getEnergySaver(uid);

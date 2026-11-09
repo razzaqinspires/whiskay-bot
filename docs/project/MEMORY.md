@@ -44,6 +44,12 @@
 - `node_modules/` is available only for Node dependency imports; npm test must not scan, copy, install, clean, delete, or modify it. Full QA `npm ci` stays inside its disposable sandbox.
 - Status card title is rendered once by the interactive title field; do not repeat it or the inactive-run subtitle in the body.
 
+## Stage 59 — Workload Threat Intelligence guardrails
+- The threat agent receives aggregate counters, bounded normalized source labels, and irreversible actor/recipient hashes only. Never pass message bodies, command arguments, raw JIDs, session files, or credentials to worker threads or external providers.
+- Worker threads are for local analysis only. They have no WhatsApp socket, network client, or message-sending capability. Background analysis must remain silent; the owner requests reports with `.workload threat` / `.workload status`.
+- AI/heuristic recommendations cannot authorize outbound traffic or loosen rate limits. Only deterministic hard policy may source-quarantine; quarantine must be scoped, TTL-bounded, observable and manually clearable.
+- Do not describe local heuristic threat scoring as a WhatsApp ban predictor or claim that it prevents enforcement. Use incident timestamps, WhatsApp notices and delivery logs for root-cause attribution.
+
 
 ## Stage 52 — repository structure contract
 - Root regular files are limited to `package.json`, `package-lock.json`, `README.md`, and `LICENSE`; keep required hidden config files/directories hidden at root.

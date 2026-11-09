@@ -18,6 +18,7 @@ import { PluginWatcher } from './PluginWatcher.js';
 import { RuntimeState } from './RuntimeState.js';
 import { SourceWatcher } from './SourceWatcher.js';
 import { RestartManager } from './RestartManager.js';
+import { planJavaScriptReload } from './JavaScriptModulePolicy.js';
 import { WatcherLog } from './WatcherLog.js';
 import { createMessageHandler } from '../handlers/message.js';
 import { handleClassicQuizPollUpdates } from '../plugins/games/classic-quiz.js';
@@ -30,6 +31,8 @@ import { groupMetadataStore, loadGroupMetadataStore } from '../services/groupMet
 import { renderGroupMemberCardV2 } from '../services/canvas-v2.js';
 import { ChronosCortex } from './ChronosCortex.js';
 import { JobLoader } from './JobLoader.js';
+import { outboundTrafficGuard, runWithOutboundContext } from './OutboundTrafficGuard.js';
+import { workloadTracker } from './WorkloadTracker.js';
 
 export class Bot {
   constructor() {
@@ -44,9 +47,9 @@ export class Bot {
     this._stopping = false;
     this._chronos = new ChronosCortex({ concurrency: 2 });
     this._jobLoader = new JobLoader({ chronos: this._chronos, context: () => ({ sock: this._sock }) });
-    this._chronos.register({ name: 'group-schedule-check', intervalMs: 30000, initialDelayMs: 5000, run: async ({ now }) => {
+    this._chronos.register({ name: 'group-schedule-check', intervalMs: 30000, initialDelayMs: 5000, run: async ({ now }) => runWithOutboundContext({ source: 'schedule:group-schedule-check', command: 'group-schedule-check' }, async () => {
       await runGroupSchedules({ sock: this._sock, now, onError: (error, context) => Logger.warn({ ...context, err: error?.message || String(error) }, 'group scheduled setting failed') });
-    } });
+    }) });
     this._botInfo = {};
     this._watcher = null;
     this._sourceWatcher = null;
@@ -138,7 +141,6 @@ export class Bot {
 
     await this._watcher.stop();
     this._watcher = null;
-    this._sourceWatcher = null;
     registry.watcher = null;
     if (persist) this._state.set('watchPlugins', false);
     Logger.info('🚫 Hot-reload: DISABLED');
@@ -183,21 +185,26 @@ export class Bot {
 
     this._sourceWatcher = new SourceWatcher({
       dir: config.sourceDir,
-      ignore: [/[\\/]src[\\/]plugins[\\/]/],
       onEvent: (kind, rel) => this._log.push({ kind: `src-${kind}`, file: rel }),
       onReload: async (batch) => {
-        const files = batch
-          .map(b => b.split(':').slice(1).join(':'))
-          .map(f => path.resolve(config.sourceDir, f));
-        this._log.push({ kind: 'src-batch', count: batch.length, files: batch.slice(0, 10) });
-        const r = await this._restartMgr.restart({ reason: 'source-watch', files });
-        if (!r.ok) {
-          this._log.push({
-            kind: 'src-restart-blocked',
-            reason: r.reason,
-            error: r.errors?.[0]?.error || r.error || ''
-          });
-        }
+        const plan = planJavaScriptReload(batch, config.sourceDir);
+        if (!plan.eligible) return;
+        this._log.push({
+          kind: 'src-batch', count: plan.items.length, strategy: plan.strategy,
+          files: plan.items.slice(0, 12).map(item => `${item.kind}:${item.file}`)
+        });
+        // Conservative by design: Node ESM import cache and captured references
+        // make arbitrary in-process replacement unsafe until lifecycle stages.
+        const result = await this._restartMgr.restart({
+          reason: `source-watch:${plan.strategy}`,
+          files: plan.syntaxFiles,
+          changedFiles: plan.items.map(item => ({ file: item.file, kind: item.kind, strategy: item.strategy }))
+        });
+        if (!result.ok) this._log.push({
+          kind: 'src-restart-blocked', reason: result.reason,
+          error: result.errors?.[0]?.error || result.error || '',
+          files: plan.items.map(item => item.file)
+        });
       }
     }).start();
 
@@ -241,6 +248,11 @@ export class Bot {
     } else {
       Logger.info('👁️  Hot-reload: disabled (runtime toggle or .env)');
     }
+
+    const persistedSource = this._state.get('sourceReload', null);
+    const wantSourceWatch = persistedSource === null ? Boolean(config.sourceReload) : Boolean(persistedSource);
+    if (wantSourceWatch) await this.enableSourceWatcher({ persist: false });
+    else Logger.info('Universal JavaScript watcher: disabled (runtime toggle or .env)');
 
     const persistedClean = this._state.get('autoClean', null);
     const wantAutoClean = persistedClean === null
@@ -289,12 +301,23 @@ export class Bot {
       }
     });
 
+    // Load persisted risk history before enabling outbound traffic. Serializer setup
+    // wraps sendMessage/relayMessage for message-ID tracking, so the policy guard
+    // must be attached LAST or those wrappers would bypass the guard.
+    await workloadTracker.load();
+    attachSerializerRuntime(sock);
+    outboundTrafficGuard.attach(sock);
+    workloadTracker.startThreatMonitoring({
+      queueProvider: () => {
+        const outbound = outboundTrafficGuard.stats();
+        return { queueDepth: outbound.queueDepth, activeWorkers: outbound.active };
+      },
+    });
     this._sock = sock;
     registry.sock = sock;
-    this._chronos.start();
+    // Chronos starts only after the socket reaches `open`; jobs must never
+    // execute against a merely-constructed or reconnecting socket.
     this._pairingRequested = false;
-
-    attachSerializerRuntime(sock);
     registry.sock = sock;
     this._botInfo = { userJid: sock.user?.id, userLid: sock.user?.lid };
 
@@ -362,6 +385,7 @@ export class Bot {
 
       if (connection === 'open') {
         this._connectionState = 'open';
+        this._chronos.resume();
         this._reconnectAttempt = 0;
         if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
         this._restart = false;
@@ -385,6 +409,7 @@ export class Bot {
 
       if (connection === 'close') {
         this._connectionState = 'closed';
+        this._chronos.pause({ wait: true, timeoutMs: 3000 }).catch(() => {});
         const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const reason = lastDisconnect?.error?.message || 'unknown';
         Logger.warn({ code: statusCode, reason, attempt: this._reconnectAttempt }, 'Connection closed');
@@ -429,14 +454,16 @@ export class Bot {
     }));
 
     sock.ev.on('messages.update', updates => {
-      handleClassicQuizPollUpdates(sock, updates).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll update handling skipped'));
+      runWithOutboundContext({ source: 'game:quiz-poll', command: 'quiz-poll-update' }, () =>
+        handleClassicQuizPollUpdates(sock, updates)).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll update handling skipped'));
     });
 
     // Baileys may deliver a vote as a pollUpdateMessage in messages.upsert,
     // rather than only as messages.update. Normalize it in serializer.js.
     sock.ev.on('messages.upsert', upsert => {
       const pollEvents = extractPollUpdateEvents(upsert);
-      if (pollEvents.length) handleClassicQuizPollUpdates(sock, pollEvents).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll upsert handling skipped'));
+      if (pollEvents.length) runWithOutboundContext({ source: 'game:quiz-poll', command: 'quiz-poll-upsert' }, () =>
+        handleClassicQuizPollUpdates(sock, pollEvents)).catch(error => Logger.warn({ err: error?.message || String(error) }, 'quiz poll upsert handling skipped'));
     });
 
     // Persist group metadata incrementally; never refetch per participant event.
@@ -460,7 +487,7 @@ export class Bot {
     });
 
     // Canvas V2 join/leave cards are opt-in per group through .welcome on.
-    sock.ev.on('group-participants.update', async update => {
+    sock.ev.on('group-participants.update', update => runWithOutboundContext({ source: 'group:welcome-leave', command: 'participant-update' }, async () => {
       const groupId = String(update?.id || '');
       if (!groupId.endsWith('@g.us') || !Array.isArray(update?.participants)) return;
       const action = String(update.action || '').toLowerCase();
@@ -494,7 +521,7 @@ export class Bot {
           await sock.sendMessage(groupId, { image, caption: text, mentions: [jid] });
         } catch (error) { Logger.warn({ err: error?.message || String(error), groupId }, 'group member canvas card skipped'); }
       }
-    });
+    }));
 
     return sock;
   }
@@ -532,15 +559,35 @@ export class Bot {
   }
 
   async stop() {
+    if (this._stopPromise) return this._stopPromise;
     this._stopping = true;
     this._connectionState = 'stopping';
-    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
-    this._chronos?.stop();
-    if (this._watcher) await this._watcher.stop();
-    if (this._sock) this._sock.end(undefined);
-    await groupMetadataStore.flush().catch(error => Logger.warn({ err: error?.message || String(error) }, 'Final group metadata cache flush failed'));
-    this._sock = null;
-    registry.sock = null;
-    this._connectionState = 'stopped';
+    this._stopPromise = (async () => {
+      const failures = [];
+      const attempt = async (name, fn) => {
+        try { await fn(); }
+        catch (error) {
+          failures.push({ name, error: error?.message || String(error) });
+          Logger.warn({ component: name, err: error?.message || String(error) }, 'Shutdown component failed');
+        }
+      };
+      if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+      await attempt('chronos', async () => { await this._chronos?.stop({ wait: true, timeoutMs: 5000 }); });
+      await attempt('plugin-watcher', async () => { if (this._watcher) await this._watcher.stop(); this._watcher = null; registry.watcher = null; });
+      await attempt('source-watcher', async () => { if (this._sourceWatcher) await this._sourceWatcher.stop(); this._sourceWatcher = null; registry.sourceWatcher = null; });
+      await attempt('auto-cleaner', async () => { if (this._cleaner?.active) this._cleaner.stop(); await this._cleaner?.waitForIdle?.({ timeoutMs: 5000 }); });
+      await attempt('reload-queue', async () => { await this._reloadQueue?.close?.({ cancelPending: true }); });
+      await attempt('plugin-disposal', async () => { await this._pm?.disposeAll?.({ reason: 'bot-shutdown', timeoutMs: 5000 }); });
+      await attempt('outbound-guard', async () => { await outboundTrafficGuard.close(); await outboundTrafficGuard.waitForIdle({ timeoutMs: 3000 }); });
+      await attempt('workload-tracker', async () => { await workloadTracker.close(); });
+      await attempt('socket', async () => { if (this._sock) this._sock.end(undefined); });
+      await attempt('group-metadata', async () => { await groupMetadataStore.flush(); });
+      this._sock = null;
+      registry.sock = null;
+      this._connectionState = failures.length ? 'stopped-with-errors' : 'stopped';
+      this._shutdownReport = { completedAt: new Date().toISOString(), failures };
+      return this._shutdownReport;
+    })();
+    return this._stopPromise;
   }
 }

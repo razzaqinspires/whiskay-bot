@@ -29,7 +29,7 @@ Required dotfiles and hidden directories remain at root, including `.env`, `.env
 | `pair.js` | `scripts/pair.mjs` | Pairing setup is an operational script, not a root entrypoint. |
 | `ecosystem.config.cjs` | `config/ecosystem.config.cjs` | PM2 process configuration belongs in `config/`. |
 | `github/` | `docs/archive/legacy-github/github/` | Only `.github/` is automatically discovered by GitHub Actions. The old mirror is archived, not active. |
-| `whiskay-local-fix-1.patch` | `docs/archive/patches/` | Historical patch is retained outside the active root. |
+| `whiskay-local-fix-1.patch` | Local-only `docs/archive/patches/` (not tracked or distributed) | Historical patch may contain credential-like fixtures; Stage 54 supersedes the original archive-retention plan. |
 | `test/STAGE-49-PART-*-TEST-REPORT.md` | `docs/reports/stages/` | Reports are documentation, not executable test files. |
 
 ## 4. Obsolete artifacts removed
@@ -39,7 +39,7 @@ The following were removed after checking references and active configuration:
 - Four unreferenced source snapshots: `src/core/Bot.js.pre-pairing`, `Bot.js.pre-src`, `Bot.js.pre-wire`, and `src/plugins/owner/hrlog.js.pre-v2`.
 - `env.example`, an older duplicate of `.env.example` that lacked the maintained default prompt and current placeholder key.
 - `gitignore`, an outdated duplicate of `.gitignore` with weaker runtime-data exclusions.
-- Old generated local QA outputs from `data/test-reports/` (`LATEST.txt`, the dated npm CI/test ZIPs and the command-test JSON). The folder's operator guidance `README.txt` remains; future test runs continue to create new reports there.
+- Generated QA output is local-only under `data/test-reports/` and excluded from Git. Old artifacts may be removed from a release package, but the cleanup/test process does not delete an operator's existing local report ZIPs; Stage 52 verifies ignore/tracking state rather than requiring the local folder to be empty.
 
 The automated test source under `test/`, historical stage documents, `.github/` workflows and the canonical `.env.example` were retained. The distributable ZIP intentionally excludes the private `.env`, WhatsApp sessions, mutable `data/` databases, cached assets, saved images and generated reports; only the static `assets/dungeon/floors.json` seed is packaged.
 
@@ -49,7 +49,7 @@ The automated test source under `test/`, historical stage documents, `.github/` 
 - Pairing helper is available as `npm run pair -- --help` or `node scripts/pair.mjs --help`. It resolves `.env` and relative session paths from the repository root even when invoked from another current directory.
 - `scripts/auto-push.sh` includes `docs/project/CHANGELOG.md` in its metadata audit.
 - README, documentation index, package metadata and lockfile were updated to version `2.35.15`.
-- `npm run verify:stage52` checks root-file policy, document placement, script/config paths, active-vs-archived workflow layout, stale artifact removal and package/lockfile consistency. It is included in `npm run verify:all`.
+- `npm run verify:stage52` checks root-file policy, document placement, script/config paths, active-vs-archived workflow layout, local-report ignore/tracking policy and package/lockfile consistency. It is included in `npm run verify:all`.
 
 ## 6. Verification boundary
 
@@ -57,4 +57,4 @@ The Stage 52 test verifies filesystem structure and static configuration. It doe
 
 ## 7. Rollback
 
-Restore the moved files to their former paths only together with the corresponding package scripts, README links, script references and workflow documentation. Do not restore the duplicate `gitignore` or old source snapshots into the active source tree. The legacy GitHub mirror and patch are available in `docs/archive/` for reference.
+Restore the moved files to their former paths only together with the corresponding package scripts, README links, script references and workflow documentation. Do not restore the duplicate `gitignore` or old source snapshots into the active source tree. The legacy GitHub mirror remains under `docs/archive/`. Historical `.patch` files are local-only, ignored by Git and are not required to exist in a clean checkout; retain a local copy only when needed for operator reference.

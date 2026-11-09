@@ -1,12 +1,15 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { readJsonFile, writeJsonAtomic, withFileLock } from '../utils/PersistentJsonStore.js';
 import path from 'node:path';
 import os from 'node:os';
+import { copyFile, stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 
 const DATA_DIR = path.resolve(process.env.WHISKAY_DATA_DIR || 'data');
 const ENERGY_FILE = path.join(DATA_DIR, 'energy-ledger.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'runtime-switches.json');
 const PAYMENT_FILE = path.join(DATA_DIR, 'payment-config.json');
 const HITS_FILE = path.join(DATA_DIR, 'command-hits.json');
+const LEDGER_LOCK_FILE = `${ENERGY_FILE}.lock`;
 const DAY = 86_400_000;
 const MAX_USERS = 5000;
 const MAX_MODCOIN_HISTORY = 100;
@@ -15,11 +18,33 @@ let pendingWriteCount = 0;
 let mutationQueue = Promise.resolve();
 let switchCache = null;
 let switchCacheAt = 0;
-function withMutationLock(fn) { const run = mutationQueue.then(fn, fn); mutationQueue = run.catch(() => {}); return run; }
+function withMutationLock(fn) {
+  const run = mutationQueue.then(() => withFileLock(LEDGER_LOCK_FILE, fn), () => withFileLock(LEDGER_LOCK_FILE, fn));
+  mutationQueue = run.catch(() => {});
+  return run;
+}
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-async function readJson(file, fallback) { try { return JSON.parse(await readFile(file, 'utf8')); } catch { return fallback; } }
+function validateEnergyLedger(value) {
+  const invalid = !value || typeof value !== 'object' || Array.isArray(value) || Object.entries(value).some(([key, user]) =>
+    !key || !user || typeof user !== 'object' || Array.isArray(user) ||
+    (user.energy != null && !Number.isFinite(Number(user.energy))) ||
+    (user.maxBatteryCapacity != null && !Number.isFinite(Number(user.maxBatteryCapacity))) ||
+    (user.modCoins != null && !Number.isFinite(Number(user.modCoins)))
+  );
+  if (invalid) {
+    const error = new Error('Energy ledger schema validation failed; refusing to use an unsafe fallback.');
+    error.code = 'WHISKAY_DATA_CORRUPT';
+    throw error;
+  }
+  return value;
+}
+async function readJson(file, fallback) {
+  const value = await readJsonFile(file, fallback);
+  if (file === ENERGY_FILE || file === `${ENERGY_FILE}.bak`) validateEnergyLedger(value);
+  return value;
+}
 async function atomicJson(file, value) {
-  const task = async () => { await mkdir(DATA_DIR, { recursive: true }); const tmp = `${file}.${process.pid}.tmp`; await writeFile(tmp, JSON.stringify(value, null, 2)); await rename(tmp, file); };
+  const task = () => writeJsonAtomic(file, value, { backup: file === ENERGY_FILE });
   pendingWriteCount++;
   writeQueue = writeQueue.then(task, task).finally(() => { pendingWriteCount = Math.max(0, pendingWriteCount - 1); });
   return writeQueue;
@@ -83,18 +108,30 @@ function resolveCharging(u, now = Date.now()) {
   u.energy = Math.round(clamp(startEnergy + elapsed * rate, 0, cap) * 100) / 100;
   u.chargingEndsAt = started + duration;
   if (u.energy >= cap || now >= u.chargingEndsAt) {
-    u.energy = cap; u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = cap; u.chargingEndsAt = 0; u.lastChargeAt = now;
+    u.energy = cap; u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = cap; u.chargingEndsAt = 0; u.lastChargeAt = now; u.lastPassiveRegenAt = now;
     return true;
   }
   return false;
 }
-export async function getEnergy(userId) {
-  const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || {};
-  const completed = resolveCharging(u);
-  if (completed) await atomicJson(ENERGY_FILE, all);
+function energySnapshot(u = {}) {
   const maxBatteryCapacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
   const energy = clamp(Number(u.energy ?? 100), 0, maxBatteryCapacity);
   return { energy, maxBatteryCapacity, currentVoltSpeed: clamp(Number(u.currentVoltSpeed || 5), 5, 33), modCoins: Math.max(0, Math.floor(Number(u.modCoins || 0))), isCharging: Boolean(u.isCharging), chargingEndsAt: Number(u.chargingEndsAt || 0), chargingStartedAt: Number(u.chargingStartedAt || 0), lastChargeAt: Number(u.lastChargeAt || 0), premiumUntil: Number(u.premiumUntil || 0), commands: Number(u.commands || 0), totalSpent: Number(u.totalSpent || 0), lastCommands: Array.isArray(u.lastCommands) ? u.lastCommands.slice(-5) : [], limit: clamp(Number(u.limit ?? 20), 0, 100), limitResetAt: Number(u.limitResetAt || 0) };
+}
+export async function getEnergy(userId) {
+  const key = normUser(userId);
+  const initial = await readJson(ENERGY_FILE, {});
+  const firstUser = initial[key] || {};
+  if (!resolveCharging(firstUser)) return energySnapshot(firstUser);
+  // Charging completion changes persisted state; re-read under the cross-process lock.
+  return withMutationLock(async () => {
+    const all = await readJson(ENERGY_FILE, {}), current = all[key] || {};
+    if (resolveCharging(current)) {
+      all[key] = current;
+      await atomicJson(ENERGY_FILE, all);
+    }
+    return energySnapshot(current);
+  });
 }
 export async function isCharging(userId) { return (await getEnergy(userId)).isCharging; }
 export async function startCharging(userId, now = Date.now(), options = {}) {
@@ -109,7 +146,7 @@ export async function startCharging(userId, now = Date.now(), options = {}) {
     if (energy >= capacity) return { ok: false, reason: 'full', energy: capacity };
     u.currentVoltSpeed = volts;
     const duration = Math.ceil((capacity - energy) * 252000 * (5 / volts));
-    u.isCharging = true; u.chargingStartedAt = now; u.chargingStartEnergy = energy; u.chargingEndsAt = now + duration;
+    u.isCharging = true; u.chargingStartedAt = now; u.chargingStartEnergy = energy; u.chargingEndsAt = now + duration; u.lastPassiveRegenAt = now;
     all[key] = u; await atomicJson(ENERGY_FILE, all);
     return { ok: true, energy, capacity, volts, endsAt: u.chargingEndsAt, durationMs: duration };
   });
@@ -159,6 +196,7 @@ export async function adjustEnergy(userId, delta, options = {}) {
       u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = after; u.chargingEndsAt = 0;
     }
     u.energy = after;
+    u.lastPassiveRegenAt = Date.now();
     const entry = {
       at: Date.now(), delta: applied, requestedDelta: Math.round(change * 100) / 100,
       before, after, reason: String(options.reason || 'owner-adjustment').replace(/[^a-zA-Z0-9._:-]/g, '-').slice(0, 48),
@@ -178,7 +216,7 @@ export async function resetBattery(userId, energy = 100) {
     const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
     u.energy = clamp(Number(energy), 0, capacity);
     u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = u.energy; u.chargingEndsAt = 0;
-    u.currentVoltSpeed = 5; all[key] = u; await atomicJson(ENERGY_FILE, all);
+    u.currentVoltSpeed = 5; u.lastPassiveRegenAt = Date.now(); all[key] = u; await atomicJson(ENERGY_FILE, all);
     return { ok: true, user: key, energy: u.energy, capacity, modCoins: Math.max(0, Math.floor(Number(u.modCoins || 0))) };
   });
 }
@@ -190,53 +228,92 @@ export async function stopCharging(userId, now = Date.now()) {
   return withMutationLock(async () => {
     const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key];
     if (!u?.isCharging) return { ok: false, reason: 'not-charging', energy: clamp(Number(u?.energy ?? 100), 0, clamp(Number(u?.maxBatteryCapacity || 100),100,10000)) };
-    resolveCharging(u, now); u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = Number(u.energy || 0); u.chargingEndsAt = 0; all[key] = u; await atomicJson(ENERGY_FILE, all);
+    resolveCharging(u, now); u.isCharging = false; u.chargingStartedAt = 0; u.chargingStartEnergy = Number(u.energy || 0); u.chargingEndsAt = 0; u.lastPassiveRegenAt = now; all[key] = u; await atomicJson(ENERGY_FILE, all);
     return { ok: true, energy: clamp(Number(u.energy || 0), 0, clamp(Number(u.maxBatteryCapacity || 100),100,10000)) };
   });
 }
 let regenTimer = null;
 let regenTickRunning = false;
 export async function setAutoRegen(enabled) {
-  await withMutationLock(async () => { const switches = await readJson(SETTINGS_FILE, {}); switches.autoRegen = Boolean(enabled); await atomicJson(SETTINGS_FILE, switches); switchCache = { antiSpam: true, globalCooldown: true, ...switches }; switchCacheAt = Date.now(); });
+  await withMutationLock(async () => {
+    const switches = await readJson(SETTINGS_FILE, {});
+    switches.autoRegen = Boolean(enabled);
+    await atomicJson(SETTINGS_FILE, switches);
+    if (enabled) {
+      const all = await readJson(ENERGY_FILE, {}), now = Date.now();
+      for (const user of Object.values(all)) user.lastPassiveRegenAt = now;
+      await atomicJson(ENERGY_FILE, all);
+    }
+    switchCache = { antiSpam: true, globalCooldown: true, ...switches };
+    switchCacheAt = Date.now();
+  });
   if (enabled) startAutoRegenWorker(); else stopAutoRegenWorker();
   return Boolean(enabled);
 }
 export function startAutoRegenWorker() {
   if (regenTimer) return;
   regenTimer = setInterval(async () => {
-    // setInterval must not enqueue another database scan while the prior one is still running.
+    // Prevent overlapping scans in this process; the file lock and per-user timestamp also coordinate PM2 instances.
     if (regenTickRunning) return;
     regenTickRunning = true;
     try {
       await withMutationLock(async () => {
-        const all = await readJson(ENERGY_FILE, {}); let changed = false;
+        const all = await readJson(ENERGY_FILE, {}); let changed = false; const now = Date.now();
         for (const u of Object.values(all)) {
-          if (u?.isCharging) { changed = resolveCharging(u) || changed; continue; }
-          const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000); const before = clamp(Number(u.energy ?? 100), 0, capacity), after = Math.min(capacity, Math.round((before + 0.01) * 100) / 100);
-          if (after !== before) { u.energy = after; changed = true; }
+          if (u?.isCharging) { changed = resolveCharging(u, now) || changed; continue; }
+          const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
+          const storedRegenAt = Number(u.lastPassiveRegenAt);
+          if (u.lastPassiveRegenAt == null || !Number.isFinite(storedRegenAt) || storedRegenAt <= 0) { u.lastPassiveRegenAt = now; changed = true; continue; }
+          const previousAt = storedRegenAt;
+          const elapsedSeconds = Math.max(0, Math.floor((now - previousAt) / 1000));
+          if (elapsedSeconds <= 0) continue;
+          const before = clamp(Number(u.energy ?? 100), 0, capacity);
+          // A full battery needs no periodic ledger write. Energy-spending mutations
+          // reset lastPassiveRegenAt, so skipping a full battery cannot grant retroactive regen.
+          if (before >= capacity) continue;
+          const after = Math.min(capacity, Math.round((before + elapsedSeconds * 0.01) * 100) / 100);
+          if (after > before) {
+            u.energy = after;
+            u.lastPassiveRegenAt = previousAt + elapsedSeconds * 1000;
+            changed = true;
+          }
         }
         if (changed) await atomicJson(ENERGY_FILE, all);
       });
     } catch (e) { console.error('[AUTO REGEN]', e?.message || e); }
     finally { regenTickRunning = false; }
-  }, 1000);
+  }, 5000);
   regenTimer.unref?.();
 }
 export function stopAutoRegenWorker() { if (regenTimer) clearInterval(regenTimer); regenTimer = null; }
 readJson(SETTINGS_FILE, {}).then(s => { if (s?.autoRegen) startAutoRegenWorker(); }).catch(() => {});
 async function consumeEnergyUnlocked(userId, commandText, fixedCost = null) {
   const all = await readJson(ENERGY_FILE, {}), key = normUser(userId), u = all[key] || { energy: 100, lastChargeAt: 0, premiumUntil: 0, commands: 0, totalSpent: 0, lastCommands: [] };
+  const now = Date.now();
+  // Resolve the current charge value before debiting. If charging continues, its
+  // schedule is rebased after the debit so a later snapshot cannot restore spent energy.
+  resolveCharging(u, now);
   const cost = fixedCost !== null && fixedCost !== undefined && Number.isFinite(Number(fixedCost)) ? Math.round(clamp(Number(fixedCost), 0.05, 10) * 100) / 100 : complexityScore(commandText, u.lastCommands || []);
   const capacity = clamp(Number(u.maxBatteryCapacity || 100), 100, 10000);
-  const actualCost = Math.round(Math.min(clamp(Number(u.energy ?? 100), 0, capacity), cost) * 100) / 100;
-  u.energy = Math.round(clamp(Number(u.energy ?? 100) - actualCost, 0, capacity) * 100) / 100;
+  const available = Math.round(clamp(Number(u.energy ?? 100), 0, capacity) * 100) / 100;
+  if (available + 0.0001 < cost) return { ok: false, reason: 'insufficient-energy', energy: available, required: cost };
+  const actualCost = Math.round(cost * 100) / 100;
+  u.energy = Math.round(clamp(available - actualCost, 0, capacity) * 100) / 100;
+  u.lastPassiveRegenAt = now;
+  if (u.isCharging) {
+    const volts = clamp(Number(u.currentVoltSpeed || 5), 5, 33);
+    const rate = (volts / 5) / 252000;
+    u.chargingStartedAt = now;
+    u.chargingStartEnergy = u.energy;
+    u.chargingEndsAt = now + Math.ceil(Math.max(0, capacity - u.energy) / rate);
+  }
   u.commands = Number(u.commands || 0) + 1; u.totalSpent = Math.round((Number(u.totalSpent || 0) + actualCost) * 100) / 100;
   u.lastCommands = [...(u.lastCommands || []).slice(-4), String(commandText || '').slice(0, 120)];
   all[key] = u;
   const keys = Object.keys(all); if (keys.length > MAX_USERS) for (const old of keys.slice(0, keys.length - MAX_USERS)) delete all[old];
   await atomicJson(ENERGY_FILE, all);
   const premium = Number(u.premiumUntil || 0) > Date.now();
-  return { energy: u.energy, cost: actualCost, estimatedCost: cost, premium, commands: u.commands, totalSpent: u.totalSpent, limit: clamp(Number(u.limit ?? 20), 0, 100) };
+  return { ok: true, energy: u.energy, cost: actualCost, estimatedCost: cost, premium, commands: u.commands, totalSpent: u.totalSpent, limit: clamp(Number(u.limit ?? 20), 0, 100) };
 }
 async function chargeEnergyUnlocked(userId, now = Date.now(), fast = false) {
   // Legacy API now starts a timed charge; fast mode is intentionally not instant.
@@ -266,10 +343,44 @@ export async function getPremiumPrice(now = Date.now()) { const c = await getPay
 async function setPaymentConfigUnlocked(patch) { const current = await getPaymentConfig(); const next = { ...current, ...patch }; await atomicJson(PAYMENT_FILE, next); return next; }
 async function recordHitUnlocked(userId, command) { const all = await readJson(HITS_FILE, { total: 0, commands: {}, users: {} }), u = normUser(userId), c = String(command || 'unknown').toLowerCase().slice(0, 64); all.total++; all.commands[c] = Number(all.commands[c] || 0) + 1; if (!all.users[u]) all.users[u] = { total: 0, commands: {} }; all.users[u].total++; all.users[u].commands[c] = Number(all.users[u].commands[c] || 0) + 1; await atomicJson(HITS_FILE, all); return all; }
 export async function getHits() { return readJson(HITS_FILE, { total: 0, commands: {}, users: {} }); }
+/** Return primary/backup health without mutating either file. */
+export async function inspectEnergyLedger() {
+  const inspect = async file => {
+    try {
+      await stat(file);
+    } catch (error) {
+      if (error?.code === 'ENOENT') return { exists: false, valid: false, reason: 'missing' };
+      return { exists: true, valid: false, reason: error?.code || 'read-error' };
+    }
+    try {
+      const value = await readJsonFile(file, null);
+      validateEnergyLedger(value);
+      return { exists: true, valid: true, users: Object.keys(value).length };
+    } catch (error) {
+      return { exists: true, valid: false, reason: error?.code || 'read-error' };
+    }
+  };
+  const [primary, backup] = await Promise.all([inspect(ENERGY_FILE), inspect(`${ENERGY_FILE}.bak`)]);
+  return { primary, backup, recoveryAvailable: backup.valid };
+}
+
+/** Restore only on explicit operator confirmation; preserve the damaged primary first. */
+export async function restoreEnergyLedgerBackup({ confirm = false } = {}) {
+  if (confirm !== true) return { ok: false, reason: 'confirmation-required' };
+  return withMutationLock(async () => {
+    const backup = await readJson(`${ENERGY_FILE}.bak`, null);
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup)) return { ok: false, reason: 'backup-invalid' };
+    const damaged = `${ENERGY_FILE}.pre-restore-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    await copyFile(ENERGY_FILE, damaged).catch(error => { if (error?.code !== 'ENOENT') throw error; });
+    await writeJsonAtomic(ENERGY_FILE, backup, { backup: false });
+    return { ok: true, users: Object.keys(backup).length };
+  });
+}
+
 export async function getEnergyRuntimeInfo() { const m = process.memoryUsage(); return { rssMB: Math.round(m.rss / 1048576), heapUsedMB: Math.round(m.heapUsed / 1048576), platform: `${os.platform()} ${os.arch()}`, node: process.versions.node, worker: 'inline-bounded-O(n)', pendingWrites: pendingWriteCount }; }
 export function energyFooter(receipt) { return receipt ? `\n\n-${receipt.cost.toFixed(2).replace('.', ',')}% baterai digunakan. 🔋 ${receipt.energy.toFixed(2).replace('.', ',')}% tersisa.` : ''; }
 
-// Serialize read-modify-write transactions in-process so concurrent messages cannot overwrite one another.
+// Serialize read-modify-write transactions in-process and across local PM2/forked processes.
 export const consumeEnergy = (...args) => withMutationLock(() => consumeEnergyUnlocked(...args));
 export const chargeEnergy = (...args) => startCharging(...args);
 export const grantPremium = (...args) => withMutationLock(() => grantPremiumUnlocked(...args));

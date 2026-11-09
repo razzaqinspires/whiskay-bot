@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage 53: autonomous, data-safe upload. Validates the exact upload branch and never pushes main.
 set -Eeuo pipefail
-export GIT_PAGER=cat PAGER=cat TZ=Asia/Jakarta
+export GIT_PAGER=cat PAGER=cat GH_PAGER=cat GIT_TERMINAL_PROMPT=0 TZ=Asia/Jakarta
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
@@ -41,6 +41,7 @@ else
 fi
 RUN_ID="${RUN_ID:-$(date '+%Y%m%d-%H%M%S')-$((RANDOM % 9000 + 1000))}"
 LOG_DIR="data/test-reports/git-upload-$RUN_ID-$(date '+%H%M%S')"
+export WHISKAY_UPLOAD_RUN_ID="$RUN_ID"
 mkdir -p "$LOG_DIR"
 
 printf '\n╔════════════════════════════════════════════════════════════╗\n'
@@ -158,12 +159,18 @@ fi
 
 printf '\n════ 2C/6 · POST-SYNC LINEAGE RECHECK ════\n'
 node scripts/git-upload-recovery.mjs --analyze | tee "$LOG_DIR/recovery-after-sync.log"
-if ! node scripts/git-upload-recovery.mjs --check-publish >"$LOG_DIR/recovery-publish-gate.log" 2>&1; then
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  # A dry-run is explicitly a QA rehearsal and may start from an empty upload branch.
+  # The no-empty-PR gate belongs to the real publish path, after QA has been inspected.
+  printf 'DRY_RUN: publish lineage gate skipped; no remote branch or PR will be created.\n'
+else
+  if ! node scripts/git-upload-recovery.mjs --check-publish >"$LOG_DIR/recovery-publish-gate.log" 2>&1; then
+    cat "$LOG_DIR/recovery-publish-gate.log"
+    write_local_blocked_report 'NO_UNIQUE_COMMITS: semua commit branch sudah terwakili di base atau tidak ada commit baru. Branch dipertahankan; tidak membuat PR kosong.'
+    exit 13
+  fi
   cat "$LOG_DIR/recovery-publish-gate.log"
-  write_local_blocked_report 'NO_UNIQUE_COMMITS: semua commit branch sudah terwakili di base atau tidak ada commit baru. Branch dipertahankan; tidak membuat PR kosong.'
-  exit 13
 fi
-cat "$LOG_DIR/recovery-publish-gate.log"
 printf '\n════ 3/6 · POST-SYNC SECURITY AUDIT ════\n'
 if ! audit analysis "$LOG_DIR/analysis.log"; then
   printf 'UPLOAD BLOCKED: audit setelah sinkronisasi gagal; branch lokal dipertahankan untuk pemeriksaan.\n' >&2

@@ -64,7 +64,7 @@ test('git upload dry-run executes npm ci and full QA before stopping without com
     git('config', 'user.email', 'dry-run@example.invalid');
     git('remote', 'add', 'origin', remote);
 
-    for (const file of ['auto-push.sh', 'git-upload.sh', 'git-upload-report.mjs', 'archive-test-log.mjs', 'protect-runtime-data.mjs', 'run-tests.mjs', 'testcommand-reporter.mjs', 'testcommand-runner.mjs']) {
+    for (const file of ['auto-push.sh', 'git-upload.sh', 'git-upload-intelligence.mjs', 'git-upload-recovery.mjs', 'git-upload-report.mjs', 'archive-test-log.mjs', 'protect-runtime-data.mjs', 'run-tests.mjs', 'testcommand-reporter.mjs', 'testcommand-runner.mjs']) {
       await cp(path.join(root, 'scripts', file), path.join(repo, 'scripts', file));
     }
     await writeFile(path.join(repo, '.github', 'workflows', 'ci.yml'), 'name: fixture\non: [push]\n');
@@ -74,7 +74,10 @@ test('git upload dry-run executes npm ci and full QA before stopping without com
     await writeFile(path.join(repo, '.env.example'), 'AI_SYSTEM_PROMPT=Safe test prompt\n');
     await writeFile(path.join(repo, 'README.md'), '# dry-run fixture\n');
     await writeFile(path.join(repo, 'test', 'sample.test.js'), "import test from 'node:test';\ntest('dry-run QA test', () => {});\n");
-    await writeFile(path.join(mockBin, 'npm'), `#!/bin/sh\ncase "$1" in\n  ci)\n    mkdir -p node_modules\n    printf '{"lockfileVersion":3}' > node_modules/.package-lock.json\n    echo 'MOCK_NPM_CI=PASS'\n    exit 0\n    ;;\n  test) exec node scripts/run-tests.mjs ;;\nesac\necho "unexpected npm args: $*" >&2\nexit 2\n`, { mode: 0o755 });
+    await writeFile(path.join(mockBin, 'npm'), `#!/bin/sh\ncase "$1" in\n  ci)\n    mkdir -p node_modules\n    printf '{"lockfileVersion":3}' > node_modules/.package-lock.json\n    echo 'MOCK_NPM_CI=PASS'\n    exit 0\n    ;;\n  audit)
+    printf '{"metadata":{"vulnerabilities":{"critical":0,"high":0,"moderate":0,"low":0,"info":0}}}\n'
+    exit 0
+    ;;\n  test) exec node scripts/run-tests.mjs ;;\nesac\necho "unexpected npm args: $*" >&2\nexit 2\n`, { mode: 0o755 });
     await execFileSync('chmod', ['755', path.join(mockBin, 'npm')]);
 
     git('add', '-A');
@@ -115,7 +118,7 @@ test('security hard-block creates local diagnostic ZIP without pushing a secret 
     git('config', 'user.name', 'Whiskay Security Test');
     git('config', 'user.email', 'security-test@example.invalid');
     git('remote', 'add', 'origin', remote);
-    for (const file of ['auto-push.sh', 'git-upload.sh', 'git-upload-report.mjs', 'protect-runtime-data.mjs', 'testcommand-runner.mjs']) {
+    for (const file of ['auto-push.sh', 'git-upload.sh', 'git-upload-intelligence.mjs', 'git-upload-recovery.mjs', 'git-upload-report.mjs', 'protect-runtime-data.mjs', 'testcommand-runner.mjs']) {
       await cp(path.join(root, 'scripts', file), path.join(repo, 'scripts', file));
     }
     await cp(path.join(root, '.gitignore'), path.join(repo, '.gitignore'));

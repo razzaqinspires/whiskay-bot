@@ -69,6 +69,18 @@ export function parseTestSummary(output) {
     }), { tests: 0, passed: 0, failed: 0, skipped: 0 });
     return { ...totals, cancelled: null };
   }
+  // Parse the compact summary emitted by scripts/run-tests.mjs, including multi-run aggregates.
+  const whiskaySummaries = [...text.matchAll(/^\s*Test:\s*(\d+)\s*\/\s*(\d+)\s*lulus\s*[·,;]\s*(\d+)\s*gagal\s*[·,;]\s*(\d+)\s*skip\b.*$/gim)];
+  if (whiskaySummaries.length) {
+    return whiskaySummaries.reduce((acc, match) => ({
+      tests: acc.tests + Number(match[2]),
+      passed: acc.passed + Number(match[1]),
+      failed: acc.failed + Number(match[3]),
+      skipped: acc.skipped + Number(match[4]),
+      cancelled: null,
+    }), { tests: 0, passed: 0, failed: 0, skipped: 0, cancelled: null });
+  }
+
   const sum = pattern => {
     const matches = [...text.matchAll(pattern)];
     return matches.length ? matches.reduce((total, match) => total + Number(match[1]), 0) : null;
@@ -92,6 +104,15 @@ export function classifyFailure(output) {
       severity: 'critical',
       explanation: 'Upload dihentikan karena audit menemukan path privat, kredensial, database/sesi yang masih tracked, secret, atau aturan .gitignore yang tidak berlaku.',
       recommendedAction: 'Biarkan data dan sesi tetap lokal. Periksa path dan aturan ignore, keluarkan file dari Git index tanpa menghapus salinan lokal, rotasi credential jika pernah terunggah, lalu jalankan ulang git upload.',
+    };
+  }
+  if (/NPM_AUDIT_RESULT=FAIL_HIGH_OR_CRITICAL|GHSA-jpjx-r3gh-v5pf|GHSA-8v3r-r9vg-5r66/i.test(text)) {
+    return {
+      code: 'DEPENDENCY_SUPPLY_CHAIN_BLOCKED',
+      category: 'DEPENDENCY_SECURITY',
+      severity: 'critical',
+      explanation: 'npm audit menemukan rilis dependency yang ditandai malware oleh GitHub Advisory Database. Host yang memasang rilis terdampak harus diperlakukan sebagai berpotensi kompromi.',
+      recommendedAction: 'Gunakan perangkat bersih untuk rotasi semua kredensial yang dapat diakses host terdampak. Kunci versi tidak terdampak di package.json/package-lock.json, lalu verifikasi instalasi di runner bersih sebelum menjalankan bot kembali.',
     };
   }
   if (/Could not find ['\"]?[^\n]*sessions[\\/]pre-key-\d+\.json/i.test(text)) {
@@ -150,7 +171,7 @@ export function parseFailureLocations(output, projectRoot = process.cwd()) {
 
 export function extractFailureLines(output) {
   const lines = String(output || '').split(/\r?\n/);
-  const markers = /^(?:not ok\s+\d+|✖|\s*AssertionError|\s*(?:Error|TypeError|ReferenceError|SyntaxError|ERR_[A-Z_]+):|npm error|npm ERR!|UPLOAD BLOCKED|BLOCK(?:ED)?(?:\s|:)|FAIL\b)/i;
+  const markers = /^(?:\[FAIL\]|WHISKAY TEST RESULT:\s*FAIL|not ok\s+\d+|✖|\s*AssertionError|\s*(?:Error|TypeError|ReferenceError|SyntaxError|ERR_[A-Z_]+):|npm error|npm ERR!|UPLOAD BLOCKED|BLOCK(?:ED)?(?:\s|:)|FAIL\b)/i;
   const selected = [];
   for (let i = 0; i < lines.length; i++) {
     if (!markers.test(lines[i])) continue;

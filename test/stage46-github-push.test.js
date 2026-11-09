@@ -32,6 +32,7 @@ async function createFixture(prefix = 'whiskay-upload-') {
   await writeFile(path.join(repo, '.github', 'workflows', 'ci.yml'), 'name: test\n');
   await cp(path.join(ROOT, 'scripts', 'auto-push.sh'), path.join(repo, 'scripts', 'auto-push.sh'));
   await cp(path.join(ROOT, 'scripts', 'protect-runtime-data.mjs'), path.join(repo, 'scripts', 'protect-runtime-data.mjs'));
+  await cp(path.join(ROOT, 'scripts', 'git-upload-intelligence.mjs'), path.join(repo, 'scripts', 'git-upload-intelligence.mjs'));
   git(repo, 'add', '-A');
   git(repo, 'commit', '-m', 'initial');
   git(repo, 'push', '-u', 'origin', 'main');

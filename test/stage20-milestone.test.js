@@ -33,5 +33,7 @@ test('energy worker avoids overlapping background scans and tracks pending write
   const source = await read('../src/lib/energy-worker.js');
   assert.match(source, /if \(regenTickRunning\) return/);
   assert.match(source, /pendingWriteCount/);
-  assert.match(source, /Math\.round\(\(before \+ 0\.01\) \* 100\) \/ 100/);
+  assert.match(source, /elapsedSeconds \* 0\.01/);
+  assert.match(source, /lastPassiveRegenAt/);
+  assert.match(source, /withFileLock/);
 });

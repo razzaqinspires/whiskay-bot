@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.35.21",
+  "version": "2.35.34",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -13,7 +13,7 @@
     "tunnel:check": "node --input-type=module -e \"import('./src/services/worldBossTunnel.js').then(m=>console.log(m.getWorldBossTunnelStatus()))\"",
     "verify:ops": "node scripts/verify-ops.mjs",
     "verify:stage23": "node --test test/stage23-utils.test.js",
-    "verify:all": "npm run verify:stage42 && npm run verify:stage43 && npm run verify:stage44 && npm run verify:stage45 && npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage38 && npm run verify:stage39 && npm run verify:stage40 && npm run verify:stage41 && npm run verify:stage46 && npm run verify:stage47 && npm run verify:stage48 && npm run verify:stage49-part1 && npm run verify:stage49-part2 && npm run verify:stage49-part3 && npm run verify:stage49-part4 && npm run verify:stage49-part5 && npm run verify:testcommand && npm run verify:stage50 && npm run verify:stage51-adzan-profiles && npm run verify:stage51-adzan-engine && npm run verify:stage51-adzan-audio && npm run verify:stage51-adzan-reliability && npm run verify:stage51-adzan-dashboard && npm run verify:stage51-adzan-intelligence && npm run verify:stage51-adzan-automation && npm run verify:git-upload-launcher && npm run verify:stage52 && npm run verify:stage53 && npm run verify:stage54 && npm run verify:stage55 && npm run verify:stage56 && npm run verify:stage57 && npm run verify:upload-whitespace",
+    "verify:all": "npm run verify:stage42 && npm run verify:stage43 && npm run verify:stage44 && npm run verify:stage45 && npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage38 && npm run verify:stage39 && npm run verify:stage40 && npm run verify:stage41 && npm run verify:stage46 && npm run verify:stage47 && npm run verify:stage48 && npm run verify:stage49-part1 && npm run verify:stage49-part2 && npm run verify:stage49-part3 && npm run verify:stage49-part4 && npm run verify:stage49-part5 && npm run verify:testcommand && npm run verify:stage50 && npm run verify:stage51-adzan-profiles && npm run verify:stage51-adzan-engine && npm run verify:stage51-adzan-audio && npm run verify:stage51-adzan-reliability && npm run verify:stage51-adzan-dashboard && npm run verify:stage51-adzan-intelligence && npm run verify:stage51-adzan-automation && npm run verify:git-upload-launcher && npm run verify:stage52 && npm run verify:stage53 && npm run verify:stage54 && npm run verify:stage55 && npm run verify:stage56 && npm run verify:stage57 && npm run verify:stage58 && npm run verify:stage59 && npm run verify:upload-whitespace && npm run verify:security-deps && npm run verify:stage60 && npm run verify:stage61 && npm run verify:stage62 && npm run verify:stage63 && npm run verify:stage64 && npm run verify:stage64-part2 && npm run verify:stage65 && npm run verify:stage66 && npm run verify:stage67 && npm run verify:stage68",
     "verify:stage24": "node --test test/stage24-logger.test.js",
     "start:pm2": "pm2 start config/ecosystem.config.cjs",
     "restart:pm2": "pm2 restart config/ecosystem.config.cjs",
@@ -80,7 +80,28 @@
     "verify:stage56": "node --test test/stage56-git-upload-intelligence.test.js",
     "audit:git-recovery": "node scripts/git-upload-recovery.mjs --analyze",
     "verify:stage57": "node --test test/stage57-git-upload-recovery.test.js",
-    "verify:upload-whitespace": "node --test test/upload-whitespace-hotfix.test.js"
+    "verify:upload-whitespace": "node --test test/upload-whitespace-hotfix.test.js",
+    "verify:security-deps": "node --test test/supply-chain-security.test.js",
+    "verify:stage58": "node --test test/stage58-outbound-safety.test.js",
+    "verify:stage59": "node --test test/stage59-workload-threat-agent.test.js",
+    "verify:stage60": "node --test test/stage60-data-integrity.test.js",
+    "verify:stage61": "node --test test/stage61-multi-instance-safety.test.js",
+    "verify:outbound-stability": "node --test test/stage58-outbound-safety.test.js test/stage59-workload-threat-agent.test.js test/stage60-data-integrity.test.js test/stage61-multi-instance-safety.test.js test/stage63-outbound-policy-enforcement.test.js",
+    "energy:ledger:status": "node scripts/energy-ledger-recovery.mjs --status",
+    "energy:ledger:restore": "node scripts/energy-ledger-recovery.mjs --restore-backup",
+    "verify:stage62": "node --test test/stage62-lifecycle-shutdown.test.js",
+    "verify:stage63": "node --test test/stage63-outbound-policy-enforcement.test.js",
+    "verify:stage64": "node --test test/stage64-webhook-security.test.js test/stage64-jadibot-store.test.js test/stage64-locks-disposal-cleaner.test.js",
+    "verify:stage64-part2": "node --test test/stage64-part2-universal-js-hot-reload.test.js",
+    "doctor:production": "node scripts/production-readiness.mjs",
+    "health:production": "node scripts/production-readiness.mjs --health",
+    "verify:stage65": "node --test test/stage65-production-readiness.test.js",
+    "verify:stage66": "node --test test/stage66-autonomous-git-upload-repair.test.js",
+    "repair:git-upload": "node scripts/git-upload-repair.mjs --staged",
+    "repair:nexora": "node scripts/nexora-git-repair.mjs --staged",
+    "env:sync": "node scripts/sync-env-template.mjs",
+    "verify:stage67": "node --test test/stage67-env-template-live-sync.test.js",
+    "verify:stage68": "node --test test/stage68-protected-library-westmanga.test.js"
   },
   "dependencies": {
     "@hapi/boom": "10.0.1",
@@ -112,5 +133,9 @@
     "nodejs",
     "esm",
     "github-automation"
-  ]
+  ],
+  "overrides": {
+    "cacheable": "2.5.0",
+    "@cacheable/utils": "2.5.0"
+  }
 }

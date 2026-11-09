@@ -134,3 +134,7 @@ Thumbs.db
 
 # Historical local patch archives may contain credential-like fixtures or secrets.
 /docs/archive/patches/*.patch
+
+# Local manifest tracking keys previously managed by .env.example
+.env.sync-state
+.env.*.sync-state

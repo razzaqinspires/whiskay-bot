@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -66,8 +67,14 @@ test('only .github contains active workflows; legacy mirror and patch are archiv
   const pkg = JSON.parse(await readText('package.json'));
   assert.ok((await stat(path.join(projectRoot, '.github/workflows/ci.yml'))).isFile());
   assert.ok((await stat(path.join(projectRoot, 'docs/archive/legacy-github/github/workflows/ci.yml'))).isFile());
-  assert.ok((await stat(path.join(projectRoot, 'docs/archive/patches/whiskay-local-fix-1.patch'))).isFile());
   await assert.rejects(stat(path.join(projectRoot, 'github')));
+  const ignore = await readText('.gitignore');
+  assert.match(ignore, /^\/docs\/archive\/patches\/\*\.patch$/m, 'historical patch archives must remain local-only');
+  const isGitRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: projectRoot, encoding: 'utf8' });
+  if (isGitRepo.status === 0) {
+    const trackedPatch = spawnSync('git', ['ls-files', '--error-unmatch', 'docs/archive/patches/whiskay-local-fix-1.patch'], { cwd: projectRoot, encoding: 'utf8' });
+    assert.notEqual(trackedPatch.status, 0, 'secret-like historical patch must not be tracked');
+  }
   assert.equal(pkg.scripts['verify:stage52'].startsWith('node --test'), true);
 });
 
@@ -80,11 +87,13 @@ test('obsolete duplicates and unreferenced source backups are removed', async ()
   const backupFiles = sourceFiles.filter((file) => /\.pre-[^/]+$|\.(?:bak|old|orig)$|\.patch$/i.test(file));
   assert.deepEqual(backupFiles, []);
 
-  try {
-    const reports = await readdir(path.join(projectRoot, 'data/test-reports'));
-    assert.ok(reports.every((name) => name === 'README.txt'), 'generated QA outputs must not be retained');
-  } catch (error) {
-    assert.equal(error.code, 'ENOENT', 'only an absent test-report runtime directory is acceptable');
+  const ignore = await readText('.gitignore');
+  assert.match(ignore, /^data\/test-reports\/$/m, 'generated QA reports must remain ignored runtime data');
+  const isGitRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: projectRoot, encoding: 'utf8' });
+  if (isGitRepo.status === 0) {
+    const trackedReports = spawnSync('git', ['ls-files', '--', 'data/test-reports'], { cwd: projectRoot, encoding: 'utf8' });
+    assert.equal(trackedReports.status, 0, trackedReports.stderr);
+    assert.equal(trackedReports.stdout.trim(), '', 'local QA report archives may remain on disk but must not be tracked');
   }
 });
 

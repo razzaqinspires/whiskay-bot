@@ -6,7 +6,8 @@ const checks = [
  ['public health endpoint', index.includes("req.url === '/healthz'")],
  ['constant-time secret comparison', index.includes('timingSafeEqual')],
  ['request rate limit', index.includes('WHISKAY_WEBHOOK_RATE_LIMIT')],
- ['event deduplication', index.includes('wasEventSeen(eventId)')],
+ ['persistent webhook idempotency claim', index.includes('claimWebhookEvent(') && index.includes('completeWebhookEvent(')],
+ ['webhook handlers fail closed on invalid or missing target configuration', index.includes('target_allowlist_missing') && index.includes('WHISKAY_BOSS_WEBHOOK_ENABLED')],
  ['configurable target allowlist', index.includes('WHISKAY_BOSS_TARGET_GROUPS')],
  ['ops commands registered', ['opsstatus','webhookstats','tunnelhealth','webhookdryrun'].every(x=>plugin.includes(x))],
  ['metrics service exports', service.includes('getWebhookRuntimeStats')]

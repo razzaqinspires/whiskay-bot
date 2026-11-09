@@ -1,5 +1,70 @@
 # Changelog
 
+## 2.35.28 — Stage 63 Part 6: Outbound Policy Enforcement (2026-11-09)
+- Added final-boundary shared-ledger rechecks for quarantine, rolling global/per-recipient limits, duplicate payloads and stale reservation expiry.
+- Improved media fingerprints to use byte/file content identity while ignoring volatile Baileys metadata and avoiding type-only media collisions.
+- Required explicit source attribution before every guarded transport send; added stable labels for scheduled and event-driven background sources.
+- Completed Stage 62 scheduler cancellation/idle and Chronos lifecycle follow-up fixes.
+- Added Stage 63 focused verification and integrated it into outbound stability and full verification scripts.
+- Focused tests: Stage 63 8/8; Stage 58–61 38/38; Stage 62 8/8 via isolated module-loader harness. Full npm suite and live WhatsApp behavior remain unverified due incomplete dependencies and no production session test.
+
+## 2.35.26 — Stage 61 Part 4: Runtime Hardening & Multi-Instance Outbound Safety (2026-11-08)
+
+- Added a shared persistent `OutboundPolicyStore` for single-host cross-process outbound reservations, rate limits, duplicate suppression, quarantine and send-slot coordination. The store uses the local exclusive file lock and atomic JSON persistence and fails closed when its schema or JSON is corrupt.
+- Split per-process WorkloadTracker telemetry shards from the canonical shared outbound policy ledger. Only one-way actor/recipient/message hashes and bounded event metadata are retained; raw JIDs and message bodies are excluded from the policy store.
+- Enforced the global minimum send interval at the final pre-Baileys transport boundary. Independent local processes cannot each apply a separate in-memory rate budget.
+- Rechecked source quarantine immediately before transport so jobs queued before a quarantine are also blocked. Added an explicit regression for queued-job cancellation and for the broadcast hard-stop integration.
+- Kept PM2 at one forked Baileys socket and retained `start.mjs` single-instance protection. Worker threads/background workers remain separate from WhatsApp socket instances. The cross-process policy store is single-host/local-filesystem only.
+- Added a dependency preflight to `npm test` and repaired `verify:ops` to validate persistent webhook claim/complete operations. Added `verify:stage61` and `verify:outbound-stability`; Stage 61 is included in `verify:all`.
+- Stage 61 passed 9/9; Part 4 selected cross-stage regression passed 76/76; the Part 3 explicit cross-stage set was rerun and confirmed 80/80 (the previous report's 79/79 subsection was a documentation counting error and is corrected in this release). `verify:ops` passed 8/8; syntax checks passed 323 JS/MJS/CJS files; repository integrity passed 323 source files / 426 relative imports / 0 missing imports.
+- Full `npm test` remains BLOCKED because `npm ci` cannot reach the configured registry (`EAI_AGAIN`); preflight reports eight missing direct dependencies before launching the suite. No full-suite pass is claimed. Live WhatsApp/provider behavior and multi-host coordination remain untested.
+
+See `docs/STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md` and `docs/reports/TEST-REPORT-STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md`.
+
+
+## 2.35.25 — Stage 60 Part 3: Data Integrity & Core Stability Recovery (2026-11-08)
+
+- Added `src/utils/PersistentJsonStore.js` with strict JSON reads, synced atomic writes, valid-prior-state backups, and a local-host cross-process lock with stale-owner detection and bounded acquisition timeout.
+- Protected all Energy ledger mutations with the shared file lock. `getEnergy()` performs an unlocked snapshot read for the common path and re-reads under lock only when a charging completion needs persistence.
+- Corrupt or schema-invalid Energy ledgers now fail closed instead of silently falling back to `{}`. Every normal Energy ledger replacement keeps the last valid version in `data/energy-ledger.json.bak`; `scripts/energy-ledger-recovery.mjs` reports primary/backup health and offers explicit backup restore while preserving the current primary under a unique pre-restore name.
+- Made energy consumption all-or-nothing when a concurrent command has already consumed the remaining balance. The Energy middleware now aborts plugin execution if the transaction returns `insufficient-energy`.
+- Changed passive regeneration from one fixed increment per scheduler tick to elapsed-time accounting with a persisted per-user timestamp. Five-second scans and the same file lock prevent duplicate credit from multiple local PM2/fork instances.
+- Made plugin file discovery deterministic and added `src/core/PluginRegistry.js`. Command/alias token collisions no longer silently replace owners; deterministic winners are kept, collisions are recorded, and `.reload` shows owner-only registry diagnostics. No candidate plugin was deleted.
+- Replaced process-local webhook deduplication for TEAMDROP and World Boss with persistent SHA-256 event claims in `data/webhook-idempotency.json`; claims are written under a cross-process lock before WhatsApp delivery and retained for 24 hours, capped at 5,000 events.
+- Documented the at-most-once webhook trade-off: a crash after claim but before delivery may suppress a retry for the retention period. This favors duplicate-send prevention over guaranteed delivery.
+- Added Stage 60 tests for corrupted ledger preservation, automatic backups, explicit restore, concurrent process updates, no-overdraw debit behavior, webhook event claims and corruption fail-closed behavior, and deterministic plugin command collision handling.
+- Stage 60 tests pass 11/11, including clean-install missing-file status, cross-process ledger concurrency, overdraw prevention, corrupt-store fail-closed behavior, charging/debit reconciliation, passive-regeneration no-write behavior at full capacity, and deterministic plugin collisions. Combined focused cross-stage regression passes 80/80; repository integrity checks 321 source files and 423 relative imports with zero missing paths.
+- Full `npm test` most recently reported 418/448 passed and 30 failed. The environment's `npm ci --ignore-scripts --no-audit --no-fund` timed out and left an incomplete dependency tree; 25 failures directly show missing `dotenv/config`, while five top-level wrappers remain unclassified. Repeat the full suite after successful `npm ci`; no full-suite PASS is claimed.
+
+See `docs/STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md` and `docs/reports/TEST-REPORT-STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md`.
+
+## 2.35.24 — Stage 59 Part 2: Workload Threat Intelligence & Multi-Worker Agent (2026-11-08)
+
+- Extended WorkloadTracker with rolling command-execution telemetry using normalized command names and hashed actor identities; raw JIDs, command arguments, message content and credentials are excluded.
+- Added a bounded two-worker `worker_threads` pool for local threat analysis, including job timeouts, queue caps, worker restart accounting and graceful shutdown.
+- Added multi-window analysis for outbound velocity, source/recipient concentration, failed sends, blocked duplicates, command-per-actor bursts, rolling 10-second baselines and runtime pressure.
+- Added NORMAL / ELEVATED / HIGH / CRITICAL threat reports, explainable evidence factors, recommendations, and TTL-limited source quarantine for a narrowly defined high-confidence burst signature.
+- Enforced quarantine at the OutboundTrafficGuard before Baileys transport. Command completion, level-up and energy-notification traffic now receives explicit source attribution.
+- Added owner controls `.workload threat` and `.workload clear-quarantine`; background analysis sends no WhatsApp alerts. The local feature agent does not call external LLM providers and cannot authorize outbound messages.
+- Focused regression suite passed 73/73 tests including Stage 58 outbound safety, Stage 59 worker pool/quarantine, repository Stages 52–57, silent `.testcommands`, and the new broadcast hard-stop on Threat Agent quarantine. Full `npm test` was attempted: 406/436 passed, 30 failed, 0 skipped. Of the 30, 25 report the known incomplete-install error `ERR_MODULE_NOT_FOUND: dotenv/config`; five test-file failures have only a generic wrapper and remain unclassified. A clean `npm ci` and repeat full suite are required; no full-suite pass is claimed.
+
+See `docs/STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md` and `docs/reports/TEST-REPORT-STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md`.
+
+## 2.35.23 — Stage 58 Part 1: Outbound Traffic Safety & Command Containment (2026-11-08)
+
+- Compared the original v2.35.22 source with the current changes and documented two strong potential sources of historical outbound bursts: unrestricted `.bc` fan-out at 900 ms per target, and `.testcommands` progress messages emitted from every background QA event. This is source-level evidence, not proof of WhatsApp enforcement cause.
+- Added an outbound safety guard for Baileys `sendMessage` and `relayMessage`; corrected boot order so the guard wraps serializer tracking wrappers instead of being overwritten by them.
+- Added privacy-minimized WorkloadTracker outbound risk counters, duplicate checks, rate windows and bounded queue pressure telemetry. Defaults are stricter and are not claimed to represent official WhatsApp limits.
+- Made `.testcommands run` silent; `status`, `report`, and `download` require manual owner requests. Stale reports and diagnostic ZIPs are hidden while a new QA run is active.
+- Rebuilt `.bc` with explicit allowlists, preview token, owner confirmation, a separate disabled-by-default enable flag, a five-target cap and a 30-second minimum interval.
+- Disabled World Boss outbound by default, retained authenticated explicit group allowlists, reduced its cap and delivery frequency, and attributed webhook sends in outbound telemetry.
+- Dropped self-authored messages before feature events and added a second `fromMe` check in `CommandHandler`; removed natural-language direct invocation of the egg calculator; changed Nexora's private auto-response to explicit opt-in.
+- Added regression coverage for guard attachment order, self-authored dispatch, broadcast opt-in, silent QA and stale report prevention.
+- Focused Part 1 QA passed 73/73 tests; syntax audit passed 313 files and repository integrity checked 410 relative imports with no missing paths. The full `npm test` run is not green (401/431 passed, 30 failed) because `npm ci` timed out and the environment retained an incomplete dependency tree; no full-suite pass is claimed.
+- Runtime/live WhatsApp validation and full-suite results must be recorded separately; the source ZIP does not contain provider enforcement diagnostics.
+
+See `docs/STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md` and `docs/reports/TEST-REPORT-STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md`.
+
 ## 2.35.21 — Git Upload Whitespace Hotfix (2026-11-02)
 
 - Removed trailing whitespace from the changed Adzan status message line in `src/plugins/general/adzan.js`.
@@ -625,3 +690,28 @@
 - Recovery analysis runs before snapshot and after base synchronization; no reset, rebase, amend, force-push, cherry-pick, or automatic commit deletion is performed.
 - Fixed Stage 53 dungeon definition test: ignored local legacy files under `data/` may remain on the owner's machine; the test now asserts that Git does not track the private path.
 - Added `audit:git-recovery` and `verify:stage57`; integrated Stage 57 into `verify:all`.
+
+
+## [2.35.23] — Stage 58 Part 1: Outbound Traffic Safety & Command Containment (2026-11-08)
+
+- Added a shared `OutboundTrafficGuard` to primary and Jadibot Baileys sockets. Both `sendMessage` and `relayMessage` are routed through bounded workers, per-recipient lanes, global pacing, rolling rate ceilings and same-recipient duplicate suppression.
+- Extended `WorkloadTracker` with a deterministic outbound-risk score using recent volume, recipient pressure, failure ratio and queue depth. Outbound history persists only short one-way hashes, source labels and timestamps; writes are batched and flushed at shutdown.
+- Fixed a command-dispatch flaw: primary and Jadibot `fromMe` messages are ignored before command parsing. Removed the unprefixed egg-calculator shortcut that bypassed CommandHandler middleware.
+- Added a second explicit opt-in (`WHISKAY_AI_PRIVATE_AUTO_ENABLED=true`) for private AI auto-response. Legacy `AI_CHAT_MODE` values alone no longer activate private auto-response; default is mention-only.
+- Rebuilt `.bc` around explicit recipient allowlists, preview tokens, confirmation, target ceilings, slower delivery, one active campaign and cancellation. Failed acknowledgement cannot leave a phantom RUNNING campaign.
+- World Boss webhook now requires stable event IDs and an explicit group allowlist; an empty allowlist fails closed. TEAMDROP no longer silently sends to the bot's own JID when a recipient is missing.
+- Made `.testcommands run` silent, including duplicate run attempts and generic XP/level-up notifications. All progress is local; `.testcommands status` is a manual poll. The plugin bypasses its ordinary cooldown so the owner can poll without a cooldown response.
+- Moved four unreferenced `.pre-*` source snapshots from active `src/` into `docs/archive/source-snapshots/`, preserving exact bytes and SHA-256 hashes.
+- Added Stage 58 focused regression tests and integrated `verify:stage58` into `verify:all`. See `docs/STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md` and `docs/reports/TEST-REPORT-STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md`.
+
+## [2.35.22] — Git Upload QA & Supply-Chain Hotfix (2026-11-02)
+
+- Added the missing intelligence and recovery modules to the temporary Git Upload fixture and the intelligence module to Stage 46 auto-push fixtures.
+- Corrected the Stage 52 patch-archive test so it validates the Stage 54 local-only ignore policy instead of requiring a secret-like patch file to exist in clean CI.
+- Updated Stage 52 QA report handling to assert that `data/test-reports/` is ignored and untracked while preserving existing operator ZIP/Markdown reports on disk.
+- Dry-run skips only the publish-only empty-PR lineage gate; it still performs QA/report generation and never commits or pushes.
+- Added a hash-guarded cleanup script for six confirmed obsolete root/source backup blobs; it removes only exact known Git objects and keeps modified local copies for manual review.
+- Recorded `scripts/git-upload.sh` as executable (`100755`) and disabled pagers/interactive Git prompts in both upload scripts.
+- Pinned `cacheable` and `@cacheable/utils` to unaffected 2.5.0 tarballs with matching lockfile integrity metadata and npm overrides.
+- Improved Git Upload diagnostics to parse compact test totals, capture `[FAIL]` progress, include nested `failures.md`, and retain npm audit logs.
+- Added security/report regression tests and enforced High/Critical npm audit in GitHub CI. A clean-runner full-suite pass remains the gate before Stage 58.

@@ -1,9 +1,36 @@
 #!/usr/bin/env node
 /** Build a redacted, timestamped Git upload report and local evidence ZIP. */
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, lstat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { inflateRawSync } from 'node:zlib';
 import { createZipBuffer, redactText, parseTestSummary, extractFailureLines, classifyFailure } from './testcommand-runner.mjs';
+
+function readZipTextEntries(buffer, wantedNames = new Set(['summary.json', 'failures.md'])) {
+  const entries = new Map();
+  let offset = 0;
+  while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const method = buffer.readUInt16LE(offset + 8);
+    const compressedSize = buffer.readUInt32LE(offset + 18);
+    const uncompressedSize = buffer.readUInt32LE(offset + 22);
+    const nameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    if (dataEnd > buffer.length) break;
+    const name = buffer.subarray(nameStart, nameStart + nameLength).toString('utf8');
+    if (wantedNames.has(name) && uncompressedSize <= 8 * 1024 * 1024) {
+      const compressed = buffer.subarray(dataStart, dataEnd);
+      let content = null;
+      if (method === 0) content = compressed;
+      else if (method === 8) content = inflateRawSync(compressed, { maxOutputLength: 8 * 1024 * 1024 });
+      if (content && content.length === uncompressedSize) entries.set(name, content.toString('utf8'));
+    }
+    offset = dataEnd;
+  }
+  return entries;
+}
 
 const args = Object.fromEntries(process.argv.slice(2).map(arg => {
   const index = arg.indexOf('=');
@@ -33,8 +60,43 @@ const logs = {
   'syntax.log': await readLog('syntax.log'),
   'npm-test.log': await readLog('npm-test.log'),
   'qa-output.log': await readLog('qa-output.log'),
+  'npm-audit.json': await readLog('npm-audit.json'),
+  'npm-audit-stderr.log': await readLog('npm-audit-stderr.log'),
 };
-const testSummary = parseTestSummary(logs['npm-test.log']);
+let testSummary = parseTestSummary(logs['npm-test.log']);
+const testArchives = [];
+let testFailureMarkdown = '';
+let nestedTestSummary = null;
+const testArchiveRelative = /REPORT_ZIP=([^\s]+\.zip)/.exec(logs['npm-test.log'])?.[1];
+if (testArchiveRelative) {
+  const fullPath = path.resolve(root, testArchiveRelative);
+  const relativeToReports = path.relative(localDir, fullPath);
+  // Accept only a regular file lexically inside data/test-reports; do not follow symlinks.
+  if (relativeToReports && relativeToReports !== '..' && !relativeToReports.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeToReports)) {
+    try {
+      const info = await lstat(fullPath);
+      if (info.isFile() && info.size <= 100 * 1024 * 1024) {
+        const archive = await readFile(fullPath);
+        testArchives.push({ name: `test-artifacts/${path.basename(fullPath)}`, data: archive });
+        const entries = readZipTextEntries(archive);
+        if (entries.has('failures.md')) testFailureMarkdown = redactText(entries.get('failures.md')).slice(0, 40000);
+        if (entries.has('summary.json')) {
+          try { nestedTestSummary = JSON.parse(entries.get('summary.json')); } catch {}
+        }
+      }
+    } catch {}
+  }
+}
+if (testSummary.tests === null && nestedTestSummary?.counts) {
+  const counts = nestedTestSummary.counts;
+  testSummary = {
+    tests: Number(counts.tests ?? counts.completed ?? 0),
+    passed: Number(counts.passed ?? 0),
+    failed: Number(counts.failed ?? 0),
+    skipped: Number(counts.skipped ?? 0),
+    cancelled: Number(counts.cancelled ?? 0),
+  };
+}
 const allDiagnosticText = Object.values(logs).join('\n');
 const detected = classifyFailure(allDiagnosticText);
 const failures = extractFailureLines(allDiagnosticText);
@@ -82,6 +144,7 @@ const report = [
   `| npm ci | ${/NPM_CI_RESULT=(PASS|PASS_RETRY)/.exec(logs['qa-output.log'])?.[1] || 'FAIL / NOT RECORDED'} |`,
   `| Syntax check | ${/SYNTAX_RESULT=(PASS|FAIL)/.exec(logs['qa-output.log'])?.[1] || 'NOT RECORDED'} |`,
   `| npm test | ${/NPM_TEST_RESULT=(PASS|FAIL)/.exec(logs['qa-output.log'])?.[1] || 'NOT RECORDED'} |`,
+  `| npm audit (high/critical) | ${/NPM_AUDIT_RESULT=(PASS|FAIL|WARN_ADVISORIES|UNAVAILABLE)/.exec(logs['qa-output.log'])?.[1] || 'NOT RECORDED'} |`,
   `| QA aggregate | ${status} |`,
   '',
   '## Ringkasan test',
@@ -101,6 +164,14 @@ const report = [
   '',
   failures ? '```text\n' + failures + '\n```' : 'Tidak ada baris kegagalan terstruktur yang dapat diekstrak dari log.',
   '',
+  '## Rincian kegagalan dari ZIP npm test',
+  '',
+  testFailureMarkdown
+    ? testFailureMarkdown
+    : (Number(testSummary.failed || 0) > 0
+      ? 'ZIP test terdeteksi, tetapi failures.md tidak dapat diekstrak.'
+      : 'Tidak ada rincian kegagalan npm test.'),
+  '',
   '## Log dan arsip',
   '',
   `- ZIP diagnostik lengkap lokal: \`data/test-reports/git-upload-${runId}.zip\``,
@@ -117,20 +188,6 @@ const report = [
 ].join('\n');
 
 await mkdir(localDir, { recursive: true });
-const testArchives = [];
-const testArchiveRelative = /REPORT_ZIP=([^\s]+\.zip)/.exec(logs['npm-test.log'])?.[1];
-if (testArchiveRelative) {
-  const fullPath = path.resolve(root, testArchiveRelative);
-  const relativeToReports = path.relative(localDir, fullPath);
-  if (relativeToReports && !relativeToReports.startsWith('..') && !path.isAbsolute(relativeToReports)) {
-    try {
-      const info = await stat(fullPath);
-      if (info.isFile() && info.size <= 100 * 1024 * 1024) {
-        testArchives.push({ name: `test-artifacts/${path.basename(fullPath)}`, data: await readFile(fullPath) });
-      }
-    } catch {}
-  }
-}
 const zipEntries = [
   { name: 'README-REPORT.md', data: report },
   { name: 'meta/run.json', data: JSON.stringify({ runId, qaStatus: status, sourceBranch, uploadBranch, baseBranch, createdAt: now.toISOString(), createdAtJakarta: jakartaTime, fetchStatus, preflightStatus, testSummary, detectedFailure: detected, includedTestArchives: testArchives.map(item => item.name) }, null, 2) + '\n' },

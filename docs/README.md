@@ -8,6 +8,26 @@
 - [Stage 52 — Repository Structure Cleanup](STAGE-52-REPOSITORY-STRUCTURE-CLEANUP.md) — canonical file placement and legacy artifact cleanup.
 - [Stage 52 test report](TEST-REPORT-STAGE-52-REPOSITORY-STRUCTURE.md) — structural checks and regression results.
 
+## Outbound traffic safety, threat intelligence and QA
+
+- [Stage 63 Part 6 — Outbound Policy Enforcement](STAGE-63-OUTBOUND-POLICY-ENFORCEMENT.md)
+- [Stage 63 Part 6 test report](reports/TEST-REPORT-STAGE-63-OUTBOUND-POLICY-ENFORCEMENT.md)
+- [Stage 62 Part 5 — Lifecycle & Shutdown Intelligence](STAGE-62-LIFECYCLE-SHUTDOWN-INTELLIGENCE.md)
+- [Stage 62 Part 5 test report](reports/TEST-REPORT-STAGE-62-LIFECYCLE-SHUTDOWN.md)
+
+- [Stage 61 Part 4 — Runtime Hardening & Multi-Instance Outbound Safety](STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md)
+- [Stage 61 Part 4 test report](reports/TEST-REPORT-STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md)
+- [Stage 60 Part 3 — Data Integrity & Core Stability Recovery](STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md)
+- [Stage 60 Part 3 test report](reports/TEST-REPORT-STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md)
+
+- [Stage 59 Part 2 — Workload Threat Intelligence & Multi-Worker Agent](STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md)
+- [Stage 59 Part 2 test report](reports/TEST-REPORT-STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md)
+
+- [Stage 58 Part 1 — Outbound Traffic Safety & Command Containment](STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md)
+- [Stage 58 Part 1 test report](reports/TEST-REPORT-STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md)
+- [Owner QA Control Center — current silent-run behavior](OWNER-TESTCOMMAND-VERIFICATION.md)
+- [Archived source snapshots](archive/source-snapshots/README.md)
+
 ## Git upload and repository integrity
 
 - [Stage 53 — GitHub-Safe Upload](STAGE-53-GITHUB-SAFE-UPLOAD.md)
@@ -15,6 +35,7 @@
 - [Stage 55 — Plugin & Command Intelligence](STAGE-55-PLUGIN-COMMAND-INTELLIGENCE.md)
 - [Stage 56 — Git History & Move Intelligence](STAGE-56-GIT-HISTORY-MOVE-INTELLIGENCE.md)
 - [Stage 56 test report](reports/TEST-REPORT-STAGE-56-GIT-HISTORY-MOVE-INTELLIGENCE.md)
+- [Git Upload QA & supply-chain hotfix report (2026-11-02)](TEST-REPORT-GIT-UPLOAD-QA-HOTFIX-2026-11-02.md)
 
 ## Quick links
 
@@ -66,9 +87,9 @@
 - [Test report — Git upload safety and npm test ZIP reports (2026-11-01)](TEST-REPORT-GIT-UPLOAD-NPM-TEST-2026-11-01.md)
 
 - [Stage 48 — TEAMDROP private document relay (2026-10-30)](STAGE-48-TEAMDROP-DOCUMENT-RELAY.md)
-- [Owner QA Control Center — isolated verification, per-test progress and Baileys pre-key classification](OWNER-TESTCOMMAND-VERIFICATION.md)
-- [Owner Testcommand delivery fix — aliases, explicit run, background progress (2026-10-31)](OWNER-TESTCOMMAND-DELIVERY-FIX-2026-10-31.md)
-- [Test report — Owner QA live progress (2026-10-31)](TEST-REPORT-TESTCOMMAND-LIVE-PROGRESS-2026-10-31.md)
+- [Owner QA Control Center — isolated verification, manual status polling and Baileys pre-key classification](OWNER-TESTCOMMAND-VERIFICATION.md)
+- [Owner Testcommand delivery fix — historical background progress design (superseded by Stage 58)](OWNER-TESTCOMMAND-DELIVERY-FIX-2026-10-31.md)
+- [Test report — Owner QA live progress (2026-10-31; historical, superseded by Stage 58)](TEST-REPORT-TESTCOMMAND-LIVE-PROGRESS-2026-10-31.md)
 - [Test report — Owner Testcommand delivery fix (2026-10-31)](TEST-REPORT-TESTCOMMAND-DELIVERY-2026-10-31.md)
 
 - [Stage 2 — Jadibot portal security hardening (2026-10-26)](SECURITY-HARDENING-2026-10-26.md)

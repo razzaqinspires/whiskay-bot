@@ -47,6 +47,17 @@ jobs:
           cat ci-artifacts/npm-ci.log
           if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
           exit 0
+      - name: Audit locked dependencies (high and critical)
+        id: audit
+        if: always() && steps.install.outputs.result == 'PASS'
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high > ci-artifacts/npm-audit.log 2>&1
+          result=$?
+          cat ci-artifacts/npm-audit.log
+          if [ "$result" -eq 0 ]; then echo 'result=PASS' >> "$GITHUB_OUTPUT"; else echo 'result=FAIL' >> "$GITHUB_OUTPUT"; fi
+          exit 0
       - name: Syntax-check source and tests
         id: syntax
         if: always()
@@ -81,12 +92,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Create detailed GitHub Issue on failure
-        if: always() && (steps.install.outputs.result != 'PASS' || steps.syntax.outputs.result != 'PASS' || steps.tests.outputs.result != 'PASS')
+        if: always() && (steps.install.outputs.result != 'PASS' || steps.audit.outputs.result != 'PASS' || steps.syntax.outputs.result != 'PASS' || steps.tests.outputs.result != 'PASS')
         uses: actions/github-script@v7
         env:
           INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
           SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
           TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+          AUDIT_RESULT: ${{ steps.audit.outputs.result || 'NOT_RUN' }}
         with:
           script: |
             const fs = require('fs');
@@ -98,6 +110,7 @@ jobs:
             const logs = [
               ['npm ci', read('ci-artifacts/npm-ci.log')],
               ['syntax', read('ci-artifacts/syntax.log')],
+              ['npm audit', read('ci-artifacts/npm-audit.log')],
               ['npm test', read('ci-artifacts/npm-test.log')],
             ];
             const extract = text => text.split(/\r?\n/)
@@ -109,7 +122,7 @@ jobs:
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [marker, '# Whiskay Bot CI failure', '',
               `- Branch: \`${context.ref}\``, `- Commit: \`${sha}\``, `- Run: [${context.runId}](${runUrl})`,
-              `- npm ci: ${process.env.INSTALL_RESULT}`, `- Syntax: ${process.env.SYNTAX_RESULT}`, `- npm test: ${process.env.TEST_RESULT}`,
+              `- npm ci: ${process.env.INSTALL_RESULT}`, `- Syntax: ${process.env.SYNTAX_RESULT}`, `- npm audit (high/critical): ${process.env.AUDIT_RESULT}`, `- npm test: ${process.env.TEST_RESULT}`,
               '', 'Full redacted logs and ZIP reports are available from the workflow run Artifacts section.', '',
               ...logs.map(([name, content]) => `## ${name}\n\n${extract(content) ? '```text\n' + extract(content) + '\n```' : 'No failure markers captured.'}`),
               '', 'Do not merge while required checks are failing. Fix the root cause and re-run CI.',
@@ -134,8 +147,9 @@ jobs:
           INSTALL_RESULT: ${{ steps.install.outputs.result || 'NOT_RUN' }}
           SYNTAX_RESULT: ${{ steps.syntax.outputs.result || 'NOT_RUN' }}
           TEST_RESULT: ${{ steps.tests.outputs.result || 'NOT_RUN' }}
+          AUDIT_RESULT: ${{ steps.audit.outputs.result || 'NOT_RUN' }}
         run: |
-          if [ "$INSTALL_RESULT" != PASS ] || [ "$SYNTAX_RESULT" != PASS ] || [ "$TEST_RESULT" != PASS ]; then
+          if [ "$INSTALL_RESULT" != PASS ] || [ "$AUDIT_RESULT" != PASS ] || [ "$SYNTAX_RESULT" != PASS ] || [ "$TEST_RESULT" != PASS ]; then
             echo 'CI_RESULT=FAIL'; exit 1
           fi
           echo 'CI_RESULT=PASS'

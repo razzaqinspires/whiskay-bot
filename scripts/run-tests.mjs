@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Whiskay test entrypoint: bounded discovery, isolated runtime, concise terminal output,
 // and one detailed ZIP report per invocation under data/test-reports/.
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -71,6 +71,24 @@ export async function discoverTestFiles(projectRoot = process.cwd()) {
   };
   await walk(resolvedTestRoot);
   return files.sort();
+}
+
+/** Detect incomplete direct dependency installs before spawning hundreds of tests. */
+export async function inspectRequiredDependencies(projectRoot = process.cwd(), dependencies = null) {
+  const root = await realpath(path.resolve(projectRoot));
+  let required = dependencies;
+  if (!required) {
+    const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+    required = Object.keys(manifest.dependencies || {});
+  }
+  const missing = [];
+  for (const name of required) {
+    if (typeof name !== 'string' || !name.trim()) continue;
+    const packageJson = path.join(root, 'node_modules', ...name.split('/'), 'package.json');
+    try { await access(packageJson); }
+    catch { missing.push(name); }
+  }
+  return missing.sort();
 }
 
 export function buildNodeTestArgs(files, forwardedArgs = []) {
@@ -302,6 +320,10 @@ async function main() {
   const requirePackageJson = await readFile(packageJson, 'utf8');
   const packageInfo = JSON.parse(requirePackageJson);
   if (!packageInfo.scripts?.test) throw new Error('package.json tidak mendefinisikan scripts.test.');
+  const missingDependencies = await inspectRequiredDependencies(projectRoot, Object.keys(packageInfo.dependencies || {}));
+  if (missingDependencies.length) {
+    throw new Error(`Dependency preflight blocked npm test. Paket langsung belum tersedia: ${missingDependencies.join(', ')}. Jalankan npm ci pada koneksi registry yang sehat, lalu ulangi npm test.`);
+  }
   const files = await discoverTestFiles(projectRoot);
   if (!files.length) throw new Error('Tidak ditemukan file test *.test.js/*.test.mjs/*.test.cjs di direktori test/.');
 

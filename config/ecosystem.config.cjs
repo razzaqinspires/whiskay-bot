@@ -11,6 +11,7 @@ module.exports = {
       interpreter: 'node',
       instances: 1,
       exec_mode: 'fork',
+      instance_var: 'NODE_APP_INSTANCE',
       autorestart: true,
       watch: false,
       max_restarts: 10,

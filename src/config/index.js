@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EventEmitter } from 'node:events';
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const envFile = () => path.resolve(process.env.ENV_FILE || path.join(ROOT_DIR, '.env'));
@@ -68,7 +69,8 @@ function createConfig(env = process.env) {
 // Keep object identity stable: all existing ESM imports observe in-place refreshes.
 const config = createConfig();
 let reloadInProgress = null;
-export async function reloadConfigFromEnvFile({ file = envFile() } = {}) {
+export const configEvents = new EventEmitter();
+export async function reloadConfigFromEnvFile({ file = envFile(), removedKeys = [] } = {}) {
   if (reloadInProgress) return reloadInProgress;
   reloadInProgress = (async () => {
     let parsed = {};
@@ -77,12 +79,17 @@ export async function reloadConfigFromEnvFile({ file = envFile() } = {}) {
       if (error.code !== 'ENOENT') throw error;
     }
     const changedKeys = [];
+    for (const key of removedKeys) {
+      if (Object.hasOwn(process.env, key)) { delete process.env[key]; changedKeys.push(key); }
+    }
     for (const [key, value] of Object.entries(parsed)) {
       if (process.env[key] !== value) changedKeys.push(key);
       process.env[key] = value;
     }
     Object.assign(config, createConfig());
-    return { file, changedKeys, config };
+    const result = { file, changedKeys: [...new Set(changedKeys)], removedKeys: [...removedKeys], config };
+    configEvents.emit('reload', result);
+    return result;
   })().finally(() => { reloadInProgress = null; });
   return reloadInProgress;
 }

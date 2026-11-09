@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Stage 53: guarded QA + branch-only GitHub publishing. Never writes to main.
 set -Eeuo pipefail
+export GIT_PAGER=cat PAGER=cat GH_PAGER=cat GIT_TERMINAL_PROMPT=0
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 MODE="${1:---analyze}"
@@ -112,6 +113,26 @@ protect_runtime_index() {
   else
     printf 'WARNING: scripts/protect-runtime-data.mjs tidak ada; runtime path audit tetap wajib lulus.\n'
   fi
+}
+
+repair_upload_whitespace() {
+  local check_output=""
+  if [[ -f scripts/git-upload-repair.mjs ]]; then
+    WHISKAY_UPLOAD_RUN_ID="${WHISKAY_UPLOAD_RUN_ID:-$(date '+%Y%m%d-%H%M%S')}" node scripts/git-upload-repair.mjs --staged || return 1
+  fi
+  if check_output="$(git diff --cached --check -- '*.js' '*.mjs' '*.cjs' '*.json' '*.yml' '*.yaml' '*.sh' '*.py' 2>&1)"; then
+    printf 'WHITESPACE_REPAIR_RESULT=PASS\n'
+    return 0
+  fi
+  printf '%s\n' "$check_output"
+  if [[ -f scripts/nexora-git-repair.mjs ]]; then
+    printf 'NEXORA_REPAIR_FALLBACK=START (agent reads local .env and checks explicit opt-in)\n'
+    node scripts/nexora-git-repair.mjs --staged "$check_output" || return 1
+    git diff --cached --check -- '*.js' '*.mjs' '*.cjs' '*.json' '*.yml' '*.yaml' '*.sh' '*.py'
+    return $?
+  fi
+  printf 'NEXORA_REPAIR_FALLBACK=UNAVAILABLE\n'
+  return 1
 }
 
 scan_unstaged_secrets() {
@@ -269,6 +290,7 @@ NODE
     [[ "$BRANCH" == upload/* ]] || fail "Snapshot hanya boleh dibuat pada branch upload/* (sekarang: ${BRANCH:-detached})."
     node scripts/git-upload-intelligence.mjs --reconcile
     git add -A
+    repair_upload_whitespace || fail 'Whitespace repair tidak berhasil. File asli dipertahankan; aktifkan NEXORA_GIT_REPAIR_ENABLED=true untuk fallback AI yang dibatasi.'
     node scripts/git-upload-intelligence.mjs --verify
     staged_private=0
     while IFS= read -r -d '' file; do
@@ -282,7 +304,7 @@ NODE
       fail 'Pola token/private key terdeteksi pada snapshot. Secret scan memblokir commit.'
     fi
     if ! git diff --cached --check -- '*.js' '*.mjs' '*.cjs' '*.json' '*.yml' '*.yaml' '*.sh' '*.py'; then
-      fail 'Whitespace/conflict-marker check gagal pada source/config yang berubah.'
+      fail 'Whitespace/conflict-marker check gagal setelah repair.'
     fi
     if git diff --cached --binary | grep -Eiq '^\+(<<<<<<< |=======|>>>>>>> )'; then
       fail 'Conflict marker terdeteksi pada baris baru.'
@@ -309,6 +331,7 @@ NODE
     [[ "$CURRENT" == "$EXPECTED" ]] || fail 'Repository berubah setelah validasi/laporan. Jalankan ulang analyze sebelum publish.'
     node scripts/git-upload-intelligence.mjs --reconcile
     git add -A
+    repair_upload_whitespace || fail 'Whitespace repair tidak berhasil. File asli dipertahankan; aktifkan NEXORA_GIT_REPAIR_ENABLED=true untuk fallback AI yang dibatasi.'
     node scripts/git-upload-intelligence.mjs --verify
 
     staged_private=0
@@ -357,15 +380,22 @@ NODE
     if [[ "${ahead:-0}" -eq 0 ]]; then fail 'Tidak ada commit upload yang perlu dikirim.'; fi
 
     printf 'Upload branch : %s\nBase branch   : %s\nRepository    : %s\n' "$BRANCH" "$BASE_BRANCH" "$REPO_SLUG"
-    if git push -u origin "$BRANCH"; then
-      :
-    else
-      printf 'Push origin gagal; menjalankan fallback autentikasi GitHub CLI/token tanpa menampilkan token.\n' >&2
-      token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+    PUSH_OK=0
+    for push_attempt in 1 2 3; do
+      if git push -u origin "$BRANCH"; then PUSH_OK=1; break; fi
+      if (( push_attempt < 3 )); then
+        delay=$((push_attempt * 2))
+        printf 'Push origin gagal (attempt %s/3); retry aman dalam %ss tanpa force-push.\n' "$push_attempt" "$delay" >&2
+        sleep "$delay"
+      fi
+    done
+    if [[ "$PUSH_OK" -ne 1 ]]; then
+      printf 'Push origin gagal setelah retry; menjalankan fallback autentikasi GitHub CLI/token tanpa menampilkan token.\n' >&2
+      token="${GH_TOKEN:-${GITHUB_TOKEN:-${WHISKAY_GITHUB_TOKEN:-${WHISKAY_GITHUB_SYNC_TOKEN:-}}}}"
       if [[ -z "$token" ]] && command -v gh >/dev/null 2>&1 && gh auth status --hostname github.com >/dev/null 2>&1; then
         token="$(gh auth token --hostname github.com 2>/dev/null || true)"
       fi
-      [[ -n "$token" ]] || fail 'Push branch gagal dan GH_TOKEN/GITHUB_TOKEN/GitHub CLI login tidak tersedia.'
+      [[ -n "$token" ]] || fail 'Push branch gagal; konfigurasi GH_TOKEN/GITHUB_TOKEN/WHISKAY_GITHUB_TOKEN/WHISKAY_GITHUB_SYNC_TOKEN atau GitHub CLI login.'
       basic="$(printf 'x-access-token:%s' "$token" | base64 | tr -d '\n')"
       git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push -u "https://github.com/${REPO_SLUG}.git" "HEAD:refs/heads/${BRANCH}"
       unset token basic
@@ -373,7 +403,7 @@ NODE
     printf '\nPUSH_RESULT=SUCCESS\nUPLOAD_BRANCH=%s\nBASE_BRANCH=%s\n' "$BRANCH" "$BASE_BRANCH"
     printf 'Pull Request akan dibuat oleh .github/workflows/upload-branch-pr.yml.\n'
     printf 'Workflow URL: https://github.com/%s/actions/workflows/upload-branch-pr.yml\n' "$REPO_SLUG"
-    git log --oneline -3
+    git --no-pager log --oneline -3
     ;;
 
   --fingerprint|fingerprint)

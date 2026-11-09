@@ -11,10 +11,14 @@ test('Whiskay Bot exposes a separate authenticated TEAMDROP document endpoint', 
   assert.match(source, /safeSecretMatch\(supplied, teamdropWebhookSecret\)/);
   assert.match(source, /TEAMDROP_MAX_FILE_MB/);
   assert.match(source, /TEAMDROP_WEBHOOK_RATE_LIMIT/);
-  assert.match(source, /wasEventSeen\(`teamdrop:\$\{eventId\}`\)/);
-  assert.match(source, /markEventSeen\(`teamdrop:\$\{eventId\}`\)/);
+  assert.match(source, /TEAMDROP_MAX_CONCURRENT_UPLOADS/);
+  assert.match(source, /const teamdropEventKey = `teamdrop:\$\{eventId\}`/);
+  assert.match(source, /claimWebhookEvent\(teamdropEventKey\)/);
+  assert.match(source, /completeWebhookEvent\(teamdropEventKey/);
   assert.match(source, /sock\.sendMessage\(targetJid, \{/);
-  assert.match(source, /document,/);
+  assert.match(source, /document: createReadStream\(uploaded\.file\)/);
+  assert.match(source, /streamRequestToFile\(req, uploadPath/);
+  assert.match(source, /teamdropInFlight/);
   assert.match(source, /fileName: filename/);
 });
 
@@ -26,4 +30,6 @@ test('TEAMDROP relay credentials are represented as secret restart-required sett
   assert.match(env, /^TEAMDROP_WEBHOOK_SECRET=$/m);
   assert.match(env, /^TEAMDROP_WHATSAPP_TO=$/m);
   assert.match(env, /^TEAMDROP_MAX_FILE_MB=50$/m);
+  assert.match(env, /^TEAMDROP_MAX_CONCURRENT_UPLOADS=2$/m);
+  assert.match(env, /^WHISKAY_WEBHOOK_TRUST_CF_CONNECTING_IP=false$/m);
 });

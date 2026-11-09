@@ -13,6 +13,8 @@ import { awardCommandXP } from '../lib/leveling.js';
 import { registry } from './registry.js';
 import { shouldBlockForOffline, formatOfflineStatus } from '../lib/offline-mode.js';
 import { getGroupSettings } from '../lib/group-settings.js';
+import { runWithOutboundContext } from './OutboundTrafficGuard.js';
+import { workloadTracker } from './WorkloadTracker.js';
 
 const offlineNoticeAt = new Map();
 const OFFLINE_NOTICE_COOLDOWN_MS = 30 * 60 * 1000;
@@ -57,6 +59,8 @@ export class CommandHandler {
   }
 
   async handle(ctx) {
+    // Defense in depth: no caller may dispatch a self-authored WhatsApp echo.
+    if (!ctx || ctx.isBot || ctx.fromMe || ctx.raw?.key?.fromMe) return true;
     if (!this.parse(ctx)) {
       if (ctx.unknownCommand && !ctx.isBot) {
         try { const settings = await getTypoSettings(); if (settings.enabled) { const candidates = await suggestCommands(ctx.unknownCommand, [...this._pm.commands.keys(), ...this._pm._alias.keys()]); if (candidates.length) { const buttons = candidates.map(x => ({ name: 'quick_reply', title: `${ctx.unknownPrefix}${x.command} · ${x.percentage}%`, id: `${ctx.unknownPrefix}${x.command}` })); await ctx.sendInteractive({ title: 'Mungkin yang kamu maksud?', body: `Perintah \`${ctx.unknownPrefix}${ctx.unknownCommand}\` tidak ditemukan.
@@ -65,7 +69,9 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
       }
       return false;
     }
-    try { stage24Logger.command(ctx.sender || ctx.chat || 'unknown', `${ctx.prefix || ''}${ctx.command || ''}`); } catch {}
+    const releasePluginLease = this._pm.acquire?.(ctx.plugin) || (() => {});
+    try {
+      try { stage24Logger.command(ctx.sender || ctx.chat || 'unknown', `${ctx.prefix || ''}${ctx.command || ''}`); } catch {}
     const chain = new MiddlewareChain();
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;
@@ -127,16 +133,17 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
     if (!ok || ctx.aborted) return true;
 
     const commandStartedAt = performance.now();
+    const commandInvocationId = workloadTracker.beginCommandInvocation({ command: ctx.command, actor: ctx.sender || ctx.chat || 'unknown' });
     let commandSucceeded = true;
     try {
       const t0 = performance.now();
-      await p.execute(ctx);
+      await runWithOutboundContext({ source: `command:${ctx.command}`, command: ctx.command, sender: ctx.sender || '', chat: ctx.chat || '' }, () => p.execute(ctx));
       await recordCommandUsage(ctx.sender || ctx.chat, p.menuCommands?.[0] || (Array.isArray(p.command) ? p.command[0] : p.command) || ctx.command).catch(() => {});
-      if (!ctx.isBot && ctx.sender && !['daftar','register','statusdaftar'].includes(ctx.command)) {
+      if (!ctx.suppressPostCommandXp && !ctx.isBot && ctx.sender && !['daftar','register','statusdaftar'].includes(ctx.command)) {
         const xp = await awardCommandXP(ctx.chat || ctx.sender, ctx.sender, ctx.command).catch(() => null);
         ctx.xpAward = xp;
         if (xp?.leveled && xp.profile?.notifyLevelUp !== false) {
-          await ctx.sendInteractive({ title:'⭐ LEVEL UP!', subtitle:`Level ${xp.from} → ${xp.to}`, body:`Perintah berhasil dijalankan dan kamu memperoleh +${xp.gain} XP.\nLevel baru: ${xp.to} · ${xp.profile.xp}/${xp.needed} XP menuju level berikutnya.`, buttons:[{name:'quick_reply',title:'Lihat Profil',id:`${ctx.prefix}profile`},{name:'quick_reply',title:'Leaderboard',id:`${ctx.prefix}leaderboard`}] }).catch(()=>{});
+          await runWithOutboundContext({ source: `command:${ctx.command}:level-up`, command: ctx.command }, () => ctx.sendInteractive({ title:'⭐ LEVEL UP!', subtitle:`Level ${xp.from} → ${xp.to}`, body:`Perintah berhasil dijalankan dan kamu memperoleh +${xp.gain} XP.\nLevel baru: ${xp.to} · ${xp.profile.xp}/${xp.needed} XP menuju level berikutnya.`, buttons:[{name:'quick_reply',title:'Lihat Profil',id:`${ctx.prefix}profile`},{name:'quick_reply',title:'Leaderboard',id:`${ctx.prefix}leaderboard`}] })).catch(()=>{});
         }
       }
       Logger.debug(`${ctx.command} -> ${(performance.now() - t0).toFixed(2)}ms`);
@@ -147,8 +154,13 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
       if (shard?.quarantinedUntil > Date.now()) Logger.error({ cmd: ctx.command, quarantinedUntil: shard.quarantinedUntil }, 'command quarantined after repeated failures');
       await ctx.reply('❌ ' + e.message).catch(() => {});
     } finally {
-      await ctx.completeEnergyTelemetry?.({ durationMs: performance.now() - commandStartedAt, ok: commandSucceeded }).catch(error => Logger.error({ cmd: ctx.command, err: error.message }, 'energy telemetry finalize failed'));
+      const commandDurationMs = performance.now() - commandStartedAt;
+      workloadTracker.finishCommandInvocation(commandInvocationId, { ok: commandSucceeded, durationMs: commandDurationMs });
+      await runWithOutboundContext({ source: `command:${ctx.command}:completion`, command: ctx.command }, () => ctx.completeEnergyTelemetry?.({ durationMs: commandDurationMs, ok: commandSucceeded })).catch(error => Logger.error({ cmd: ctx.command, err: error.message }, 'energy telemetry finalize failed'));
     }
     return true;
+    } finally {
+      releasePluginLease();
+    }
   }
 }
