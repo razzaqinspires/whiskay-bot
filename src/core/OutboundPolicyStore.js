@@ -62,11 +62,12 @@ function validateState(value) {
  * require a real distributed datastore and are intentionally unsupported.
  */
 export class OutboundPolicyStore {
-  constructor({ file = DEFAULT_FILE, now = () => Date.now(), lockOptions = {} } = {}) {
+  constructor({ file = DEFAULT_FILE, now = () => Date.now(), lockOptions = {}, windowMs = 60000 } = {}) {
     this.file = path.resolve(file);
     this.lockFile = `${this.file}.lock`;
     this.now = now;
     this.lockOptions = lockOptions;
+    this.windowMs = clamp(windowMs, 50, 60000);
   }
 
   async #withState(fn, options = {}) {
@@ -112,11 +113,23 @@ export class OutboundPolicyStore {
         return decision;
       }
 
-      const recent = state.events.filter(row => Number(row.at) >= now - 60000);
+      // Count only sends that reached the transport boundary. Pending reservations
+      // belong to the worker queue and must not consume the rolling send window.
+      const recent = state.events.filter(row =>
+        ['started', 'sent'].includes(row.outcome) &&
+        Number(row.startedAt || row.at) >= now - this.windowMs &&
+        Number(row.startedAt || row.at) <= now
+      );
       const recipientRecent = recent.filter(row => row.recipientKey === recipient);
-      const duplicate = hash ? state.events.find(row => row.recipientKey === recipient && row.fingerprint === hash && now - Number(row.at) < duplicateWindow) : null;
-      const recentFailures = recent.filter(row => row.outcome === 'failed').length;
-      const failureRatio = recent.length ? recentFailures / recent.length : 0;
+      const duplicate = hash ? state.events.find(row =>
+        row.recipientKey === recipient && row.fingerprint === hash &&
+        ['queued', 'started', 'sent'].includes(row.outcome) &&
+        now - Number(row.startedAt || row.at) < duplicateWindow
+      ) : null;
+      const recentFailures = state.events.filter(row =>
+        row.outcome === 'failed' && Number(row.failedAt || row.at) >= now - this.windowMs
+      ).length;
+      const failureRatio = recent.length + recentFailures ? recentFailures / (recent.length + recentFailures) : 0;
       const globalPressure = recent.length / maxGlobal;
       const recipientPressure = recipientRecent.length / maxRecipient;
       const queuePressure = clamp(queueDepth / 50, 0, 2);
@@ -124,8 +137,6 @@ export class OutboundPolicyStore {
       const stateName = score >= 85 ? 'CRITICAL' : score >= 65 ? 'HIGH' : score >= 40 ? 'ELEVATED' : 'NORMAL';
       let reason = 'allowed';
       if (duplicate) reason = 'duplicate-payload-window';
-      else if (recipientRecent.length >= maxRecipient) reason = 'recipient-rate-limit';
-      else if (recent.length >= maxGlobal) reason = 'global-rate-limit';
       else if (score >= 85) reason = 'outbound-threat-critical';
 
       if (reason !== 'allowed') {
@@ -134,10 +145,17 @@ export class OutboundPolicyStore {
         return { allowed: false, reason, score, state: stateName, globalRecent: recent.length, recipientRecent: recipientRecent.length };
       }
 
+      const deferredReasons = [];
+      if (recipientRecent.length >= maxRecipient) deferredReasons.push('recipient-rate-limit');
+      if (recent.length >= maxGlobal) deferredReasons.push('global-rate-limit');
       const id = randomUUID();
       state.events.push({ id, at: now, recipientKey: recipient, fingerprint: hash, source: normalizedSource, outcome: 'queued' });
       state.events = state.events.slice(-MAX_EVENTS);
-      return { allowed: true, id, score, state: stateName, globalRecent: recent.length + 1, recipientRecent: recipientRecent.length + 1 };
+      return {
+        allowed: true, id, score, state: stateName,
+        globalRecent: recent.length, recipientRecent: recipientRecent.length,
+        deferred: deferredReasons.length > 0, deferredReasons,
+      };
     });
   }
 
@@ -146,8 +164,8 @@ export class OutboundPolicyStore {
    * immediately before Baileys is called. Queued reservations have a finite TTL;
    * stale queue entries cannot age out of the rolling window and later burst-send.
    */
-  async start(id, { minIntervalMs = 2000, maxWaitMs = 120000, globalMaxPerMinute = 20,
-    recipientMaxPerMinute = 4, duplicateWindowMs = 30000, reservationMaxAgeMs = 120000 } = {}) {
+  async start(id, { minIntervalMs = 2000, maxWaitMs = 600000, globalMaxPerMinute = 20,
+    recipientMaxPerMinute = 4, duplicateWindowMs = 30000, reservationMaxAgeMs = 600000 } = {}) {
     const key = String(id || '');
     if (!key) throw new TypeError('Outbound reservation ID is required.');
     const interval = clamp(minIntervalMs, 0, 60000);
@@ -180,7 +198,7 @@ export class OutboundPolicyStore {
         }
         if (quarantine) delete state.quarantines[event.source];
 
-        const windowStart = now - 60000;
+        const windowStart = now - this.windowMs;
         for (const pending of state.events) {
           if (pending.outcome === 'queued' && pending.id !== key && now - Number(pending.at) > reservationTtl) {
             pending.outcome = 'failed'; pending.failedAt = now; expiredQueued = true;
@@ -188,15 +206,36 @@ export class OutboundPolicyStore {
           }
         }
         state.blockedRecent = state.blockedRecent.slice(-MAX_BLOCKED);
-        const recent = state.events.filter(row => row.id !== key && Number(row.startedAt || row.at) >= windowStart && Number(row.startedAt || row.at) <= now);
+        const recent = state.events.filter(row =>
+          row.id !== key && ['started', 'sent'].includes(row.outcome) &&
+          Number(row.startedAt || row.at) >= windowStart &&
+          Number(row.startedAt || row.at) <= now
+        );
         const recipientRecent = recent.filter(row => row.recipientKey === event.recipientKey);
-        const duplicate = event.fingerprint ? recent.find(row => row.recipientKey === event.recipientKey && row.fingerprint === event.fingerprint && now - Number(row.startedAt || row.at) < duplicateWindow) : null;
+        const duplicate = event.fingerprint ? state.events.find(row =>
+          row.id !== key && row.recipientKey === event.recipientKey &&
+          row.fingerprint === event.fingerprint &&
+          ['queued', 'started', 'sent'].includes(row.outcome) &&
+          now - Number(row.startedAt || row.at) < duplicateWindow
+        ) : null;
         if (duplicate) return fail('duplicate-payload-final-boundary');
-        if (recipientRecent.length >= maxRecipient) return fail('recipient-rate-limit-final-boundary', { recent: recipientRecent.length });
-        if (recent.length >= maxGlobal) return fail('global-rate-limit-final-boundary', { recent: recent.length });
 
-        const waitMs = Math.max(0, interval - (now - Number(state.lastSentAt || 0)));
-        if (waitMs > 0) { shouldWrite = expiredQueued; return { started: false, waitMs }; }
+        // Saturated rolling windows defer queued sends until capacity is released.
+        const capacityWait = (rows, limit) => {
+          if (rows.length < limit) return 0;
+          const ordered = [...rows].sort((a, b) => Number(a.startedAt || a.at) - Number(b.startedAt || b.at));
+          const releaseAt = Number(ordered[ordered.length - limit].startedAt || ordered[ordered.length - limit].at) + this.windowMs;
+          return Math.max(250, releaseAt - now + 25);
+        };
+        const recipientWait = capacityWait(recipientRecent, maxRecipient);
+        const globalWait = capacityWait(recent, maxGlobal);
+        const waitMs = Math.max(
+          interval - (now - Number(state.lastSentAt || 0)),
+          recipientWait,
+          globalWait,
+          0
+        );
+        if (waitMs > 0) { shouldWrite = expiredQueued; return { started: false, waitMs, deferred: recipientWait > 0 || globalWait > 0, recipientWaitMs: recipientWait, globalWaitMs: globalWait }; }
         state.lastSentAt = now;
         event.at = now; event.startedAt = now; event.outcome = 'started';
         return { started: true, startedAt: now };

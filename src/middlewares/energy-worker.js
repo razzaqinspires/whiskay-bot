@@ -51,15 +51,23 @@ export default async function energyWorker(ctx,next){
   let finalEnergy=Number(receipt?.energy??current.energy);if(finalEnergy>=20&&saver.enabled){await setEnergySaver(uid,false);saver={enabled:false};}
   const footer=makeFooter();
   if(noticeMode==='hide'&&hasEnergy){if(hasXp)await originals.reply?.(`⭐ +${xpGain} XP diperoleh.`).catch(()=>{});return;}
-  if(noticeMode==='merge'&&mergedNotice)return;
+  // The command reply can be sent before CommandHandler awards XP. If energy
+  // was merged into that reply, send the later XP award separately.
+  if(noticeMode==='merge'&&mergedNotice){
+   if(hasXp)await originals.reply?.(`⭐ +${xpGain} XP diperoleh.`).catch(()=>{});
+   return;
+  }
   if(noticeMode==='card'&&hasEnergy){
-   try{const image=await renderEnergyNotificationCanvas({used:receipt.cost,remaining:finalEnergy,xp:hasXp?xpGain:null,level:ctx.xpAward?.profile?.level,workload:workload.mode,runtimeMs:durationMs,payloadKB:responseBytes/1024});
-    await originals.interactive?.({title:'🔋 WHISKAY ENERGY · CANVAS V1',image,mimetype:'image/png',fileName:'whiskay-energy-v1.png',body:'Status baterai dan progres workload. Atur kembali melalui .setmenu.',buttons:[{name:'quick_reply',title:'Matikan Notifikasi',id:`${ctx.prefix||'.'}setmenu energy-notice off`},{name:'Pengaturan .setmenu',title:'Pengaturan',id:`${ctx.prefix||'.'}setmenu`},{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix||'.'}energy status`}]});
-    if(!hasXp)return;
-    await originals.reply?.(`⭐ +${xpGain} XP diperoleh.`).catch(()=>{});return;
+   try{
+    const image=await renderEnergyNotificationCanvas({used:receipt.cost,remaining:finalEnergy,xp:hasXp?xpGain:null,level:ctx.xpAward?.profile?.level,workload:workload.mode,runtimeMs:durationMs,payloadKB:responseBytes/1024});
+    await originals.interactive?.({title:'🔋 WHISKAY ENERGY · CANVAS V1',image,mimetype:'image/png',fileName:'whiskay-energy-v1.png',body:'Status baterai dan progres workload. Atur kembali melalui .setmenu.',buttons:[{name:'quick_reply',title:'Matikan Notifikasi',id:`${ctx.prefix||'.'}setmenu energy-notice off`},{name:'Pengaturan .setmenu',id:`${ctx.prefix||'.'}setmenu`},{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix||'.'}energy status`}]});
+    return;
    }catch(error){console.error('[ENERGY CANVAS]',error?.message||error);}
   }
-  if(noticeMode==='separate'&&footer){await originals.interactive?.({title:'🔋 Status Energi & XP',body:footer,buttons:[{name:'quick_reply',title:'Matikan Notifikasi',id:`${ctx.prefix||'.'}setmenu energy-notice off`},{name:'quick_reply',title:'Pengaturan .setmenu',id:`${ctx.prefix||'.'}setmenu`}] }).catch(error=>console.error('[ENERGY NOTICE]',error?.message||error));}
+  if(noticeMode==='separate'&&footer){
+   const title=hasEnergy&&hasXp?'🔋 Status Energi & XP':hasEnergy?'🔋 Status Energi':'⭐ Status XP';
+   await originals.interactive?.({title,body:footer,buttons:[{name:'quick_reply',title:'Matikan Notifikasi',id:`${ctx.prefix||'.'}setmenu energy-notice off`},{name:'Pengaturan .setmenu',id:`${ctx.prefix||'.'}setmenu`}] }).catch(error=>console.error('[ENERGY NOTICE]',error?.message||error));
+  }
   else if((noticeMode==='merge'||!hasEnergy)&&footer){await originals.reply?.(footer).catch(error=>console.error('[ENERGY NOTICE]',error?.message||error));}
  };
 

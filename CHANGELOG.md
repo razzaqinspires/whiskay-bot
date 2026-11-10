@@ -1,3 +1,36 @@
+## v2.35.37 — Part 12.2 — Outbound Delivery Queue Deferral
+
+- Fixed the local outbound policy behavior that rejected replies with `recipient-rate-limit` before they could enter the existing worker queue.
+- Recipient/global rolling-window saturation now defers reservations into the bounded worker queue and waits for a final send slot.
+- Rolling windows count actual started/sent transport events, not pending queue reservations.
+- Preserved hard blocks for duplicate payloads, source quarantine, critical threat risk and missing source attribution.
+- Raised default outbound queue capacity from 50 to 150 (still bounded); added a 10-minute maximum reservation/queue wait.
+- Added six focused tests for deferred recipient/global capacity and safety invariants.
+- Stage 70.1 focused tests: 6/6 pass; full regression and live WhatsApp staging not run.
+
+## v2.35.36 — Part 12.1 — XP / Level Identity Persistence Hotfix
+
+- Root-cause class addressed: PN/LID identity fragmentation could create a second empty profile for a user whose existing progress was stored under the other JID namespace.
+- Persisted trusted Baileys LID→PN mappings in the leveling database and canonicalized profile/scope lookups.
+- Migrated LID-keyed profile and quiz-stat rows to the canonical PN identity. Duplicate progression is reconciled by choosing the most advanced profile; currencies/counters use maximum values, not addition.
+- Conflicting identity mappings are rejected and audited.
+- Added v4 schema with backwards compatibility for existing valid databases.
+- Added active DB path and identity-map diagnostics to `.leveldb status`.
+- Added Stage 70 regression tests and `verify:xp-persistence` quality gate.
+- Validation: 32/32 focused/regression tests passed; full suite and production session not run.
+
+## v2.35.35 — Part 12 / Stage 69 — Westmanga Commands & Energy Ledger Reliability
+
+- Added `.wm`, `.wmhome`, `.wmsearch`, `.wmdetail`, `.wmread`, and `.wmdownload` command integration using the protected friend-supplied CommonJS library.
+- Added secure download adapter: HTTPS-only exact host allowlist, redirect revalidation, public DNS checks, image MIME/extension validation, per-file/chapter/page limits, timeout, symlink-safe data directory and no-overwrite behavior.
+- Kept the original `westmanga-scraper.cjs` byte-identical; download is implemented in a separate guard because the supplied library's own downloader follows redirects without an allowlist.
+- Fixed menu display so exempt/free commands never show numeric `0,00%` energy cost.
+- Added combined `.setmenu energy-xp on|off`; re-enabling energy after `hide` automatically changes delivery mode to `separate`.
+- Fixed energy/XP completion: merged replies no longer swallow XP awarded after command execution; successful canvas includes XP once; separate title reflects the actual payload.
+- Added `.energy audit` for ledger diagnostics.
+- Added Stage 69 regression tests and environment settings.
+- Stage 69 focused tests: 9/9 PASS. Full suite and live Westmanga API/download integration remain unverified in this workspace.
+
 ## v2.35.34 — Part 11 / Stage 68 — Protected Third-Party Library & Adapter Foundation
 
 - Preserved the supplied Westmanga scraper as a byte-verified CommonJS `.cjs` source under `src/lib/external/`.

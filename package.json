@@ -1,6 +1,6 @@
 {
   "name": "whiskay-bot",
-  "version": "2.35.34",
+  "version": "2.35.37",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -13,7 +13,7 @@
     "tunnel:check": "node --input-type=module -e \"import('./src/services/worldBossTunnel.js').then(m=>console.log(m.getWorldBossTunnelStatus()))\"",
     "verify:ops": "node scripts/verify-ops.mjs",
     "verify:stage23": "node --test test/stage23-utils.test.js",
-    "verify:all": "npm run verify:stage42 && npm run verify:stage43 && npm run verify:stage44 && npm run verify:stage45 && npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage38 && npm run verify:stage39 && npm run verify:stage40 && npm run verify:stage41 && npm run verify:stage46 && npm run verify:stage47 && npm run verify:stage48 && npm run verify:stage49-part1 && npm run verify:stage49-part2 && npm run verify:stage49-part3 && npm run verify:stage49-part4 && npm run verify:stage49-part5 && npm run verify:testcommand && npm run verify:stage50 && npm run verify:stage51-adzan-profiles && npm run verify:stage51-adzan-engine && npm run verify:stage51-adzan-audio && npm run verify:stage51-adzan-reliability && npm run verify:stage51-adzan-dashboard && npm run verify:stage51-adzan-intelligence && npm run verify:stage51-adzan-automation && npm run verify:git-upload-launcher && npm run verify:stage52 && npm run verify:stage53 && npm run verify:stage54 && npm run verify:stage55 && npm run verify:stage56 && npm run verify:stage57 && npm run verify:stage58 && npm run verify:stage59 && npm run verify:upload-whitespace && npm run verify:security-deps && npm run verify:stage60 && npm run verify:stage61 && npm run verify:stage62 && npm run verify:stage63 && npm run verify:stage64 && npm run verify:stage64-part2 && npm run verify:stage65 && npm run verify:stage66 && npm run verify:stage67 && npm run verify:stage68",
+    "verify:all": "npm run verify:stage42 && npm run verify:stage43 && npm run verify:stage44 && npm run verify:stage45 && npm run verify:ops && npm run verify:stage23 && npm run verify:stage24 && npm run verify:stage25 && npm run verify:stage26 && npm run verify:stage27 && npm run verify:stage28 && npm run verify:stage29 && npm run verify:stage30 && npm run verify:stage31 && npm run verify:stage32 && npm run verify:stage33 && npm run verify:stage34 && npm run verify:stage35 && npm run verify:stage36 && npm run verify:stage38 && npm run verify:stage39 && npm run verify:stage40 && npm run verify:stage41 && npm run verify:stage46 && npm run verify:stage47 && npm run verify:stage48 && npm run verify:stage49-part1 && npm run verify:stage49-part2 && npm run verify:stage49-part3 && npm run verify:stage49-part4 && npm run verify:stage49-part5 && npm run verify:testcommand && npm run verify:stage50 && npm run verify:stage51-adzan-profiles && npm run verify:stage51-adzan-engine && npm run verify:stage51-adzan-audio && npm run verify:stage51-adzan-reliability && npm run verify:stage51-adzan-dashboard && npm run verify:stage51-adzan-intelligence && npm run verify:stage51-adzan-automation && npm run verify:git-upload-launcher && npm run verify:stage52 && npm run verify:stage53 && npm run verify:stage54 && npm run verify:stage55 && npm run verify:stage56 && npm run verify:stage57 && npm run verify:stage58 && npm run verify:stage59 && npm run verify:upload-whitespace && npm run verify:security-deps && npm run verify:stage60 && npm run verify:stage61 && npm run verify:stage62 && npm run verify:stage63 && npm run verify:stage64 && npm run verify:stage64-part2 && npm run verify:stage65 && npm run verify:stage66 && npm run verify:stage67 && npm run verify:stage68 && npm run verify:stage69 && npm run verify:xp-persistence && npm run verify:stage70-outbound",
     "verify:stage24": "node --test test/stage24-logger.test.js",
     "start:pm2": "pm2 start config/ecosystem.config.cjs",
     "restart:pm2": "pm2 restart config/ecosystem.config.cjs",
@@ -101,7 +101,10 @@
     "repair:nexora": "node scripts/nexora-git-repair.mjs --staged",
     "env:sync": "node scripts/sync-env-template.mjs",
     "verify:stage67": "node --test test/stage67-env-template-live-sync.test.js",
-    "verify:stage68": "node --test test/stage68-protected-library-westmanga.test.js"
+    "verify:stage68": "node --test test/stage68-protected-library-westmanga.test.js",
+    "verify:stage69": "node --test test/stage69-westmanga-energy-menu.test.js",
+    "verify:xp-persistence": "node --test test/stage70-leveling-identity-persistence.test.js test/stage43-leveling-storage.test.js test/stage32-regression.test.js",
+    "verify:stage70-outbound": "node --test test/stage70-outbound-delivery-queue.test.js"
   },
   "dependencies": {
     "@hapi/boom": "10.0.1",

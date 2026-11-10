@@ -33,6 +33,7 @@ import { ChronosCortex } from './ChronosCortex.js';
 import { JobLoader } from './JobLoader.js';
 import { outboundTrafficGuard, runWithOutboundContext } from './OutboundTrafficGuard.js';
 import { workloadTracker } from './WorkloadTracker.js';
+import { registerLevelingIdentityAlias } from '../lib/leveling.js';
 
 export class Bot {
   constructor() {
@@ -366,6 +367,7 @@ export class Bot {
       if (lid && pn) {
         registry.lidMap = registry.lidMap || new Map();
         registry.lidMap.set(lid.split(':')[0], pn);
+        registerLevelingIdentityAlias(lid, pn, 'lid-mapping.update').catch(error => Logger.warn({ err: error?.message || String(error) }, 'leveling identity alias persistence failed'));
       }
     });
 

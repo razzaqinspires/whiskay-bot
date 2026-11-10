@@ -13,7 +13,7 @@ const DEFAULTS = Object.freeze({
   page: Number.parseInt(process.env.WESTMANGA_DEFAULT_PAGE || '1', 10),
   perPage: Number.parseInt(process.env.WESTMANGA_PER_PAGE || '10', 10),
   userAgentPreset: process.env.WESTMANGA_USER_AGENT_PRESET || 'desktop',
-  downloadDirectory: process.env.WESTMANGA_DOWNLOAD_DIR || 'data/downloads/westmanga',
+  downloadDirectory: process.env.WESTMANGA_DOWNLOAD_DIR || path.join(process.env.WHISKAY_DATA_DIR || 'data', 'downloads', 'westmanga'),
   fallbackEnabled: process.env.WESTMANGA_FALLBACK_ENABLED !== 'false',
 });
 
@@ -22,7 +22,7 @@ const providerHealth = new Map();
 providers.set('westmanga', Object.freeze({
   id: 'westmanga',
   source: sourceModule,
-  capabilities: Object.freeze(['home', 'search', 'detail', 'read']),
+  capabilities: Object.freeze(['home', 'search', 'detail', 'read', 'download']),
 }));
 providerHealth.set('westmanga', { failures: 0, cooldownUntil: 0, lastError: null });
 
@@ -168,8 +168,13 @@ export async function westmangaRead(target, options = {}) {
   if (parsed.type !== 'read') throw new Error('Target harus berupa URL atau slug chapter.');
   return invoke('read', [parsed.slug], options);
 }
-export async function westmangaDownload() {
-  throw new Error('Unduhan file dinonaktifkan sementara. Adapter unduhan aman perlu validasi host CDN, redirect, ukuran file, dan direktori sebelum fitur ini diaktifkan.');
+export async function westmangaDownload(target, options = {}) {
+  const { downloadWestmangaChapter } = await import('./WestmangaDownloadGuard.js');
+  return downloadWestmangaChapter(target, {
+    ...options,
+    outDir: options.outDir || DEFAULTS.downloadDirectory,
+    preset: options.preset || DEFAULTS.userAgentPreset,
+  });
 }
 
 export default Object.freeze({

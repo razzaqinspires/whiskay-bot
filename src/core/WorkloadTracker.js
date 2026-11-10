@@ -73,6 +73,7 @@ export class WorkloadTracker {
       outboundAttempts: 0, outboundAccepted: 0, outboundBlocked: 0,
       outboundFailed: 0, outboundDuplicateBlocked: 0, outboundQuarantineBlocked: 0,
     };
+    this.outboundQueueWaitMaxMs = integerEnv('WHISKAY_OUTBOUND_QUEUE_WAIT_MAX_MS', 600000, 30000, 600000);
     this.outboundPolicy = {
       globalMaxPerMinute: outboundGlobalMaxPerMinute,
       recipientMaxPerMinute: outboundRecipientMaxPerMinute,
@@ -509,7 +510,8 @@ export class WorkloadTracker {
         globalMaxPerMinute: this.outboundPolicy.globalMaxPerMinute,
         recipientMaxPerMinute: this.outboundPolicy.recipientMaxPerMinute,
         duplicateWindowMs: this.outboundPolicy.duplicateWindowMs,
-        reservationMaxAgeMs: 120000,
+        maxWaitMs: this.outboundQueueWaitMaxMs,
+        reservationMaxAgeMs: this.outboundQueueWaitMaxMs,
       });
       const event = this.outboundEvents.find(row => row.id === String(id));
       if (event && event.outcome === 'queued') event.outcome = 'started';

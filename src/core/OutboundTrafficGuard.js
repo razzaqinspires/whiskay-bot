@@ -112,7 +112,7 @@ export class OutboundTrafficGuard {
       concurrency: integerEnv('WHISKAY_OUTBOUND_WORKERS', 2, 1, 2),
       perLaneConcurrency: 1,
       minIntervalMs: integerEnv('WHISKAY_OUTBOUND_MIN_INTERVAL_MS', 2000, 1000, 30000),
-      maxQueue: integerEnv('WHISKAY_OUTBOUND_QUEUE_MAX', 50, 5, 500),
+      maxQueue: integerEnv('WHISKAY_OUTBOUND_QUEUE_MAX', 150, 5, 500),
     });
     this.attached = new WeakSet();
   }

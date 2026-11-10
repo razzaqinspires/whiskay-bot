@@ -12,6 +12,7 @@ export function rememberPollCreationMessage(message) {
 import configDefault from '../config/index.js';
 import { isOwner } from '../lib/security.js';
 import { createMessageEnvelope } from '../lib/stage26-observability.js';
+import { registerLevelingIdentityAlias } from '../lib/leveling.js';
 
 /** Normalize native Baileys poll votes without changing serializer-compat.cjs.
  * A poll vote arrives as a normal message containing pollUpdateMessage; its key
@@ -52,6 +53,16 @@ export function normalizePollUpdateBatch(updates) {
 }
 
 export async function serializeMessage(sock, raw, config = configDefault, bot = null) {
+  const key = raw?.key || {};
+  const aliasPairs = [
+    [key.participant, key.participantAlt], [key.participant, key.participantPn],
+    [key.remoteJid, key.remoteJidAlt], [key.remoteJid, key.remoteJidPn]
+  ];
+  for (const [lid, pn] of aliasPairs) {
+    if (String(lid || '').endsWith('@lid') && String(pn || '').endsWith('@s.whatsapp.net')) {
+      await registerLevelingIdentityAlias(lid, pn, 'message-key').catch(error => console.warn('[leveling-identity] alias registration failed:', error?.message || error));
+    }
+  }
   const ctx = compat.serialize(sock, raw);
   if (!ctx) return ctx;
   ctx.sock = sock;

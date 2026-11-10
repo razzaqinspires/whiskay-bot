@@ -3,7 +3,7 @@
 # ⚡ WHISKAYBOT
 ### WhatsApp Automation · RPG Economy · Smart Energy Middleware
 
-![Version](https://img.shields.io/badge/Version-2.35.34-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
+![Version](https://img.shields.io/badge/Version-2.35.37-2563eb) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-43853d?logo=nodedotjs&logoColor=white) ![Baileys](https://img.shields.io/badge/Transport-Baileys-25D366?logo=whatsapp&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-node--test-blue) ![Architecture](https://img.shields.io/badge/Architecture-Plugin%20Driven-7c3aed) ![GitHub Stars](https://img.shields.io/github/stars/razzaqinspires/whiskay-bot) ![GitHub Forks](https://img.shields.io/github/forks/razzaqinspires/whiskay-bot) ![Last Commit](https://img.shields.io/github/last-commit/razzaqinspires/whiskay-bot)
 
 **A separate runtime for WhatsApp. Not bundled with the Next.js RPG website.**
 
@@ -1371,3 +1371,40 @@ Implementation and validation: [`docs/STAGE-67-AUTHORITATIVE-ENV-LIVE-SYNC.md`](
 - Controller: `src/services/WestmangaLibraryController.js`; response formatting, target validation, provider health, and explicit fallback registration stay outside the source.
 - No WhatsApp command is added in this stage.
 - QA: `npm run verify:stage68`; details in [Stage 68 documentation](docs/STAGE-68-PROTECTED-THIRD-PARTY-LIBRARY-ADAPTERS.md).
+
+
+## Latest release — v2.35.35 (Part 12, Stage 69)
+
+- Westmanga commands: `.wm`, `.wmhome`, `.wmsearch`, `.wmdetail`, `.wmread`, `.wmdownload`.
+- Original friend-supplied scraper remains protected at `src/lib/external/westmanga/westmanga-scraper.cjs`; only the adapter/controller is extended.
+- Safe download guard enforces HTTPS, exact host allowlist, redirect validation, public DNS resolution, image content type, 15 MiB/file, 100 MiB/chapter, 120 pages, timeout, and a data-only destination.
+- Menu suppresses misleading numeric `0,00%` for exempt/free commands while retaining the free marker.
+- `.setmenu energy-xp on|off` controls both notifications. Re-enabling energy from hidden mode selects `separate` instead of leaving delivery hidden.
+- Energy notification completion now preserves XP after a merged reply and avoids duplicate XP after a successful canvas.
+- `.energy audit` displays ledger counters, total spent, remaining energy, charging state, and recent charged commands.
+- QA: `npm run verify:stage69`; full suite and live Westmanga network requests must still be run on staging.
+- Details: [Stage 69 documentation](docs/STAGE-69-WESTMANGA-COMMANDS-ENERGY-LEDGER.md).
+
+
+## Latest hotfix — v2.35.36 (Part 12.1, XP/Level Identity Persistence)
+
+- Fixed PN/LID identity fragmentation in the leveling database: Baileys trusted `lid-mapping.update` and message-key aliases are persisted in `leveling.json` and resolved for profile, XP awards, leaderboard and quiz rewards.
+- Migrates LID-keyed profile rows to the trusted PN key. When duplicate rows exist, keeps the more advanced level/XP progress and the highest non-additive coin/balance/points/familiarity values; it never sums duplicate identities.
+- Conflicting LID-to-PN mappings are rejected and recorded in the audit trail.
+- Database schema advances to v4 while retaining compatibility with v3 and earlier valid stores.
+- `.leveldb status` now reports the active data file, working directory and number of trusted identity aliases.
+- Added `npm run verify:xp-persistence` and included it in `verify:all`.
+- Focused QA: 32/32 tests across identity persistence, storage recovery, concurrency, energy/menu, and protected library regression.
+- Full `npm test`, live WhatsApp session, and actual production database recovery remain deployment checks.
+- Details: [XP identity persistence hotfix](docs/STAGE-70-XP-IDENTITY-PERSISTENCE-HOTFIX.md).
+
+
+## Latest release — v2.35.37 (Part 12.2, Stage 70.1)
+
+Outbound delivery queue correction:
+- Recipient/global rolling-window saturation is deferred to the existing serialized worker queue instead of being rejected before queueing.
+- The worker waits for a final cross-process send slot; pending reservations do not consume rolling-window capacity.
+- Duplicate suppression, source quarantine, critical threat blocks and source attribution remain enforced.
+- Default bounded queue capacity is 150; queue wait and reservation TTL are capped at 10 minutes.
+- Verification: `npm run verify:stage70-outbound`; full regression/live WhatsApp tests remain pending.
+- Details: [Stage 70.1 documentation](docs/STAGE-70-1-OUTBOUND-DELIVERY-QUEUE.md).

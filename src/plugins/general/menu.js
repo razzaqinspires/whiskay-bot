@@ -171,7 +171,11 @@ async function renderMenu(ctx) {
     const policy=estimateWorkload({command:row.command,args:[],plugin:plugin||{},runtime:{}});
     const energyMark=policy.mode==='exempt'?'·':policy.mode==='static'?'📌':'⚡';
     const showEnergy=(settings.energyDetails||settings.showEnergyNumbers);
-    const energyValue=settings.showEnergyNumbers?` ${Number(policy.cost||0).toFixed(2).replace('.',',')}%`:'';
+    // Exempt commands have no energy debit. Keep the free marker, but never
+    // render a misleading numeric 0,00% cost for them.
+    const energyValue=settings.showEnergyNumbers && policy.mode!=='exempt'
+      ? ` ${Number(policy.cost||0).toFixed(2).replace('.',',')}%`
+      : '';
     const energySuffix=showEnergy?`${settings.showEnergyEmoji===false?'':` ${energyMark}`}${energyValue}`:'';
     const mark=newSet.has(row.command)?' 🆕':'';
     const desc=settings.description&&row.description?` — ${row.description}`:'';
