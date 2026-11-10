@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-09T15:42:06+00:00",
+  "updated_at": "2026-11-10T01:20:35+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
       "github-actions[bot]",
-      52
+      53
     ],
     [
       "Arifi Razzaq",
@@ -12,25 +12,25 @@
     ],
     [
       "root",
-      19
+      18
     ]
   ],
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      50
+      51
     ],
     [
       "docs/metrics/history.json",
-      50
+      51
     ],
     [
       "data/menu-command-usage.json",
-      22
+      21
     ],
     [
       "data/leveling.json",
-      16
+      15
     ],
     [
       "docs/README.md",
@@ -50,38 +50,38 @@
     ],
     [
       "src/core/Bot.js",
-      9
+      8
     ],
     [
       "src/handlers/message.js",
-      9
+      8
     ],
     [
       "src/lib/menu-settings.js",
-      9
+      8
     ],
     [
       "src/plugins/general/menu.js",
-      9
+      8
     ],
     [
       "src/plugins/general/setmenu.js",
-      9
+      8
     ],
     [
       "src/plugins/tools/youtube.js",
-      8
+      7
     ],
     [
       "src/core/CommandHandler.js",
-      8
-    ],
-    [
-      "src/plugins/general/leveling.js",
-      8
+      7
     ],
     [
       "src/lib/energy-worker.js",
+      7
+    ],
+    [
+      "src/plugins/general/leveling.js",
       7
     ],
     [
@@ -111,12 +111,12 @@
       8
     ],
     [
-      16,
+      9,
       8
     ],
     [
-      9,
-      8
+      3,
+      7
     ]
   ]
 }
