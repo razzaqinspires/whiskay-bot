@@ -1408,3 +1408,26 @@ Outbound delivery queue correction:
 - Default bounded queue capacity is 150; queue wait and reservation TTL are capped at 10 minutes.
 - Verification: `npm run verify:stage70-outbound`; full regression/live WhatsApp tests remain pending.
 - Details: [Stage 70.1 documentation](docs/STAGE-70-1-OUTBOUND-DELIVERY-QUEUE.md).
+
+
+## Latest release — v2.35.38 (Part 12.3, Stage 70.1)
+
+Persistent Baileys message repository foundation:
+- Stores bounded WAMessage payloads under `data/message-repository/`.
+- Preserves binary fields including `messageContextInfo.messageSecret`.
+- Uses atomic JSON writes, a host-local process lock, TTL and size limits.
+- Baileys `getMessage` now performs exact-key asynchronous lookup and returns `undefined` on a miss.
+- Runtime message data is sensitive and is intentionally excluded from source ZIPs.
+- Focused QA: `npm run verify:stage70-1` (5/5).
+- Documentation: [Stage 70.1](docs/STAGE-70-1-PERSISTENT-MESSAGE-REPOSITORY.md).
+
+
+## Latest release — v2.35.39 (Part 12.4, Stage 70.2)
+
+- Westmanga `.wmhome` fixed through a defensive controller adapter; protected friend-supplied scraper source is unchanged.
+- Westmanga and anime/manga result cards now use a Baileys carousel when image media is available, with an interactive list fallback.
+- Added `.animeinfo` and `.mangainfo` detail actions.
+- Added Nextora owner-only repair workflow: `.nextora inbox`, `inspect`, `repair`, `test`, `save`.
+- AI proposals are staged, constrained to the failing plugin/service file, sandbox-tested, and only applied after owner approval. No automatic production write or restart.
+- Focused QA: `npm run verify:stage70-2` (3/3).
+- Documentation: [Stage 70.2](docs/STAGE-70-2-STRICT-IDENTITY-WESTMANGA-NEXORA-REPAIR.md).

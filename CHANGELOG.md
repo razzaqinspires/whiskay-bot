@@ -1,3 +1,19 @@
+## v2.35.39 — Part 12.4 — Stage 70.2
+
+- Fixed Westmanga home-data shape mismatch by bypassing the supplied scraper's unsafe `.map()` normalizer with a safe controller adapter; original scraper source remains unchanged.
+- Added a native Baileys carousel sender and image-card presentation for Westmanga and anime/manga search, with interactive list fallback.
+- Added `.animeinfo` / `.mangainfo` detail actions.
+- Added Nextora repair queue, scheduled dependency diagnosis, owner-only repair/test/save workflow, restricted single-file AI proposals, sandbox verification, and pre-save source hash validation.
+- Added focused Stage 70.2 tests (3/3 pass) and syntax-checked 371 JS-family files (0 failures).
+- Live API, WhatsApp carousel delivery, AI patch generation, and full regression suite remain pending.
+## v2.35.38 — Part 12.3 — Stage 70.1 Persistent Message Repository
+
+- Added bounded persistent Baileys message repository with atomic JSON writes, host-local lock, TTL and byte/entry caps.
+- Added binary-safe storage to preserve messageContextInfo.messageSecret and typed byte fields.
+- Integrated repository initialization, exact-key async getMessage, serializer persistence adapter, and orderly shutdown flush.
+- Removed the fabricated empty-conversation fallback and ID-only fallback from the Baileys getMessage path.
+- Added five focused tests; Stage 70.1: 5/5 pass.
+- Full regression and live WhatsApp protocol tests remain pending.
 ## v2.35.37 — Part 12.2 — Outbound Delivery Queue Deferral
 
 - Fixed the local outbound policy behavior that rejected replies with `recipient-rate-limit` before they could enter the existing worker queue.

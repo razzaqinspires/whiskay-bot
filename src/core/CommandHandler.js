@@ -15,6 +15,7 @@ import { shouldBlockForOffline, formatOfflineStatus } from '../lib/offline-mode.
 import { getGroupSettings } from '../lib/group-settings.js';
 import { runWithOutboundContext } from './OutboundTrafficGuard.js';
 import { workloadTracker } from './WorkloadTracker.js';
+import { recordNextoraFailure } from '../services/nextora-repair/NextoraRepairService.js';
 
 const offlineNoticeAt = new Map();
 const OFFLINE_NOTICE_COOLDOWN_MS = 30 * 60 * 1000;
@@ -152,7 +153,27 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
       Logger.error({ cmd: ctx.command, err: e.message }, 'cmd error');
       const shard = await recordCommandFailure(ctx.command, e).catch(() => null);
       if (shard?.quarantinedUntil > Date.now()) Logger.error({ cmd: ctx.command, quarantinedUntil: shard.quarantinedUntil }, 'command quarantined after repeated failures');
-      await ctx.reply('❌ ' + e.message).catch(() => {});
+      await ctx.reply('❌ Perintah gagal diproses. Error sudah dicatat untuk dianalisis Nextora.').catch(() => {});
+      try {
+        const stack = String(e?.stack || '');
+        const sourceMatch = stack.match(/(?:[A-Za-z]:)?[^\s()]*?((?:src\/plugins|src\/services)\/[A-Za-z0-9_./-]+\.js)/);
+        const sourceFile = sourceMatch?.[1] || (p.__sourceFile ? `src/plugins/${p.__sourceFile}` : null);
+        const repairTask = await recordNextoraFailure({
+          command: ctx.command, error: e?.message || String(e), stack,
+          sourceFile, correlationId: ctx.correlationId, chat: ctx.chat, sender: ctx.sender
+        });
+        for (const ownerJid of [...new Set([...(config.owners || []), ...(config.ownerLids || [])])]) {
+          if (!ctx.sock?.sendInteractive) continue;
+          await ctx.sock.sendInteractive(ownerJid, {
+            title: 'NEXORA · Command Error Detected',
+            body: `Command: ${ctx.prefix}${ctx.command}\nError: ${String(e?.message || e).slice(0, 300)}\nTask: ${repairTask.id}\n\nNextora sudah mencatat error dan menunggu pemeriksaan owner.`,
+            footer: 'Owner-only · Source belum diubah',
+            buttons: [{ name: 'quick_reply', title: 'Perbaiki dengan Nexora', id: `${ctx.prefix || '.'}nextora inspect ${repairTask.id}` }]
+          }).catch(() => {});
+        }
+      } catch (repairError) {
+        Logger.warn({ cmd: ctx.command, err: repairError?.message || String(repairError) }, 'Nextora repair task capture failed');
+      }
     } finally {
       const commandDurationMs = performance.now() - commandStartedAt;
       workloadTracker.finishCommandInvocation(commandInvocationId, { ok: commandSucceeded, durationMs: commandDurationMs });

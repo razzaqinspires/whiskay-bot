@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { normalizeWestmangaArray, normalizeWestmangaHomePayload } from './westmanga-normalizer.js';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
@@ -25,6 +26,8 @@ providers.set('westmanga', Object.freeze({
   capabilities: Object.freeze(['home', 'search', 'detail', 'read', 'download']),
 }));
 providerHealth.set('westmanga', { failures: 0, cooldownUntil: 0, lastError: null });
+
+const asArray = normalizeWestmangaArray;
 
 function safeStyle(value) {
   return ['compact', 'detailed', 'minimal'].includes(value) ? value : DEFAULTS.responseStyle;
@@ -75,14 +78,38 @@ async function invoke(capability, args, options = {}) {
       continue;
     }
     try {
-      const fn = provider.source[capability === 'detail' ? 'getComicDetail' : capability === 'read' ? 'getChapterImages' : capability === 'download' ? 'downloadChapter' : capability === 'search' ? 'search' : 'getHome'];
-      const result = await fn(...args, {
+      const requestOptions = {
         preset: options.preset || DEFAULTS.userAgentPreset,
         page: options.page || DEFAULTS.page,
         perPage: options.perPage || DEFAULTS.perPage,
         outDir: options.outDir || DEFAULTS.downloadDirectory,
         ...(options.requestOptions || {}),
-      });
+      };
+      let result;
+      if (capability === 'home' && provider.id === 'westmanga' && typeof provider.source.fetchApi === 'function') {
+        // The supplied scraper's getHome() assumes each API section is an array and
+        // calls list.map() directly. Keep that protected source unchanged; fetch the
+        // same endpoint through its exported transport and normalize the API shape here.
+        const json = await provider.source.fetchApi('/api/contents/home-data', {
+          ...requestOptions,
+          referer: `${provider.source.BASE_URL || 'https://v1.westmanga.my'}/`,
+        });
+        result = normalizeWestmangaHomePayload(json, provider.source.toAbsoluteImageUrl);
+      } else {
+        const fn = provider.source[capability === 'detail' ? 'getComicDetail' : capability === 'read' ? 'getChapterImages' : capability === 'download' ? 'downloadChapter' : capability === 'search' ? 'search' : 'getHome'];
+        result = await fn(...args, requestOptions);
+      }
+      if (capability === 'home') {
+        const normalized = Object.fromEntries(['mirrorUpdates','popular','newProjects','projectUpdates']
+          .map(key => [key, asArray(result?.[key])]));
+        result = { ...(result && typeof result === 'object' ? result : {}), ...normalized };
+      } else if (capability === 'search') {
+        result = { ...(result && typeof result === 'object' ? result : {}), results: asArray(result?.results) };
+      } else if (capability === 'detail') {
+        result = { ...(result && typeof result === 'object' ? result : {}), chapters: asArray(result?.chapters), genres: asArray(result?.genres) };
+      } else if (capability === 'read') {
+        result = { ...(result && typeof result === 'object' ? result : {}), images: asArray(result?.images) };
+      }
       markProviderResult(provider.id);
       return { provider: provider.id, result, attribution: ATTRIBUTION };
     } catch (error) {
@@ -128,7 +155,7 @@ export function formatWestmangaResult(kind, payload, style = DEFAULTS.responseSt
   const data = payload?.result ?? payload;
   const attribution = payload?.attribution || ATTRIBUTION;
   if (kind === 'search') {
-    const items = data?.results || [];
+    const items = asArray(data?.results);
     const limit = mode === 'minimal' ? 5 : mode === 'compact' ? 10 : 30;
     const rows = items.slice(0, limit).map((item, index) => mode === 'minimal'
       ? `${index + 1}. ${item.title} — ${item.slug}`
@@ -136,16 +163,16 @@ export function formatWestmangaResult(kind, payload, style = DEFAULTS.responseSt
     return [`Hasil pencarian Westmanga: ${items.length}`, ...rows, items.length > limit ? `Dan ${items.length - limit} hasil lainnya.` : '', `Sumber: ${attribution}`].filter(Boolean).join('\n');
   }
   if (kind === 'detail') {
-    const chapters = data?.chapters || [];
+    const chapters = asArray(data?.chapters);
     const limit = mode === 'minimal' ? 5 : mode === 'compact' ? 10 : chapters.length;
-    return [`*${data?.title || 'Judul tidak tersedia'}*`, `Status: ${data?.status || '-'}`, `Author: ${data?.author || '-'}`, `Genre: ${(data?.genres || []).join(', ') || '-'}`, `Chapter: ${data?.chaptersCount ?? chapters.length}`, mode === 'detailed' ? `\nSinopsis:\n${data?.synopsis || '-'}` : '', '\nChapter terbaru:', ...chapters.slice(0, limit).map(ch => `• ${ch.number} — ${ch.title || ch.slug}`), `Sumber: ${attribution}`].filter(Boolean).join('\n');
+    return [`*${data?.title || 'Judul tidak tersedia'}*`, `Status: ${data?.status || '-'}`, `Author: ${data?.author || '-'}`, `Genre: ${asArray(data?.genres).join(', ') || '-'}`, `Chapter: ${data?.chaptersCount ?? chapters.length}`, mode === 'detailed' ? `\nSinopsis:\n${data?.synopsis || '-'}` : '', '\nChapter terbaru:', ...chapters.slice(0, limit).map(ch => `• ${ch.number} — ${ch.title || ch.slug}`), `Sumber: ${attribution}`].filter(Boolean).join('\n');
   }
   if (kind === 'home') {
     const sections = [['Pembaruan mirror', data?.mirrorUpdates], ['Populer', data?.popular], ['Proyek baru', data?.newProjects], ['Pembaruan proyek', data?.projectUpdates]];
-    return [...sections.map(([title, items]) => `*${title}*\n${(items || []).slice(0, mode === 'minimal' ? 3 : 5).map(item => `• ${item.title} (${item.slug})`).join('\n') || 'Belum ada data'}`), `Sumber: ${attribution}`].join('\n\n');
+    return [...sections.map(([title, items]) => `*${title}*\n${asArray(items).slice(0, mode === 'minimal' ? 3 : 5).map(item => `• ${item.title} (${item.slug})`).join('\n') || 'Belum ada data'}`), `Sumber: ${attribution}`].join('\n\n');
   }
   if (kind === 'read') {
-    const images = data?.images || [];
+    const images = asArray(data?.images);
     const limit = mode === 'detailed' ? images.length : mode === 'minimal' ? 5 : 15;
     return [`*${data?.comicTitle || 'Westmanga'}*`, `Chapter: ${data?.chapterNumber || data?.chapterSlug || '-'}`, `Jumlah halaman: ${data?.imageCount ?? images.length}`, ...images.slice(0, limit).map(image => `${image.page}. ${image.url}`), `Sumber: ${attribution}`].join('\n');
   }

@@ -2,11 +2,12 @@
  * Baileys Message Serialization & Interactive Helper (Native Flow)
  */
 
-const { 
-  proto, 
-  generateWAMessageFromContent, 
-  downloadContentFromMessage, 
+const {
+  proto,
+  generateWAMessageFromContent,
+  downloadContentFromMessage,
   generateMessageIDV2,
+  prepareWAMessageMedia,
   isJidGroup
 } = require('@whiskeysockets/baileys');
 const crypto = require('crypto');
@@ -27,31 +28,48 @@ const jidPairs = new Map();
 const sentMessageIds = new Set();
 const messageStore = new Map();
 const MAX_MESSAGE_STORE = 5000;
+let persistentMessageRepository = null;
 
-function storeMessage(rawMsg) {
-  if (!rawMsg || !rawMsg.key || !rawMsg.key.id) return;
-  const id = rawMsg.key.id;
-  const remoteJid = rawMsg.key.remoteJid;
-  messageStore.set(id, rawMsg);
-  if (remoteJid) {
-    messageStore.set(`${remoteJid}:${id}`, rawMsg);
-  }
-  if (messageStore.size > MAX_MESSAGE_STORE * 2) {
-    const it = messageStore.keys();
-    for (let i = 0; i < 1000; i++) {
-      const next = it.next();
-      if (next.done) break;
-      messageStore.delete(next.value);
-    }
-  }
+function localMessageKey(key) {
+  if (!key || typeof key.remoteJid !== 'string' || typeof key.id !== 'string' || typeof key.fromMe !== 'boolean') return null;
+  const participant = key.participant == null ? '' : String(key.participant);
+  return JSON.stringify([key.remoteJid, key.id, key.fromMe, participant]);
 }
 
-function getStoredMessage(id, remoteJid) {
-  if (!id) return null;
-  if (remoteJid && messageStore.has(`${remoteJid}:${id}`)) {
-    return messageStore.get(`${remoteJid}:${id}`);
+function setMessageRepository(repository) {
+  persistentMessageRepository = repository || null;
+}
+
+function storeMessage(rawMsg) {
+  if (!rawMsg?.key?.id || !rawMsg?.message) return;
+  const identity = localMessageKey(rawMsg.key);
+  if (identity) {
+    messageStore.delete(identity);
+    messageStore.set(identity, rawMsg);
+    if (messageStore.size > MAX_MESSAGE_STORE) {
+      const oldest = messageStore.keys().next().value;
+      if (oldest) messageStore.delete(oldest);
+    }
   }
-  return messageStore.get(id) || null;
+  // The repository owns persistence, bounded retention and binary-safe encoding.
+  // Failure is surfaced through repository health/stats; the in-memory serializer
+  // remains available for non-critical quoting behavior during this stage.
+  persistentMessageRepository?.remember?.(rawMsg);
+}
+
+function getStoredMessage(id, remoteJid, fromMe, participant) {
+  if (!id || !remoteJid) return null;
+  const candidates = [...messageStore.values()].filter(message =>
+    message?.key?.id === id && message?.key?.remoteJid === remoteJid &&
+    (fromMe === undefined || message?.key?.fromMe === fromMe) &&
+    (participant === undefined || (message?.key?.participant || '') === participant)
+  );
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+async function getStoredMessageAsync(key) {
+  if (!persistentMessageRepository?.get) return undefined;
+  return persistentMessageRepository.get(key);
 }
 
 function trackSentMessageId(id) {
@@ -637,6 +655,7 @@ function serialize(sock, m) {
   };
 
   m.sendInteractive = (data) => sock.sendInteractive(m.chat, data, m);
+  m.sendCarousel = (data) => sock.sendCarousel(m.chat, data, m);
   m.sendRichMessage = (submessages, options = {}) => sock.sendRichMessage(m.chat, submessages, m, options);
   m.sendLink = (text, links, options = {}) => sock.sendLink(m.chat, text, links, m, options);
   m.sendLinkV2 = (text, links, options = {}) => sock.sendLinkV2(m.chat, text, links, m, options);
@@ -763,7 +782,7 @@ function extendSocket(sock) {
       },
       content: [{ tag: 'decision_source', attrs: { value: 'df' } }]
     };
-    
+
     const bizAttributes = {
       actual_actors: '2',
       host_storage: '2',
@@ -899,7 +918,7 @@ function extendSocket(sock) {
       }
 
       let buttonParamsJson = {};
-      
+
       if (buttonName === 'open_webview' || buttonName === 'cta_url' || buttonName === 'url') {
         buttonName = 'cta_url';
         const targetUrl = b.url || b.link || existingParams.url || 'https://google.com';
@@ -940,7 +959,7 @@ function extendSocket(sock) {
           id: b.id || existingParams.id || `btn_${idx}`
         };
       }
-      
+
       return {
         name: buttonName,
         buttonParamsJson: JSON.stringify(buttonParamsJson)
@@ -1078,6 +1097,70 @@ function extendSocket(sock) {
         return await sock.sendMessage(targetJid, { text: fallbackText.trim() });
       }
     }
+  };
+
+  sock.sendCarousel = async (jid, options = {}, quoted = null) => {
+    const targetJid = resolvePhoneJid(sock, jid, quoted?.key || {});
+    const cardsInput = Array.isArray(options.cards) ? options.cards.slice(0, 10) : [];
+    if (!cardsInput.length) throw new TypeError('Carousel membutuhkan minimal satu kartu.');
+    if (typeof sock.waUploadToServer !== 'function') throw new Error('Upload media Baileys tidak tersedia untuk carousel.');
+    const cards = [];
+    for (let index = 0; index < cardsInput.length; index += 1) {
+      const item = cardsInput[index] || {};
+      const imageUrl = String(item.image || item.cover || '').trim();
+      let media = {};
+      if (imageUrl) {
+        const parsed = new URL(imageUrl);
+        if (parsed.protocol !== 'https:' || !['v1.westmanga.my', 'westmanga.my', 'westmanga.site', 'cdn.myanimelist.net', 'images.jpg'].includes(parsed.hostname.toLowerCase())) {
+          throw new Error('Carousel menolak URL gambar dari domain yang tidak diizinkan.');
+        }
+        const prepared = await prepareWAMessageMedia({ image: { url: imageUrl } }, { upload: sock.waUploadToServer });
+        if (!prepared?.imageMessage) throw new Error(`Gambar kartu ${index + 1} gagal diproses.`);
+        media = prepared;
+      }
+      const buttonId = String(item.id || '').trim().slice(0, 256);
+      const buttonTitle = String(item.buttonTitle || 'Lihat Detail').trim().slice(0, 25);
+      const nativeButtons = buttonId ? [{
+        name: 'quick_reply',
+        buttonParamsJson: JSON.stringify({ display_text: buttonTitle || 'Lihat Detail', id: buttonId })
+      }] : [];
+      const card = proto.Message.InteractiveMessage.fromObject({
+        header: {
+          title: String(item.title || `Item ${index + 1}`).slice(0, 80),
+          hasMediaAttachment: Boolean(media.imageMessage),
+          ...media
+        },
+        body: { text: String(item.body || '').slice(0, 1024) },
+        footer: { text: String(item.footer || '').slice(0, 60) },
+        nativeFlowMessage: { buttons: nativeButtons, messageParamsJson: '' }
+      });
+      cards.push(card);
+    }
+    const content = {
+      viewOnceMessage: {
+        message: {
+          messageContextInfo: proto.MessageContextInfo.create({ deviceListMetadata: {}, deviceListMetadataVersion: 2 }),
+          interactiveMessage: proto.Message.InteractiveMessage.fromObject({
+            body: { text: String(options.body || 'Pilih salah satu item berikut.').slice(0, 1024) },
+            footer: { text: String(options.footer || 'WHISKAY · Manga Library').slice(0, 60) },
+            carouselMessage: { cards }
+          })
+        }
+      }
+    };
+    const userJid = sock.authState?.creds?.me?.id || sock.user?.id;
+    const message = generateWAMessageFromContent(targetJid, content, {
+      logger: sock.logger,
+      userJid,
+      messageId: generateMessageIDV2 ? generateMessageIDV2(userJid) : undefined,
+      timestamp: new Date(),
+      quoted: quoted?.key ? quoted : undefined
+    });
+    await sock.relayMessage(targetJid, message.message, {
+      messageId: message.key.id,
+      ...(options.relayOptions || {})
+    });
+    return message;
   };
 
   sock.sendRichMessage = async (jid, submessages, quoted = null, options = {}) => {
@@ -1601,6 +1684,8 @@ module.exports = {
   downloadMedia,
   storeMessage,
   getStoredMessage,
+  setMessageRepository,
+  getStoredMessageAsync,
   registerJidPair,
   syncBotJidPairs,
   getBotIdentifiers,

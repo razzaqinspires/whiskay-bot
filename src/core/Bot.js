@@ -34,6 +34,7 @@ import { JobLoader } from './JobLoader.js';
 import { outboundTrafficGuard, runWithOutboundContext } from './OutboundTrafficGuard.js';
 import { workloadTracker } from './WorkloadTracker.js';
 import { registerLevelingIdentityAlias } from '../lib/leveling.js';
+import { messageRepository } from '../services/message-repository/MessageRepository.js';
 
 export class Bot {
   constructor() {
@@ -279,6 +280,8 @@ export class Bot {
     this._connectionState = 'connecting';
     const { state, saveCreds } = await useMultiFileAuthState(config.sessionDir);
     await loadGroupMetadataStore();
+    await messageRepository.init();
+    compatSerializer.setMessageRepository?.(messageRepository);
     const { version } = await fetchLatestBaileysVersion();
 
     const browserTuple = this._parseBrowser(config.pairing.browser);
@@ -297,8 +300,10 @@ export class Bot {
       generateHighQualityLinkPreview: true,
       cachedGroupMetadata: async jid => groupMetadataStore.get(jid) || undefined,
       getMessage: async key => {
-        const stored = compatSerializer.getStoredMessage?.(key?.id, key?.remoteJid);
-        return stored?.message || { conversation: '' };
+        // Baileys retry/poll decryption requires the exact original message.
+        // Never return a placeholder or fall back to a message-ID-only lookup.
+        const stored = await compatSerializer.getStoredMessageAsync?.(key);
+        return stored?.message;
       }
     });
 
@@ -584,6 +589,7 @@ export class Bot {
       await attempt('workload-tracker', async () => { await workloadTracker.close(); });
       await attempt('socket', async () => { if (this._sock) this._sock.end(undefined); });
       await attempt('group-metadata', async () => { await groupMetadataStore.flush(); });
+      await attempt('message-repository', async () => { await messageRepository.flush(); });
       this._sock = null;
       registry.sock = null;
       this._connectionState = failures.length ? 'stopped-with-errors' : 'stopped';
