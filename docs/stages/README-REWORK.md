@@ -6,7 +6,7 @@
 - Custom menu image flow supports replying to the setup prompt with an image and caption `.setmenu image save`, or replying to an already-sent image with that command.
 - Profile image and profile information/buttons are sent as one interactive message (where the current WhatsApp/Baileys client supports interactive media). Primary actions: Leaderboard, Dashboard and Inventory WebView.
 - Leaderboard reads the leveling data for the current chat.
-- Dungeon includes a detailed 10-floor data file at `data/dungeon/floors.json`, named locations, monsters, NPC dialogue, hazards, stats, skills, buffs, kill-skill triggers, drops, first-clear rewards, and a Worker Thread forecast estimator.
+- Dungeon includes a detailed 10-floor data file at `assets/dungeon/floors.json`, named locations, monsters, NPC dialogue, hazards, stats, skills, buffs, kill-skill triggers, drops, first-clear rewards, and a Worker Thread forecast estimator.
 - Separate Vercel companion app: `vercel-rpg/`. Includes inventory/profile UI, 10-floor web combat prototype, `/api/floors`, `/api/player`, `/api/sync`, and Supabase schema.
 
 ## Set menu usage

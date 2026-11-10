@@ -7,7 +7,7 @@ test('serializer runtime export fixes Bot.js named import', async () => {
   const source = await read('../src/core/serializer.js');
   const bot = await read('../src/core/Bot.js');
   assert.match(source, /export const attachSerializerRuntime = compat\.extendSocket/);
-  assert.match(bot, /import \{ attachSerializerRuntime \} from '\.\/serializer\.js'/);
+  assert.match(bot, /import \{[^}]*attachSerializerRuntime[^}]*\} from '\.\/serializer\.js'/);
 });
 
 test('Nexora system prompt is prefilled and below the model input cap', async () => {
@@ -33,5 +33,7 @@ test('energy worker avoids overlapping background scans and tracks pending write
   const source = await read('../src/lib/energy-worker.js');
   assert.match(source, /if \(regenTickRunning\) return/);
   assert.match(source, /pendingWriteCount/);
-  assert.match(source, /Math\.round\(\(before \+ 0\.01\) \* 100\) \/ 100/);
+  assert.match(source, /elapsedSeconds \* 0\.01/);
+  assert.match(source, /lastPassiveRegenAt/);
+  assert.match(source, /withFileLock/);
 });

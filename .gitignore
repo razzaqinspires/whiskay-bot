@@ -1,17 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Whiskay Bot — private/runtime data must never enter GitHub.
+# Ignore rules also apply to nested workspaces and plugin runtime directories.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Environment files and package-manager credentials.
 .env
 .env.*
-!.env.example
-sessions/
-node_modules/
-*.log
+!/.env.example
+.npmrc
+.netrc
 
-# Per-user menu preferences and 7-day command ledger
-/data/menu-settings.json
-/data/menu-command-ledger.json
-
-# Runtime state, private user profiles, generated cards and download cache
+# ALL mutable application data/database folders. Static assets belong in assets/.
 /data/
+**/data/
 
-# Jadibot portal tickets, settings and sub-bot credentials
-/data/jadibot/
-/data/bin/
+# WhatsApp/Baileys authentication and session state (root or nested).
+/sessions/
+**/sessions/
+/session/
+**/session/
+auth_info_baileys/
+**/auth_info_baileys/
+baileys_auth_info/
+**/baileys_auth_info/
+.whatsapp-session/
+**/.whatsapp-session/
+whatsapp-session/
+**/whatsapp-session/
+whatsapp-sessions/
+**/whatsapp-sessions/
+.wwebjs_auth/
+**/.wwebjs_auth/
+.wwebjs_cache/
+**/.wwebjs_cache/
+
+# Runtime state, caches, temporary files, generated reports and dependencies.
+node_modules/
+**/node_modules/
+.runtime/
+**/.runtime/
+.test-runtime/
+**/.test-runtime/
+.cache/
+**/.cache/
+coverage/
+**/coverage/
+.next/
+**/.next/
+.turbo/
+**/.turbo/
+logs/
+**/logs/
+tmp/
+**/tmp/
+temp/
+**/temp/
+downloads/
+**/downloads/
+cache/
+**/cache/
+dist/
+**/dist/
+build/
+**/build/
+
+# Local QA/test output. The ZIP archive stays on the operator's device.
+/test/reports/
+**/test/reports/
+/test-reports/
+**/test-reports/
+data/test-reports/
+*.tap
+*.log
+*.log.*
+*.tap
+
+# Database files, journals, dumps and backups (including SQLite sidecars).
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.realm
+*.rdb
+*.ldb
+*.sst
+*.mdb
+*.mdf
+*.ldf
+*.ibd
+*.frm
+*.myd
+*.myi
+*.dump
+*.bak
+*.backup
+*.corrupt-*
+*.migrated-*
+
+# Credentials, private keys, certificates and exported session files.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.p8
+*.der
+*.crt
+*.cer
+*.asc
+*.secret
+*.secrets
+*.session
+*.cookie
+credentials.json
+secrets.json
+token.json
+service-account*.json
+id_rsa
+id_ed25519
+
+# OS/editor artifacts.
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Historical local patch archives may contain credential-like fixtures or secrets.
+/docs/archive/patches/*.patch
+
+# Local manifest tracking keys previously managed by .env.example
+.env.sync-state
+.env.*.sync-state

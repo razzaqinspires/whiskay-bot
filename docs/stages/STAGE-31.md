@@ -417,7 +417,7 @@ Literasi 5: Keamanan, Performa, Observability, dan Operasional
 ### Error handling dan test case
 - Energi rendah: konsumsi dibatasi saldo tersisa, tidak menghasilkan energi negatif.
 - Input fixed cost invalid: test perlu memastikan fallback/penolakan tidak menghasilkan biaya NaN.
-- Ledger read/write gagal: logging saat ini ada, tetapi mode fail-open middleware yang sudah terdokumentasi berarti operator harus memantau error dan tidak menganggap debit berhasil.
+- Ledger read/write gagal: kebijakan Stage 32 dan sesudahnya adalah fail-closed untuk command berbayar. Catatan fail-open pada desain awal Stage 31 sudah superseded; status terkini dijelaskan pada README dan `docs/stages/STAGE-32.md`.
 - Test: input panjang, unicode, math-heavy, command berulang, energi nol, kapasitas maksimum, passive regen on/off, charging aktif, dan file ledger rusak.
 - Risiko multi-instance: JSON lock hanya lokal proses; pindah ke database transaksi sebelum horizontal scaling.
 

@@ -1,7 +1,10 @@
 import { mkdir, readFile, writeFile, rename, copyFile, access } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(process.env.WHISKAY_DATA_DIR || './data');
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const CONFIGURED_ROOT = process.env.WHISKAY_DATA_DIR;
+const ROOT = CONFIGURED_ROOT ? (path.isAbsolute(CONFIGURED_ROOT) ? CONFIGURED_ROOT : path.resolve(PROJECT_ROOT, CONFIGURED_ROOT)) : path.join(PROJECT_ROOT, 'data');
 const FILE = path.join(ROOT, 'app-database.json');
 const BACKUP = `${FILE}.bak`;
 const EMPTY = () => ({ schemaVersion: 1, users: {}, anonymous: { queue: [], pairs: {} }, games: {}, werewolfRooms: {}, blockedUsers: {}, topups: {}, updatedAt: new Date().toISOString() });

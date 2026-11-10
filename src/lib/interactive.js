@@ -189,16 +189,6 @@ export async function sendInteractiveMessage(sock, jid, opts = {}, quoted = null
     nativeFlowMessage: {
       buttons: nativeButtons,
       messageParamsJson: ''
-    },
-    contextInfo: {
-      isForwarded: true,
-      forwardingScore: 999999,
-      forwardOrigin: 4,
-      forwardedAiBotMessageInfo: {
-        botName: 'Meta AI',
-        botJid: '13135550002@s.whatsapp.net',
-        creatorName: 'Meta'
-      }
     }
   };
 

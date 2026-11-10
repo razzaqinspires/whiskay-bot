@@ -1,21 +1,52 @@
 import Logger from '../core/Logger.js';
 import { serializeMessage } from '../core/serializer.js';
-import { awardMessageXP, getProfile } from '../lib/leveling.js';
+import { awardMessageXP, awardCommandXP, getProfile } from '../lib/leveling.js';
+import { getMenuSettings } from '../lib/menu-settings.js';
 import { observeUser, getUser } from '../lib/app-database.js';
 import aiChatPlugin from '../plugins/tools/ai-chat.js';
 import { relayAnonymousMessage } from '../plugins/general/anonymous.js';
 import { getGroupSettings } from '../lib/group-settings.js';
 import { updateUser } from '../lib/app-database.js';
 import { recordMessageMetric } from '../lib/stage26-observability.js';
+import { consumePendingMenuAvatar } from '../services/menu-avatar-upload.js';
+import { consumePendingEnvReply } from '../lib/env-config.js';
+import { saveAdzanSharedLocation } from '../services/AdzanProfileStore.js';
+import { runWithOutboundContext } from '../core/OutboundTrafficGuard.js';
 
-export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => {
+export const createMessageHandler = ({ sock, bot, config, commandHandler, eventBus }) => async upsert => runWithOutboundContext({ source: 'message:ingress', command: 'message-handler' }, async () => {
   if (upsert.type !== 'notify') return;
   for (const raw of upsert.messages) {
     if (!raw.message) continue;
     try {
       const ctx = await serializeMessage(sock, raw, config, bot);
       if (!ctx) continue;
+      // Drop self-authored updates before emitting events or invoking any feature.
+      // Echoed bot messages must never reach command, AI, XP, or plugin listeners.
+      if (ctx.isBot) continue;
       recordMessageMetric('received');
+      if (!ctx.isBot && await consumePendingEnvReply(ctx).catch(error => { Logger.warn({ err: error.message }, '.env reply handling failed'); return false; })) continue;
+      // A static WhatsApp location is accepted only when the sender explicitly armed
+      // an Adzan location request with `.adzan lokasi` or the owner used `.adzan default`.
+      if (!ctx.isBot && ctx.type === 'locationMessage' && ctx.sender) {
+        const location = ctx.msg || {};
+        try {
+          const saved = await saveAdzanSharedLocation(ctx.sender, {
+            latitude: location.degreesLatitude, longitude: location.degreesLongitude,
+            name: location.name || '', address: location.address || '', isOwner: Boolean(ctx.isOwner)
+          });
+          if (saved.saved) {
+            await ctx.reply(`✅ Lokasi ${saved.target === 'ownerDefault' ? 'default owner' : 'pribadi'} berhasil disimpan.\nKoordinat: ${saved.location.latitude.toFixed(5)}, ${saved.location.longitude.toFixed(5)}\nPeta: ${saved.location.mapUrl}\n\nZona waktu saat ini mengikuti default. Jika berbeda, atur dengan .adzan timezone <IANA>, misalnya Asia/Makassar.`);
+            continue;
+          }
+          if (saved.reason === 'owner-only') { await ctx.reply('Lokasi default hanya dapat disimpan oleh owner.'); continue; }
+        } catch (error) {
+          Logger.warn({ err: error.message }, 'Adzan location capture failed');
+          await ctx.reply(`Lokasi tidak dapat disimpan: ${error.message}`).catch(() => {});
+          continue;
+        }
+      }
+      // A photo reply to the explicit Canvas V2 upload prompt is saved automatically.
+      if (!ctx.isBot && ctx.type === 'imageMessage' && await consumePendingMenuAvatar(ctx).catch(err => { Logger.warn({ err: err.message }, 'menu avatar upload failed'); return false; })) continue;
       eventBus.emit('message', ctx);
       eventBus.emit('message:received', { correlationId: ctx.correlationId, receivedAt: ctx.receivedAt, chat: ctx.chat, sender: ctx.sender, isGroup: Boolean(ctx.isGroup), fromMe: Boolean(ctx.isBot) });
       // Group blacklist is per-group and deliberately excludes admins and owners.
@@ -89,36 +120,32 @@ export const createMessageHandler = ({ sock, bot, config, commandHandler, eventB
       if (!ctx.isGroup && await relayAnonymousMessage(ctx).catch(() => false)) continue;
       const user = await getUser(ctx.sender).catch(() => null);
       if (!user?.registered) continue;
-      // Safe allow-listed natural-language intent routing. Never auto-execute admin,
-      // payment, destructive, or external actions from an AI guess.
-      if (/\b(?:buka|tampilkan|jalankan|pakai|gunakan|mau)\b.*\b(?:kalkulator telur|hitung telur|kalkulator penjualan telur)\b/i.test(incoming)) {
-        const egg = commandHandler._pm?.resolve?.('telur');
-        if (egg?.execute) {
-          ctx.prefix = config.prefixes?.[0] || '.';
-          ctx.command = 'telur'; ctx.args = []; ctx.text = ''; ctx.plugin = egg;
-          await egg.execute(ctx);
-          continue;
-        }
-      }
-      // Nexora's conversational layer: private DM defaults to auto-chat; groups require
-      // an explicit mention or a reply to the bot to avoid unsolicited group replies.
-      const mode = String(process.env.AI_CHAT_MODE || 'auto-private-mention-group').toLowerCase();
+      // Nexora's conversational layer is mention-driven by default. Private auto-response
+      // requires the separate WHISKAY_AI_PRIVATE_AUTO_ENABLED opt-in below.
+      const mode = String(process.env.AI_CHAT_MODE || 'mention-only').toLowerCase();
       const botJids = [ctx.sock?.user?.id, ctx.sock?.user?.lid, ctx.bot?.user?.id].filter(Boolean).map(value => String(value).split(':')[0]);
       const mentionsBot = (ctx.mentionedJid || []).some(jid => botJids.includes(String(jid).split(':')[0])) ||
         /(?:@nexora|@whiskay)\b/i.test(incoming);
       const quotedBot = Boolean(ctx.quoted?.fromMe || ctx.quoted?.key?.fromMe);
-      const isPrivateAuto = !ctx.isGroup && ['auto','auto-private-mention-group','all'].includes(mode);
+      // Private auto-response requires a second explicit opt-in. A legacy AI_CHAT_MODE
+      // value alone must not unexpectedly create outbound DM traffic after an upgrade.
+      const privateAutoOptIn = String(process.env.WHISKAY_AI_PRIVATE_AUTO_ENABLED || 'false').toLowerCase() === 'true';
+      const isPrivateAuto = privateAutoOptIn && !ctx.isGroup && ['auto','auto-private-mention-group','all'].includes(mode);
       const shouldAI = mode !== 'off' && (isPrivateAuto || (mode !== 'mention-only' && (mentionsBot || quotedBot)) || (mode === 'mention-only' && mentionsBot));
       if (!shouldAI) continue;
       if (mode === 'mention-only' && !mentionsBot) continue;
       const prompt = incoming.replace(/@(?:nexora|whiskay)\b/ig, '').trim();
       if (!prompt) { await ctx.reply('🤖 Nexora siap. Tulis pertanyaan setelah mention.').catch(() => {}); continue; }
       const aiCtx = { ...ctx, args: [prompt], command: 'ai', prefix: '', text: prompt };
-      try { await aiChatPlugin.execute(aiCtx); }
-      catch (aiError) { Logger.warn({ err: aiError.message }, 'passive AI skipped'); }
+      try {
+        await aiChatPlugin.execute(aiCtx);
+        const xp = await awardCommandXP(ctx.chat || ctx.sender, ctx.sender, 'nexora-chat').catch(() => null);
+        const prefs = await getMenuSettings(ctx.sender || ctx.chat).catch(() => ({}));
+        if (xp?.gain > 0 && prefs.xpNotificationEnabled !== false) await ctx.reply(`⭐ +${xp.gain} XP diperoleh dari percakapan Nexora.`).catch(() => {});
+      } catch (aiError) { Logger.warn({ err: aiError.message }, 'passive AI skipped'); }
     } catch (e) {
       recordMessageMetric('errors');
       Logger.error({ err: e.message }, 'message handler error');
     }
   }
-};
+});

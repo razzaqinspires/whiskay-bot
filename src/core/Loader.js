@@ -7,7 +7,7 @@ export class Loader {
   async walk(dir) {
     const out = []; let e;
     try { e = await readdir(dir); } catch { return out; }
-    for (const n of e) {
+    for (const n of e.sort((a, b) => a.localeCompare(b))) {
       const f = path.join(dir, n), s = await stat(f);
       if (s.isDirectory()) out.push(...await this.walk(f));
       else if (n.endsWith('.js')) out.push(f);
@@ -32,6 +32,7 @@ export class Loader {
           const candidates = [...(Array.isArray(rawCategory) ? rawCategory : [rawCategory]), ...rawTags]
             .map(v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, ''))
             .filter(Boolean);
+          Object.defineProperty(x, '__sourceFile', { value: path.relative(this.root, f).split(path.sep).join('/'), configurable: true, enumerable: false });
           x.category = candidates[0] || folderCategory;
           x.categories = [...new Set(candidates.length ? candidates : [folderCategory])];
           if (!Array.isArray(x.tags)) x.tags = x.categories;

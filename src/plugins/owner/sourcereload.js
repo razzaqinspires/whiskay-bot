@@ -12,7 +12,7 @@ const HELP = [
   '  .sourcereload clear        - reset persist',
   '  .sourcereload history      - riwayat restart',
   '',
-  'Memantau src/**.js kecuali src/plugins/.',
+  'Memantau hanya file .js di src/**, kecuali src/plugins/.',
   'Beda dengan .hotreload yang khusus plugin.',
   '',
   'Perubahan di core file memicu RESTART penuh.'
@@ -79,8 +79,8 @@ export default {
         '',
         'Supervisor : ' + (rm?.supervisor || '-'),
         '',
-        'Watch: src/**.js (kecuali src/plugins/)',
-        'Ignore: .json .jsonl .log .db .sqlite .bak .tmp'
+        'Watch: hanya src/**/*.js (kecuali src/plugins/)' ,
+        'Non-JS diabaikan; unlink tidak dipaksa syntax-check.'
       ];
       return ctx.reply(lines.join('\n'));
     }

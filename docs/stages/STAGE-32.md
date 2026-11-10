@@ -16,7 +16,7 @@
 - Fake Contact and Fake Product selections open configuration flows. Product image URL accepts HTTPS and is stored per user; rendering of that image remains dependent on the Baileys quote implementation.
 - Profile card includes widget settings and user-specific canvas controls.
 - `.modcoin` with no argument now opens an interactive balance/action menu. Status uses two quick replies plus a single-select list for Coin Mod, anti-spam, cooldown, and canvas.
-- Energy middleware blocks non-recovery commands at exactly zero energy. Recovery commands are documented in README.
+- Energy middleware rejects a paid command before plugin execution when the adjusted cost exceeds the available balance. The affordability decision uses the shared `canExecuteWithEnergy()` policy and fails closed; recovery/control allowlist commands and explicit free/zero-cost plugins remain exempt. Ledger read/write errors also stop paid command execution.
 - Leveling writes are serialized in-process; test-only `WHISKAY_DATA_DIR` support isolates tests.
 
 ## Not claimed complete
@@ -26,8 +26,8 @@
 - The global baseline applies to menu settings and status/profile canvas defaults stored in the settings object. It does not replace existing per-user overrides.
 
 ## Tests
-- `npm run verify:stage32`: 5/5 passed.
-- `npm run verify:all`: passed through Stage 32 in the local archive.
+- `npm run verify:stage32`: 5/5 passed after replacing the formatting-sensitive source regex with behavior checks for free mode, explicit zero cost, static paid cost, zero/insufficient balance, exact-balance allowance, and invalid-ledger fail-closed behavior.
+- The full `npm run verify:all` chain was not rerun for this maintenance patch.
 - No live WhatsApp session or production payment gateway was exercised.
 
 ## Rollback

@@ -15,6 +15,7 @@ export class ReloadQueue {
     this.failureThreshold = failureThreshold;
 
     this._running = false;
+    this._closed = false;
     this._pending = false;
     this._inflight = null;
     this._consecutiveFailures = 0;
@@ -25,6 +26,7 @@ export class ReloadQueue {
   get busy() { return this._running; }
 
   async push(reason = 'manual') {
+    if (this._closed) throw new Error('Reload queue closed');
     // Already running → coalesce
     if (this._running) {
       this._pending = true;
@@ -40,7 +42,7 @@ export class ReloadQueue {
       } finally {
         this._running = false;
         // Schedule follow-up if pending
-        if (this._pending) {
+        if (this._pending && !this._closed) {
           this._pending = false;
           queueMicrotask(() => this.push('coalesced-follow-up'));
         }
@@ -48,6 +50,13 @@ export class ReloadQueue {
     })();
 
     return this._inflight;
+  }
+
+  async close({ wait = true } = {}) {
+    this._closed = true;
+    this._pending = false;
+    if (wait && this._inflight) { try { await this._inflight; } catch {} }
+    return { closed: this._closed, busy: this._running };
   }
 
   async _runOnce(reason) {

@@ -1,55 +1,40 @@
-import { mkdir, readFile, writeFile, rename, rm } from 'node:fs/promises';
+import { runWithOutboundContext } from '../../core/OutboundTrafficGuard.js';
+import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, Browsers, DisconnectReason } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
 import config from '../../config/index.js';
-import { serializeMessage } from '../../core/serializer.js';
+import { serializeMessage, attachSerializerRuntime } from '../../core/serializer.js';
+import { outboundTrafficGuard } from '../../core/OutboundTrafficGuard.js';
 import { registry } from '../../core/registry.js';
 import { hasPremium } from '../../lib/energy-worker.js';
 import { getUser, chargeBalance } from '../../lib/app-database.js';
 import { createPairingTicket, consumePairingTicket, waitForPortalUrl, getPortalMode } from '../../services/jadibotPortal.js';
+import { jadibotStore } from '../../services/JadibotStore.js';
 
 const DAY = 86400000;
 let DAYS = Math.max(1, Number(process.env.JADIBOT_DEFAULT_DAYS || 30));
 let PRICE = Math.max(0, Number(process.env.JADIBOT_PRICE_30D || 10000));
-const ROOT = path.resolve('data/jadibot');
-const SETTINGS = path.join(ROOT, 'settings.json');
-const DBFILE = path.join(ROOT, 'rentals.json');
-const sockets = new Map();
-let writes = Promise.resolve();
+const ROOT = jadibotStore.root;
+const jadibotRuntime = globalThis[Symbol.for('whiskay.jadibot.runtime')] ||= { sockets: new Map(), expiryTimer: null, expirySweep: null, generation: 0 };
+const moduleGeneration = ++jadibotRuntime.generation;
+const sockets = jadibotRuntime.sockets;
 let settingsLoaded = false;
 const idOf = jid => String(jid || '').split('@')[0].split(':')[0].replace(/[^\w-]/g, '').slice(0, 80);
 const money = n => new Intl.NumberFormat('id-ID').format(Number(n) || 0);
 async function loadSettings() {
   if (settingsLoaded) return;
+  const x = await jadibotStore.readSettings({});
+  if (Number.isInteger(x.days) && x.days >= 1 && x.days <= 365) DAYS = x.days;
+  if (Number.isFinite(x.price) && x.price >= 0 && x.price <= 1e8) PRICE = x.price;
   settingsLoaded = true;
-  try {
-    const x = JSON.parse(await readFile(SETTINGS, 'utf8'));
-    if (Number.isInteger(x.days) && x.days >= 1 && x.days <= 365) DAYS = x.days;
-    if (Number.isFinite(x.price) && x.price >= 0 && x.price <= 1e8) PRICE = x.price;
-  } catch {}
 }
 async function saveSettings() {
-  await mkdir(ROOT, { recursive: true, mode: 0o700 });
-  const tmp = `${SETTINGS}.tmp`;
-  await writeFile(tmp, JSON.stringify({ days: DAYS, price: PRICE, updatedAt: new Date().toISOString() }, null, 2), { mode: 0o600 });
-  await rename(tmp, SETTINGS);
+  await jadibotStore.writeSettings({ days: DAYS, price: PRICE, updatedAt: new Date().toISOString() });
 }
-async function dbRead() { try { return JSON.parse(await readFile(DBFILE, 'utf8')); } catch { return {}; } }
-async function dbChange(fn) {
-  const run = writes.then(async () => {
-    await mkdir(ROOT, { recursive: true, mode: 0o700 });
-    const db = await dbRead();
-    const result = await fn(db);
-    const tmp = `${DBFILE}.tmp`;
-    await writeFile(tmp, JSON.stringify(db, null, 2), { mode: 0o600 });
-    await rename(tmp, DBFILE);
-    return result;
-  });
-  writes = run.catch(() => {});
-  return run;
-}
+const dbRead = () => jadibotStore.readRentals();
+const dbChange = fn => jadibotStore.changeRentals(fn);
 const sessionDir = key => path.join(ROOT, 'sessions', key);
 const owner = ctx => Boolean(ctx.isOwner);
 async function allowed(ctx) { return owner(ctx) || await hasPremium(ctx.sender || ctx.chat).catch(() => false); }
@@ -101,6 +86,10 @@ async function start(ctx, mode, phone = '') {
     printQRInTerminal: false,
     getMessage: async () => ({ conversation: '' })
   });
+  // Serializer setup installs message-ID wrappers. Attach the outbound policy
+  // guard afterwards so every sendMessage/relayMessage call is intercepted.
+  attachSerializerRuntime(sock);
+  outboundTrafficGuard.attach(sock);
   sockets.set(key, sock);
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('messages.upsert', async upsert => {
@@ -109,7 +98,7 @@ async function start(ctx, mode, phone = '') {
       if (!raw.message) continue;
       try {
         const subCtx = await serializeMessage(sock, raw, config, registry.bot);
-        if (!subCtx?.body) continue;
+        if (!subCtx?.body || subCtx.isBot) continue;
         if (!/^[.,!/#]/.test(String(subCtx.body).trim())) continue;
         await registry.bot._cmd.handle(subCtx);
       } catch (error) { console.warn('[jadibot] message handler failed:', error?.message || error); }
@@ -158,30 +147,34 @@ function status(row) {
   return `🤖 *STATUS JADIBOT*\nStatus: ${left ? (row.connected ? '🟢 Terhubung' : '🟡 Sesi tersimpan/offline') : '🔴 Kedaluwarsa'}\nNomor: ${row.phone || '-'}\nMasa aktif sampai: ${new Date(row.expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB\nSisa: ${Math.ceil(left / DAY)} hari\nHarga ${DAYS} hari: Rp${money(PRICE)}`;
 }
 async function ownersNotify(ctx, text) { for (const jid of config.owners || []) try { await ctx.sock.sendMessage(jid, { text }); } catch {} }
-// Persisted expiry is enforced even when nobody calls .jadibotstatus. Use a global guard
-// so plugin hot-reloads do not create multiple background workers.
-if (!globalThis.__whiskayJadibotExpiryTimer) {
-  globalThis.__whiskayJadibotExpiryTimer = setInterval(async () => {
-    try {
-      const db = await dbRead();
-      const now = Date.now();
-      for (const [key, row] of Object.entries(db)) {
-        if (!row || !row.expiresAt || row.expiresAt > now || row.expirationHandledAt) continue;
-        await stop(key, false).catch(() => {});
-        await dbChange(current => {
-          if (current[key] && !current[key].expirationHandledAt && current[key].expiresAt <= Date.now()) {
-            current[key].connected = false;
-            current[key].expirationHandledAt = Date.now();
-          }
-        }).catch(() => {});
-        const mainSock = registry.sock || registry.bot?.sock;
-        if (row.user && mainSock?.sendMessage) {
-          await mainSock.sendMessage(row.user, { text: '⏳ Masa sewa WHISKAY Jadibot kamu sudah berakhir. Sesi dihentikan. Gunakan .perpanjang untuk memperpanjang, lalu .jadibotlogin untuk menghubungkan kembali.' }).catch(() => {});
+// Keep one expiry worker across plugin hot reloads. The timer calls the latest
+// module generation through the shared runtime slot, avoiding stale closures.
+jadibotRuntime.expirySweep = async () => {
+  try {
+    const db = await dbRead();
+    const now = Date.now();
+    for (const [key, row] of Object.entries(db)) {
+      if (!row || !row.expiresAt || row.expiresAt > now || row.expirationHandledAt) continue;
+      await stop(key, false).catch(() => {});
+      let claimedExpiry = false;
+      await dbChange(current => {
+        if (current[key] && !current[key].expirationHandledAt && current[key].expiresAt <= Date.now()) {
+          current[key].connected = false;
+          current[key].expirationHandledAt = Date.now();
+          claimedExpiry = true;
         }
+      }).catch(() => {});
+      if (!claimedExpiry) continue;
+      const mainSock = registry.sock || registry.bot?.sock;
+      if (row.user && mainSock?.sendMessage) {
+        await runWithOutboundContext({ source: 'jadibot:expiry', command: 'jadibot-expiry' }, () => mainSock.sendMessage(row.user, { text: '⏳ Masa sewa WHISKAY Jadibot kamu sudah berakhir. Sesi dihentikan. Gunakan .perpanjang untuk memperpanjang, lalu .jadibotlogin untuk menghubungkan kembali.' })).catch(() => {});
       }
-    } catch (error) { console.warn('[jadibot] expiry worker failed:', error?.message || error); }
-  }, 60_000);
-  globalThis.__whiskayJadibotExpiryTimer.unref?.();
+    }
+  } catch (error) { console.warn('[jadibot] expiry worker failed:', error?.message || error); }
+};
+if (!jadibotRuntime.expiryTimer) {
+  jadibotRuntime.expiryTimer = setInterval(() => { void jadibotRuntime.expirySweep?.(); }, 60_000);
+  jadibotRuntime.expiryTimer.unref?.();
 }
 async function showPairingPortal(ctx, key) {
   if (!await allowed(ctx)) return ctx.reply('💎 Fitur jadibot hanya untuk owner dan pengguna Premium aktif.');
@@ -213,6 +206,16 @@ export default {
   command: ['jadibot', 'jadibotconfirm', 'jadibotstatus', 'jadibotlogin', 'jadibotlogout', 'perpanjang', 'buktijadibot', 'listjadibot', 'jadibotapprove', 'stopjadibot', 'setjadibotharga', 'setjadibotdurasi', 'setjadibotpay', 'setjadibotpremium'],
   menuCommands: ['jadibot', 'jadibotstatus', 'jadibotlogin', 'jadibotlogout', 'perpanjang'],
   category: 'premium', description: 'Sewa sub-bot QR/pairing, portal web, status, perpanjangan dan kontrol owner', cooldown: 2500,
+  async dispose({ reason = 'plugin-reload' } = {}) {
+    if (jadibotRuntime.generation !== moduleGeneration) return { skipped: true, reason: 'superseded-generation' };
+    if (jadibotRuntime.expiryTimer) clearInterval(jadibotRuntime.expiryTimer);
+    jadibotRuntime.expiryTimer = null;
+    jadibotRuntime.expirySweep = null;
+    if (reason === 'bot-shutdown' || reason === 'plugin-unload') {
+      for (const key of [...sockets.keys()]) await stop(key, false).catch(() => {});
+    }
+    return { disposed: true, reason };
+  },
   async execute(ctx) {
     await loadSettings();
     const cmd = ctx.command, a = ctx.args || [], user = ctx.sender || ctx.chat, key = idOf(user);
@@ -262,8 +265,15 @@ export default {
         try { await chargeBalance(user, amount, 'jadibot-perpanjangan'); }
         catch (e) { return ctx.reply(`💳 Saldo belum cukup untuk perpanjangan ${days} hari (Rp${money(amount)}).\n${e.message}\n\nGunakan .topup ${amount}, selesaikan pembayaran dan tunggu persetujuan owner.`); }
       }
-      const expiresAt = Math.max(Date.now(), Number(existing?.expiresAt) || 0) + days * DAY;
-      await dbChange(d => { d[key] ??= { user, startedAt: Date.now(), connected: false }; d[key].expiresAt = expiresAt; d[key].pendingPayment = null; d[key].expirationHandledAt = null; });
+      let expiresAt = 0;
+      await dbChange(d => {
+        const current = d[key] || { user, startedAt: Date.now(), connected: false };
+        expiresAt = Math.max(Date.now(), Number(current.expiresAt) || 0) + days * DAY;
+        current.expiresAt = expiresAt;
+        current.pendingPayment = null;
+        current.expirationHandledAt = null;
+        d[key] = current;
+      });
       return ctx.reply(`✅ *PERPANJANGAN JADIBOT BERHASIL*\nDurasi tambahan: ${days} hari\nBiaya: ${owner(ctx) ? 'Gratis (owner)' : `Rp${money(amount)}`}\nMasa aktif sampai: ${new Date(expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB\n\nCek status: .jadibotstatus`);
     }
     if (cmd === 'buktijadibot') {
@@ -285,14 +295,18 @@ export default {
     if (cmd === 'jadibotapprove') {
       if (!owner(ctx)) return ctx.reply('Owner only.');
       const target = idOf(a[0]);
-      const db = await dbRead(), row = db[target];
-      if (!row?.pendingPayment || row.pendingPayment.status !== 'pending') return ctx.reply('Tidak ada pembayaran pending.');
-      const payment = row.pendingPayment;
-      payment.status = 'approved'; payment.approvedAt = Date.now(); payment.approvedBy = key;
-      row.expiresAt = Math.max(Date.now(), Number(row.expiresAt) || 0) + payment.days * DAY;
-      row.startedAt = row.startedAt || Date.now();
-      await dbChange(d => { d[target] = row; });
-      return ctx.reply(`✅ Pembayaran ${payment.ref} disetujui. Masa aktif bertambah ${payment.days} hari, berakhir ${new Date(row.expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB.`);
+      let approved = null;
+      await dbChange(d => {
+        const row = d[target];
+        if (!row?.pendingPayment || row.pendingPayment.status !== 'pending') return;
+        const payment = row.pendingPayment;
+        payment.status = 'approved'; payment.approvedAt = Date.now(); payment.approvedBy = key;
+        row.expiresAt = Math.max(Date.now(), Number(row.expiresAt) || 0) + payment.days * DAY;
+        row.startedAt = row.startedAt || Date.now();
+        approved = { ref: payment.ref, days: payment.days, expiresAt: row.expiresAt };
+      });
+      if (!approved) return ctx.reply('Tidak ada pembayaran pending.');
+      return ctx.reply(`✅ Pembayaran ${approved.ref} disetujui. Masa aktif bertambah ${approved.days} hari, berakhir ${new Date(approved.expiresAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB.`);
     }
     if (cmd === 'stopjadibot') {
       if (!owner(ctx)) return ctx.reply('Owner only. Format: .stopjadibot USERKEY');

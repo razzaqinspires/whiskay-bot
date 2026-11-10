@@ -1,0 +1,1416 @@
+{
+  "schemaVersion": "1.0.0",
+  "game": "Whiskay Dungeon Chronicle",
+  "floors": [
+    {
+      "floor": 1,
+      "id": "floor-01",
+      "name": "Ashen Gate",
+      "recommendedLevel": 1,
+      "environment": {
+        "biome": "Ashen Gate",
+        "lighting": "ember haze",
+        "hazards": [
+          "Cinder gust",
+          "Cracked basalt"
+        ]
+      },
+      "story": {
+        "lore": "The gate remembers every name spoken in fire.",
+        "npc": {
+          "name": "Mira, Gatekeeper",
+          "dialogue": "You have crossed the threshold. Do not mistake silence for safety."
+        },
+        "entryDialogue": "[Ashen Gate] You have crossed the threshold. Do not mistake silence for safety.",
+        "victoryDialogue": "Cinderling Scout falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Cinderling Scout",
+        "species": "A tiny ember-born scout that hunts intruders",
+        "level": 3,
+        "role": "skirmisher",
+        "hp": 54,
+        "attack": 13,
+        "defense": 6,
+        "speed": 9,
+        "critChance": 0.055,
+        "resistances": {
+          "physical": 0.04,
+          "magic": 0.03
+        },
+        "skills": [
+          {
+            "name": "Ember Dash",
+            "type": "special",
+            "power": 22,
+            "cooldownTurns": 3,
+            "effect": "burn"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 13,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 68,
+        "gold": 37,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.33
+          },
+          {
+            "item": "Cindersteel Edge",
+            "chance": 0.195
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 80,
+          "gold": 75,
+          "title": "Floor 1 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 14,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 2,
+      "id": "floor-02",
+      "name": "Mossbound Gallery",
+      "recommendedLevel": 3,
+      "environment": {
+        "biome": "Mossbound Gallery",
+        "lighting": "verdant bioluminescence",
+        "hazards": [
+          "Spore cloud",
+          "Grasping roots"
+        ]
+      },
+      "story": {
+        "lore": "Roots drink the memories of the fallen.",
+        "npc": {
+          "name": "Eldren, Root Scholar",
+          "dialogue": "Strike the glowing knots; the moss is its armor."
+        },
+        "entryDialogue": "[Mossbound Gallery] Strike the glowing knots; the moss is its armor.",
+        "victoryDialogue": "Mossback Stalker falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Mossback Stalker",
+        "species": "A patient beast covered in living moss",
+        "level": 5,
+        "role": "bruiser",
+        "hp": 72,
+        "attack": 18,
+        "defense": 9,
+        "speed": 11,
+        "critChance": 0.07,
+        "resistances": {
+          "physical": 0.07,
+          "magic": 0.05
+        },
+        "skills": [
+          {
+            "name": "Root Snare",
+            "type": "special",
+            "power": 26,
+            "cooldownTurns": 3,
+            "effect": "root"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 16,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 96,
+        "gold": 54,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.31
+          },
+          {
+            "item": "Rootwoven Mantle",
+            "chance": 0.21
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 100,
+          "gold": 100,
+          "title": "Floor 2 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 16,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 3,
+      "id": "floor-03",
+      "name": "Sunken Bell Crypt",
+      "recommendedLevel": 5,
+      "environment": {
+        "biome": "Sunken Bell Crypt",
+        "lighting": "cold blue cryptlight",
+        "hazards": [
+          "Bell pulse",
+          "Flooded tiles"
+        ]
+      },
+      "story": {
+        "lore": "Every toll steals a heartbeat.",
+        "npc": {
+          "name": "Sister Vael",
+          "dialogue": "When the bell rings twice, defend; when it rings once, punish."
+        },
+        "entryDialogue": "[Sunken Bell Crypt] When the bell rings twice, defend; when it rings once, punish.",
+        "victoryDialogue": "Drowned Bellkeeper falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Drowned Bellkeeper",
+        "species": "A drowned sentinel whose bell distorts time",
+        "level": 7,
+        "role": "controller",
+        "hp": 90,
+        "attack": 23,
+        "defense": 12,
+        "speed": 13,
+        "critChance": 0.085,
+        "resistances": {
+          "physical": 0.11,
+          "magic": 0.08
+        },
+        "skills": [
+          {
+            "name": "Toll of Seconds",
+            "type": "special",
+            "power": 30,
+            "cooldownTurns": 3,
+            "effect": "slow"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 19,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 124,
+        "gold": 71,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.29
+          },
+          {
+            "item": "Bellkeeper Charm",
+            "chance": 0.22499999999999998
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 120,
+          "gold": 125,
+          "title": "Floor 3 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 18,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 4,
+      "id": "floor-04",
+      "name": "Glasswind Causeway",
+      "recommendedLevel": 7,
+      "environment": {
+        "biome": "Glasswind Causeway",
+        "lighting": "prismatic wind",
+        "hazards": [
+          "Crosswind blade",
+          "Refraction mirage"
+        ]
+      },
+      "story": {
+        "lore": "The wind here cuts both flesh and certainty.",
+        "npc": {
+          "name": "Kest, Scout",
+          "dialogue": "Watch its shadow, not its body."
+        },
+        "entryDialogue": "[Glasswind Causeway] Watch its shadow, not its body.",
+        "victoryDialogue": "Prismwing Harrier falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Prismwing Harrier",
+        "species": "A crystalline predator that refracts projectiles",
+        "level": 9,
+        "role": "assassin",
+        "hp": 108,
+        "attack": 28,
+        "defense": 15,
+        "speed": 15,
+        "critChance": 0.1,
+        "resistances": {
+          "physical": 0.14,
+          "magic": 0.1
+        },
+        "skills": [
+          {
+            "name": "Shard Dive",
+            "type": "special",
+            "power": 34,
+            "cooldownTurns": 3,
+            "effect": "bleed"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 22,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 152,
+        "gold": 88,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.27
+          },
+          {
+            "item": "Prismglass Bow",
+            "chance": 0.24
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 140,
+          "gold": 150,
+          "title": "Floor 4 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 20,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 5,
+      "id": "floor-05",
+      "name": "Ironroot Foundry",
+      "recommendedLevel": 9,
+      "environment": {
+        "biome": "Ironroot Foundry",
+        "lighting": "molten foundry glow",
+        "hazards": [
+          "Molten vent",
+          "Falling slag"
+        ]
+      },
+      "story": {
+        "lore": "Steel remembers the hands that shaped it.",
+        "npc": {
+          "name": "Master Orun",
+          "dialogue": "Cool its core after the heavy slam."
+        },
+        "entryDialogue": "[Ironroot Foundry] Cool its core after the heavy slam.",
+        "victoryDialogue": "Forge-Tyrant Brakk falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Forge-Tyrant Brakk",
+        "species": "A furnace brute carrying a molten maul",
+        "level": 11,
+        "role": "tank",
+        "hp": 126,
+        "attack": 33,
+        "defense": 18,
+        "speed": 17,
+        "critChance": 0.115,
+        "resistances": {
+          "physical": 0.18,
+          "magic": 0.12
+        },
+        "skills": [
+          {
+            "name": "Molten Verdict",
+            "type": "special",
+            "power": 38,
+            "cooldownTurns": 3,
+            "effect": "burn"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 25,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 180,
+        "gold": 105,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.25
+          },
+          {
+            "item": "Forgeheart Maul",
+            "chance": 0.255
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 160,
+          "gold": 175,
+          "title": "Floor 5 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 22,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 6,
+      "id": "floor-06",
+      "name": "Moonless Archives",
+      "recommendedLevel": 11,
+      "environment": {
+        "biome": "Moonless Archives",
+        "lighting": "ink-dark archive",
+        "hazards": [
+          "Ink curse",
+          "Collapsing shelves"
+        ]
+      },
+      "story": {
+        "lore": "Knowledge is a blade without a hilt.",
+        "npc": {
+          "name": "Archivist Neme",
+          "dialogue": "Interrupt the sigil chant or suffer a curse."
+        },
+        "entryDialogue": "[Moonless Archives] Interrupt the sigil chant or suffer a curse.",
+        "victoryDialogue": "Inkshade Curator falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Inkshade Curator",
+        "species": "A living archive that weaponizes forbidden pages",
+        "level": 13,
+        "role": "caster",
+        "hp": 144,
+        "attack": 38,
+        "defense": 21,
+        "speed": 19,
+        "critChance": 0.13,
+        "resistances": {
+          "physical": 0.21,
+          "magic": 0.15
+        },
+        "skills": [
+          {
+            "name": "Forbidden Index",
+            "type": "special",
+            "power": 42,
+            "cooldownTurns": 3,
+            "effect": "curse"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 28,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 208,
+        "gold": 122,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.23
+          },
+          {
+            "item": "Archivist Seal",
+            "chance": 0.27
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 180,
+          "gold": 200,
+          "title": "Floor 6 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 24,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 7,
+      "id": "floor-07",
+      "name": "Frostvein Reservoir",
+      "recommendedLevel": 13,
+      "environment": {
+        "biome": "Frostvein Reservoir",
+        "lighting": "glacial mist",
+        "hazards": [
+          "Frostbite pool",
+          "Ice shard volley"
+        ]
+      },
+      "story": {
+        "lore": "The water freezes before the scream ends.",
+        "npc": {
+          "name": "Talla, Warden",
+          "dialogue": "Keep stamina for the breath cone; fire buffs help."
+        },
+        "entryDialogue": "[Frostvein Reservoir] Keep stamina for the breath cone; fire buffs help.",
+        "victoryDialogue": "Rimejaw Leviathan falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Rimejaw Leviathan",
+        "species": "A burrowing ice beast with a freezing breath",
+        "level": 15,
+        "role": "beast",
+        "hp": 162,
+        "attack": 43,
+        "defense": 24,
+        "speed": 21,
+        "critChance": 0.145,
+        "resistances": {
+          "physical": 0.25,
+          "magic": 0.18
+        },
+        "skills": [
+          {
+            "name": "Whiteout Breath",
+            "type": "special",
+            "power": 46,
+            "cooldownTurns": 3,
+            "effect": "freeze"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 31,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 236,
+        "gold": 139,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.21
+          },
+          {
+            "item": "Rimefang Cloak",
+            "chance": 0.285
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 200,
+          "gold": 225,
+          "title": "Floor 7 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 26,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 8,
+      "id": "floor-08",
+      "name": "Storm Crown Spire",
+      "recommendedLevel": 15,
+      "environment": {
+        "biome": "Storm Crown Spire",
+        "lighting": "storm-lit spire",
+        "hazards": [
+          "Lightning rod",
+          "Charged floor"
+        ]
+      },
+      "story": {
+        "lore": "A machine can learn fear if it learns pain.",
+        "npc": {
+          "name": "Unit Aster",
+          "dialogue": "Ground the charged strike with a defensive skill."
+        },
+        "entryDialogue": "[Storm Crown Spire] Ground the charged strike with a defensive skill.",
+        "victoryDialogue": "Volt-Sentinel IX falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Volt-Sentinel IX",
+        "species": "An ancient automaton powered by storm glass",
+        "level": 17,
+        "role": "artillery",
+        "hp": 180,
+        "attack": 48,
+        "defense": 27,
+        "speed": 23,
+        "critChance": 0.16,
+        "resistances": {
+          "physical": 0.28,
+          "magic": 0.2
+        },
+        "skills": [
+          {
+            "name": "Thunder Lattice",
+            "type": "special",
+            "power": 50,
+            "cooldownTurns": 3,
+            "effect": "shock"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 34,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 264,
+        "gold": 156,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.19
+          },
+          {
+            "item": "Stormcore Ring",
+            "chance": 0.3
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 220,
+          "gold": 250,
+          "title": "Floor 8 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 28,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 9,
+      "id": "floor-09",
+      "name": "The Hollow Throne",
+      "recommendedLevel": 17,
+      "environment": {
+        "biome": "The Hollow Throne",
+        "lighting": "ashen throne room",
+        "hazards": [
+          "Mirror counter",
+          "Soul-drain zone"
+        ]
+      },
+      "story": {
+        "lore": "Your victories have taught me your rhythm.",
+        "npc": {
+          "name": "Captain Rhea",
+          "dialogue": "Vary attack patterns; repeated skills are countered."
+        },
+        "entryDialogue": "[The Hollow Throne] Vary attack patterns; repeated skills are countered.",
+        "victoryDialogue": "Hollow Knight Serath falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Hollow Knight Serath",
+        "species": "A fallen champion who mirrors player tactics",
+        "level": 19,
+        "role": "duelist",
+        "hp": 198,
+        "attack": 53,
+        "defense": 30,
+        "speed": 25,
+        "critChance": 0.175,
+        "resistances": {
+          "physical": 0.32,
+          "magic": 0.23
+        },
+        "skills": [
+          {
+            "name": "Mirror Riposte",
+            "type": "special",
+            "power": 54,
+            "cooldownTurns": 3,
+            "effect": "counter"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 37,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 292,
+        "gold": 173,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.17
+          },
+          {
+            "item": "Hollowguard Plate",
+            "chance": 0.315
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 240,
+          "gold": 275,
+          "title": "Floor 9 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 30,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    },
+    {
+      "floor": 10,
+      "id": "floor-10",
+      "name": "Eclipse Heart Sanctum",
+      "recommendedLevel": 19,
+      "environment": {
+        "biome": "Eclipse Heart Sanctum",
+        "lighting": "eclipsed sanctum",
+        "hazards": [
+          "Eclipse pulse",
+          "Reality fracture"
+        ]
+      },
+      "story": {
+        "lore": "The world ends first in the smallest room.",
+        "npc": {
+          "name": "The Last Oracle",
+          "dialogue": "Break the three seals, survive the eclipse pulse, then strike."
+        },
+        "entryDialogue": "[Eclipse Heart Sanctum] Break the three seals, survive the eclipse pulse, then strike.",
+        "victoryDialogue": "Nhal, World-Eater Fragment falls. A sealed path opens deeper into the dungeon.",
+        "defeatDialogue": "The world dims. Your expedition is interrupted, not erased."
+      },
+      "enemy": {
+        "name": "Nhal, World-Eater Fragment",
+        "species": "A primordial shard that shifts between phases",
+        "level": 21,
+        "role": "boss",
+        "hp": 432,
+        "attack": 58,
+        "defense": 33,
+        "speed": 27,
+        "critChance": 0.19,
+        "resistances": {
+          "physical": 0.35,
+          "magic": 0.25
+        },
+        "skills": [
+          {
+            "name": "Eclipse Pulse",
+            "type": "special",
+            "power": 58,
+            "cooldownTurns": 3,
+            "effect": "true-damage"
+          },
+          {
+            "name": "Heavy Strike",
+            "type": "physical",
+            "power": 40,
+            "cooldownTurns": 2,
+            "effect": "stagger"
+          },
+          {
+            "name": "Guard Shift",
+            "type": "buff",
+            "power": 0,
+            "cooldownTurns": 4,
+            "effect": "defense_up"
+          }
+        ]
+      },
+      "rewards": {
+        "xp": 320,
+        "gold": 190,
+        "dropTable": [
+          {
+            "item": "Potion of Renewal",
+            "chance": 0.15
+          },
+          {
+            "item": "Eclipse Relic",
+            "chance": 0.32999999999999996
+          }
+        ],
+        "firstClearBonus": {
+          "xp": 260,
+          "gold": 300,
+          "title": "Floor 10 Pioneer"
+        }
+      },
+      "combat": {
+        "turnLimit": 32,
+        "playerActionPoints": 2,
+        "staminaPerTurn": 100,
+        "skills": [
+          "Quick Strike",
+          "Heavy Slash",
+          "Guard Break",
+          "Focus",
+          "Dodge",
+          "Potion"
+        ],
+        "buffs": [
+          {
+            "name": "Battle Focus",
+            "durationTurns": 2,
+            "effect": "critChance +10%"
+          },
+          {
+            "name": "Iron Skin",
+            "durationTurns": 2,
+            "effect": "damageTaken -25%"
+          },
+          {
+            "name": "Ember Vigor",
+            "durationTurns": 2,
+            "effect": "damage +15%"
+          }
+        ],
+        "killSkills": [
+          {
+            "name": "Execution Window",
+            "trigger": "enemy HP below 15% and player has Focus",
+            "multiplier": 2.25
+          },
+          {
+            "name": "Perfect Parry",
+            "trigger": "block within 250ms of telegraph",
+            "effect": "stun enemy 1 turn"
+          }
+        ]
+      },
+      "prediction": {
+        "model": "bounded-turn-based-estimator-v1",
+        "features": [
+          "playerLevel",
+          "playerHP",
+          "weaponPower",
+          "armor",
+          "enemyHP",
+          "enemyAttack",
+          "enemyDefense",
+          "skillCooldowns",
+          "buffDuration",
+          "recentWinRate",
+          "estimatedDamagePerTurn"
+        ],
+        "confidenceCap": 0.92,
+        "warning": "Win probability is an estimate from visible stats and assumptions, not a guarantee. Recompute after each turn."
+      }
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import ownerParity, { ownerParityInternals } from '../src/plugins/owner/owner-parity.js';
+import { groupMetadataStore } from '../src/services/groupMetadataStore.js';
 
 function makeCtx(overrides = {}) {
   const out = { replies: [], interactive: [], chat: '1234567890@s.whatsapp.net', prefix: '.', args: [], command: '', isOwner: true, isGroup: false, sender: '6281234567890@s.whatsapp.net', sock: {},
@@ -43,16 +47,26 @@ test('registered user normalization filters malformed identifiers and deduplicat
   assert.deepEqual(users.map(x => x.jid).sort(), ['6281111111111@s.whatsapp.net','6281234567890@s.whatsapp.net','998877@lid'].sort());
 });
 
-test('listgc paginates sorted group list and omits participant details', async () => {
-  const ctx = makeCtx({ command: 'listgc', args: ['1'], sock: { async groupFetchAllParticipating() { return {
-    '10000000001-100@g.us': { subject: 'Zulu', participants: [{ id: 'private1' }, { id: 'private2' }] },
-    '10000000002-100@g.us': { subject: 'Alpha', participants: [{ id: 'private3' }] }
-  }; } } });
-  await ownerParity.execute(ctx);
-  assert.equal(ctx.interactive.length, 1);
-  assert.match(ctx.interactive[0].body, /Alpha/);
-  assert.ok(ctx.interactive[0].body.indexOf('Alpha') < ctx.interactive[0].body.indexOf('Zulu'));
-  assert.doesNotMatch(ctx.interactive[0].body, /private1|private2|private3/);
+test('listgc paginates sorted cached group list and omits participant details', async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), 'whiskay-listgc-cache-'));
+  const previousFile = groupMetadataStore.file;
+  groupMetadataStore.file = path.join(temp, 'group-metadata.json');
+  try {
+    groupMetadataStore.upsert({ id: '10000000001-100@g.us', subject: 'Zulu', participants: [{ id: 'private1' }, { id: 'private2' }] });
+    groupMetadataStore.upsert({ id: '10000000002-100@g.us', subject: 'Alpha', participants: [{ id: 'private3' }] });
+    const ctx = makeCtx({ command: 'listgc', args: ['1'], sock: { async groupFetchAllParticipating() { return {}; } } });
+    await ownerParity.execute(ctx);
+    assert.equal(ctx.interactive.length, 1);
+    const rows = ctx.interactive[0].buttons.find(button => button.name === 'single_select').sections[0].rows;
+    assert.deepEqual(rows.map(row => row.title), ['Alpha', 'Zulu']);
+    assert.doesNotMatch(JSON.stringify(ctx.interactive[0]), /private1|private2|private3/);
+  } finally {
+    groupMetadataStore.remove('10000000001-100@g.us');
+    groupMetadataStore.remove('10000000002-100@g.us');
+    await groupMetadataStore.flush();
+    groupMetadataStore.file = previousFile;
+    await rm(temp, { recursive: true, force: true });
+  }
 });
 
 test('join accepts a valid invite code and reports the returned group id', async () => {

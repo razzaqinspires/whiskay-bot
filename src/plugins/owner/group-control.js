@@ -1,4 +1,5 @@
 import { getGroupPolicy, isGroupMuted, muteGroup, unmuteGroup, setOnlyGroup, resetGroupMutePolicy, listConfiguredGroups } from '../../lib/group-policy.js';
+import { groupMetadataStore } from '../../services/groupMetadataStore.js';
 
 const HELP = `🛡️ *WHISKAY GROUP CONTROL* (owner only)\n\n.groupbot panel — buka tombol kontrol\n.groupbot list — daftar grup dibisukan + ID\n.groupbot status — kebijakan global\n.groupbot mute <GROUP_ID> — nonaktifkan bot di grup\n.groupbot unmute <GROUP_ID> — aktifkan bot di grup\n.groupbot onlyhere — aktifkan hanya di grup ini\n.groupbot reset — hapus aturan mute global\n\nID grup berbentuk 1203...@g.us. Perintah ini hanya mengatur bot, bukan mengubah hak admin WhatsApp.`;
 function groupId(value) { const s=String(value||'').trim(); return /^\d{5,30}-\d{5,30}@g\.us$/.test(s) || /^\d{10,30}@g\.us$/.test(s) ? s : ''; }
@@ -24,7 +25,7 @@ export default {
     if (sub==='status') { const p=getGroupPolicy(); return ctx.reply(`🛡️ *GROUP BOT STATUS*\nMode hanya-grup: ${p.onlyGroup||'nonaktif'}\nGrup dimute: ${p.mutedGroups.length}\nGrup berkonfigurasi: ${Object.keys(p.groups||{}).length}\nGunakan .groupbot list untuk melihat ID.`); }
     if (sub==='list') {
       const p=getGroupPolicy(); const ids=[...new Set([...p.mutedGroups,...(p.onlyGroup?[p.onlyGroup]:[])])];
-      let live=[]; try { if (typeof ctx.sock?.groupFetchAllParticipating==='function') live=Object.keys(await ctx.sock.groupFetchAllParticipating()||{}).filter(x=>x.endsWith('@g.us')); } catch {}
+      const live=groupMetadataStore.all().map(meta=>meta.id).filter(x=>x.endsWith('@g.us'));
       const rows=ids.map(id=>`${id===p.onlyGroup?'🎯 ONLY-HERE':'🔇 MUTED'} ${id}`);
       if (p.onlyGroup) for (const id of live) if(id!==p.onlyGroup&&!ids.includes(id)) rows.push(`🔇 MUTED (oleh mode onlyhere) ${id}`);
       return ctx.reply(`📋 *DAFTAR STATUS GRUP*\nMode hanya-grup: ${p.onlyGroup||'nonaktif'}\n${rows.join('\n')||'Tidak ada grup yang dibisukan.'}\n\nTotal grup yang bot ikuti: ${live.length}`);

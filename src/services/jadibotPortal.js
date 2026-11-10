@@ -7,9 +7,13 @@ import { Readable } from 'node:stream';
 import { spawn, spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { updateEnvFileValues } from '../lib/env-file.js';
+import { readJsonFile, writeJsonAtomic, withFileLock } from '../utils/PersistentJsonStore.js';
+import { FixedWindowRateLimiter, getTrustedClientAddress, parseContentLength, readRequestBuffer } from './WebhookSecurity.js';
 
 const ROOT = path.resolve(process.env.JADIBOT_DATA_DIR || './data/jadibot');
 const TICKETS_FILE = path.join(ROOT, 'pairing-tickets.json');
+const TICKETS_LOCK = `${TICKETS_FILE}.lock`;
 const PORT = Math.max(1024, Math.min(65535, Number(process.env.JADIBOT_PORT || process.env.PORT || 8791)));
 const HOST = process.env.JADIBOT_HOST || '0.0.0.0';
 const TICKET_TTL_MS = 10 * 60 * 1000;
@@ -22,9 +26,9 @@ let botNumberProvider = () => String(process.env.BOT_WHATSAPP_NUMBER || process.
 let ticketWrites = Promise.resolve();
 let cleanupTimer = null;
 let stopRequested = false;
-const submitAttempts = new Map();
 const SUBMIT_WINDOW_MS = 10 * 60 * 1000;
 const SUBMIT_LIMIT = 8;
+const submitLimiter = new FixedWindowRateLimiter({ windowMs: SUBMIT_WINDOW_MS, maxEntries: 5000 });
 
 const json = (res, status, body) => {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store, max-age=0', 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer', 'content-security-policy': "default-src 'none'; frame-ancestors 'none'" });
@@ -39,25 +43,12 @@ const pageHeaders = {
   'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
 };
 const normPhone = value => String(value || '').replace(/[\s()+.-]/g, '').replace(/\D/g, '');
-/** In-memory per-IP throttle for the public submit endpoint. No IPs are persisted or logged. */
+/** Bounded in-memory per-IP throttle. Addresses are never persisted or logged. */
 export function checkPairingSubmitRateLimit(key, now = Date.now()) {
-  const k = String(key || 'unknown').slice(0, 120);
-  const recent = (submitAttempts.get(k) || []).filter(ts => now - ts < SUBMIT_WINDOW_MS);
-  if (recent.length >= SUBMIT_LIMIT) {
-    submitAttempts.set(k, recent);
-    return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((SUBMIT_WINDOW_MS - (now - recent[0])) / 1000)) };
-  }
-  recent.push(now);
-  submitAttempts.set(k, recent);
-  if (submitAttempts.size > 5000) {
-    for (const [ip, times] of submitAttempts) {
-      const valid = times.filter(ts => now - ts < SUBMIT_WINDOW_MS);
-      if (!valid.length) submitAttempts.delete(ip); else submitAttempts.set(ip, valid);
-    }
-  }
-  return { allowed: true, remaining: SUBMIT_LIMIT - recent.length };
+  const result = submitLimiter.consume(key, SUBMIT_LIMIT, now);
+  return { allowed: result.allowed, remaining: result.remaining, retryAfterSeconds: result.retryAfterSeconds };
 }
-export function resetPairingSubmitRateLimitsForTests() { submitAttempts.clear(); }
+export function resetPairingSubmitRateLimitsForTests() { submitLimiter.clear(); }
 export function isValidPairingPhone(value) {
   const p = normPhone(value);
   return /^\d{8,15}$/.test(p) && !p.startsWith('0');
@@ -111,20 +102,23 @@ function accessSyncDocker() { accessSync('/.dockerenv'); }
 function readFileSyncVendor() { return readFileSync('/sys/class/dmi/id/sys_vendor', 'utf8'); }
 
 async function readTickets() {
-  try { const d = JSON.parse(await readFile(TICKETS_FILE, 'utf8')); return d && typeof d === 'object' ? d : {}; }
-  catch { return {}; }
+  const data = await readJsonFile(TICKETS_FILE, {});
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    const error = new Error('Pairing ticket store has an invalid root; refusing to reset it.');
+    error.code = 'WHISKAY_DATA_CORRUPT';
+    throw error;
+  }
+  return data;
 }
 async function mutateTickets(mutator) {
-  const run = ticketWrites.then(async () => {
+  const run = ticketWrites.then(() => withFileLock(TICKETS_LOCK, async () => {
     await mkdir(ROOT, { recursive: true, mode: 0o700 });
     const data = await readTickets();
     const result = await mutator(data);
-    const tmp = `${TICKETS_FILE}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
-    await rename(tmp, TICKETS_FILE);
+    await writeJsonAtomic(TICKETS_FILE, data);
     await chmod(TICKETS_FILE, 0o600).catch(() => {});
     return result;
-  });
+  }));
   ticketWrites = run.catch(() => {});
   return run;
 }
@@ -204,12 +198,8 @@ form.addEventListener('submit',async e=>{e.preventDefault();const phone=input.va
 </script></body></html>`;
 
 async function readRequestBody(req, maxBytes = 4096) {
-  let body = '';
-  for await (const chunk of req) {
-    body += chunk;
-    if (Buffer.byteLength(body, 'utf8') > maxBytes) throw new Error('payload_too_large');
-  }
-  return JSON.parse(body || '{}');
+  const { buffer } = await readRequestBuffer(req, { maxBytes });
+  return JSON.parse(buffer.toString('utf8') || '{}');
 }
 async function ensureCloudflared() {
   const found = spawnSync('cloudflared', ['--version'], { encoding: 'utf8', timeout: 4000 });
@@ -232,6 +222,13 @@ async function ensureCloudflared() {
   await chmod(dest, 0o700);
   return dest;
 }
+async function persistLastTryCloudflareUrl(value) {
+  const file = process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.resolve('.env');
+  await updateEnvFileValues(file, { JADIBOT_LAST_TRYCLOUDFLARE_URL: value });
+  console.log(`[jadibot-portal] URL TryCloudflare tersimpan otomatis ke ${file}`);
+  console.log(`[jadibot-portal] Portal: ${value}`);
+}
+
 function startTunnel(executable) {
   return new Promise(resolve => {
     stopRequested = false;
@@ -241,7 +238,20 @@ function startTunnel(executable) {
     const inspect = chunk => {
       const text = String(chunk || '');
       const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-      if (match) { tunnelUrl = match[0]; publicBaseUrl = tunnelUrl; portalMode = 'trycloudflare'; console.log(`[jadibot-portal] TryCloudflare active: ${publicBaseUrl}`); finish(publicBaseUrl); }
+      if (match && !tunnelUrl) {
+        tunnelUrl = match[0].replace(/\/+$/, '');
+        publicBaseUrl = tunnelUrl;
+        portalMode = 'trycloudflare';
+        persistLastTryCloudflareUrl(tunnelUrl)
+          .then(() => {
+            console.log(`[jadibot-portal] TryCloudflare active: ${publicBaseUrl}`);
+            finish(publicBaseUrl);
+          })
+          .catch(error => {
+            console.warn(`[jadibot-portal] URL aktif, tetapi .env gagal diperbarui: ${error.message}`);
+            finish(publicBaseUrl);
+          });
+      }
       if (/failed to start|authentication error|failed to create quick tunnel/i.test(text)) console.warn('[jadibot-portal] Cloudflare tunnel log indicates startup trouble.');
     };
     tunnel.stdout.on('data', inspect); tunnel.stderr.on('data', inspect);
@@ -259,7 +269,8 @@ export async function startPairingPortal() {
   portalMode = mode;
   if (envBase && mode !== 'trycloudflare') publicBaseUrl = envBase;
   await mkdir(ROOT, { recursive: true, mode: 0o700 });
-  server = createServer(async (req, res) => {
+  server = createServer((req, res) => {
+    void (async () => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     if (req.method === 'GET' && url.pathname === '/healthz') return json(res, 200, { ok: true, service: 'whiskay-jadibot-portal', mode: portalMode });
     const page = url.pathname.match(/^\/pair\/([a-f0-9]{48})\/?$/);
@@ -270,7 +281,7 @@ export async function startPairingPortal() {
     }
     const api = url.pathname.match(/^\/api\/pair\/([a-f0-9]{48})\/?$/);
     if (req.method === 'POST' && api) {
-      const remote = req.socket?.remoteAddress || 'unknown';
+      const remote = getTrustedClientAddress(req, { trustCloudflare: String(process.env.WHISKAY_WEBHOOK_TRUST_CF_CONNECTING_IP || '').toLowerCase() === 'true' });
       const rate = checkPairingSubmitRateLimit(remote);
       if (!rate.allowed) {
         res.setHeader('retry-after', String(rate.retryAfterSeconds));
@@ -278,24 +289,35 @@ export async function startPairingPortal() {
       }
       const contentType = String(req.headers['content-type'] || '').toLowerCase();
       if (!contentType.startsWith('application/json')) return json(res, 415, { ok: false, error: 'Gunakan format permintaan JSON.' });
-      const declaredLength = Number(req.headers['content-length'] || 0);
-      if (declaredLength > 4096) return json(res, 413, { ok: false, error: 'Data terlalu besar.' });
+      const declaredLength = parseContentLength(req.headers['content-length']);
+      if (Number.isNaN(declaredLength)) { req.resume(); return json(res, 400, { ok: false, error: 'Panjang data tidak valid.' }); }
+      if (declaredLength !== null && declaredLength > 4096) { req.resume(); return json(res, 413, { ok: false, error: 'Data terlalu besar.' }); }
       try {
         const body = await readRequestBody(req);
         const result = await submitPairingPhone(api[1], body.phone);
         return json(res, result.ok ? 200 : 400, result);
       } catch (error) {
-        return json(res, error.message === 'payload_too_large' ? 413 : 400, { ok: false, error: error.message === 'payload_too_large' ? 'Data terlalu besar.' : 'Format permintaan tidak valid.' });
+        req.resume();
+        const tooLarge = error?.code === 'WHISKAY_PAYLOAD_TOO_LARGE';
+        return json(res, tooLarge ? 413 : 400, { ok: false, error: tooLarge ? 'Data terlalu besar.' : 'Format permintaan tidak valid.' });
       }
     }
     if (req.method === 'GET' && url.pathname === '/') { res.writeHead(200, pageHeaders); return res.end('<!doctype html><html lang="id"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WHISKAY Pairing Portal</title><body style="margin:0;background:#080d17;color:#edf4ff;font:15px system-ui;padding:12vh 8vw;line-height:1.7"><h1>WHISKAY · Secure Pairing</h1><p>Portal pairing ini menggunakan tautan sekali pakai yang dikirim melalui WhatsApp. Buka tombol <b>Pairing Portal</b> dari pesan bot untuk melanjutkan.</p><p>Jangan bagikan kode pairing atau tautan kepada orang lain.</p></body></html>'); }
     return json(res, 404, { ok: false, error: 'not_found' });
+    })().catch(error => {
+      console.warn('[jadibot-portal] request handler failed:', error?.message || String(error));
+      if (!res.headersSent) json(res, 500, { ok: false, error: 'portal_internal_error' });
+      else res.destroy();
+    });
   });
+  server.headersTimeout = 15_000;
+  server.requestTimeout = 30_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxRequestsPerSocket = 100;
   server.on('clientError', (_, socket) => socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'));
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(PORT, HOST, () => { server.off('error', reject); resolve(); }); });
   cleanupTimer = setInterval(() => {
     const now = Date.now();
-    for (const [ip, times] of submitAttempts) { const valid = times.filter(ts => now - ts < SUBMIT_WINDOW_MS); if (valid.length) submitAttempts.set(ip, valid); else submitAttempts.delete(ip); }
     void mutateTickets(db => { cleanExpired(db, now); }).catch(error => console.warn('[jadibot-portal] ticket cleanup failed:', error.message));
   }, 60_000);
   cleanupTimer.unref?.();

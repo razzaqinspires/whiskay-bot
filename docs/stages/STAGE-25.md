@@ -5,7 +5,7 @@
 ## Literasi 1 — Metadata and repository synchronization (5 categories)
 1. `config/repository.json` records developer identity and cross-project repository URI placeholders. Replace placeholders with verified public URLs/contact before release; never invent credentials.
 2. `package-lock.json` remains the reproducible dependency source. Core Baileys is exact-pinned; review all transitive versions before dependency upgrades.
-3. `ecosystem.config.cjs` and `start:pm2`/`restart:pm2`/`stop:pm2`/`logs:pm2` add optional PM2 lifecycle management. Install PM2 on the host separately.
+3. `config/ecosystem.config.cjs` and `start:pm2`/`restart:pm2`/`stop:pm2`/`logs:pm2` add optional PM2 lifecycle management. Install PM2 on the host separately.
 4. Web root metadata includes title, description, author, Open Graph, canonical URL and `NEXT_PUBLIC_SITE_URL` configuration.
 5. `.env.example` documents cross-repository URLs. Copy actual secrets independently into Termux and hosting secret stores; do not sync secrets by committing `.env`.
 

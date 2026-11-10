@@ -1,0 +1,11 @@
+import {authorizeEnergySaverAction} from '../../lib/energy-saver-actions.js';
+import {getEnergy,setRuntimeSwitch} from '../../lib/energy-worker.js';
+import {getEnergySaver,setEnergySaver} from '../../lib/energy-saver.js';
+export default {name:'energy-saver-button',command:['energysaverbutton'],category:'system',energyMode:'free',energyCost:0,cooldown:0,description:'Aksi tombol mode hemat energi dengan validasi pemilik',async execute(ctx){
+ const token=String(ctx.args?.[0]||'');const uid=ctx.sender||ctx.chat;
+ const gate=await authorizeEnergySaverAction(token,uid,{isOwner:Boolean(ctx.isOwner)});
+ if(!gate.ok){if(gate.reason==='warning')return ctx.sendInteractive({title:'⚠️ Tombol bukan milikmu',body:'Tombol mode hemat ini diterbitkan untuk pengguna lain. Jangan mencoba mengakses tombol milik pengguna lain. Pelanggaran berikutnya akan memblokir akses tombol hemat energi secara permanen.',buttons:[{name:'quick_reply',title:'Buka status energimu',id:`${ctx.prefix}energy status`}]});if(gate.reason==='blocked')return ctx.reply('⛔ Akses tombol mode hemat energi diblokir permanen karena percobaan akses tombol pengguna lain berulang.');return ctx.reply('⌛ Tombol sudah kedaluwarsa atau tidak valid. Gunakan .energy status untuk membuat sesi baru.');}
+ const energy=await getEnergy(uid);if(Number(energy.energy)>=20){await setEnergySaver(uid,false);return ctx.sendInteractive({title:'🔒 Mode Hemat Terkunci',body:`Mode hemat otomatis ditutup ketika energi mencapai 20% atau lebih. Energi sekarang ${energy.energy.toFixed(2)}%.`,buttons:[{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix}energy status`},{name:'quick_reply',title:'Isi Energi',id:`${ctx.prefix}charge`}]});}
+ const current=await getEnergySaver(uid);await setEnergySaver(uid,!current.enabled);
+ return ctx.sendInteractive({title:current.enabled?'🔋 Mode Hemat Dinonaktifkan':'🔋 Mode Hemat Diaktifkan',body:current.enabled?'Biaya dan cooldown kembali mengikuti profil workload normal.':`Mode hemat aktif untuk workload berbayar. Penghematan dan cooldown dihitung per command berdasarkan profil runtime. Mode otomatis ditutup saat energi mencapai 20%.`,buttons:[{name:'quick_reply',title:'Status Energi',id:`${ctx.prefix}energy status`},{name:'quick_reply',title:'Lihat Menu',id:`${ctx.prefix}menu`}]});
+}};

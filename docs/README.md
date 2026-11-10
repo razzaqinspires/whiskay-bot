@@ -1,3 +1,53 @@
+# Documentation index
+
+## Project-level documents
+
+- [Project changelog](project/CHANGELOG.md) — release and maintenance history.
+- [Project working memory](project/MEMORY.md) — cross-stage engineering and safety guardrails.
+- [Third-party notice](legal/NOTICE-THIRD-PARTY.md) — third-party attribution and notices.
+- [Stage 52 — Repository Structure Cleanup](STAGE-52-REPOSITORY-STRUCTURE-CLEANUP.md) — canonical file placement and legacy artifact cleanup.
+- [Stage 52 test report](TEST-REPORT-STAGE-52-REPOSITORY-STRUCTURE.md) — structural checks and regression results.
+
+## Outbound traffic safety, threat intelligence and QA
+
+- [Stage 63 Part 6 — Outbound Policy Enforcement](STAGE-63-OUTBOUND-POLICY-ENFORCEMENT.md)
+- [Stage 63 Part 6 test report](reports/TEST-REPORT-STAGE-63-OUTBOUND-POLICY-ENFORCEMENT.md)
+- [Stage 62 Part 5 — Lifecycle & Shutdown Intelligence](STAGE-62-LIFECYCLE-SHUTDOWN-INTELLIGENCE.md)
+- [Stage 62 Part 5 test report](reports/TEST-REPORT-STAGE-62-LIFECYCLE-SHUTDOWN.md)
+
+- [Stage 61 Part 4 — Runtime Hardening & Multi-Instance Outbound Safety](STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md)
+- [Stage 61 Part 4 test report](reports/TEST-REPORT-STAGE-61-RUNTIME-HARDENING-MULTI-INSTANCE-SAFETY.md)
+- [Stage 60 Part 3 — Data Integrity & Core Stability Recovery](STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md)
+- [Stage 60 Part 3 test report](reports/TEST-REPORT-STAGE-60-DATA-INTEGRITY-CORE-STABILITY.md)
+
+- [Stage 59 Part 2 — Workload Threat Intelligence & Multi-Worker Agent](STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md)
+- [Stage 59 Part 2 test report](reports/TEST-REPORT-STAGE-59-WORKLOAD-THREAT-INTELLIGENCE.md)
+
+- [Stage 58 Part 1 — Outbound Traffic Safety & Command Containment](STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md)
+- [Stage 58 Part 1 test report](reports/TEST-REPORT-STAGE-58-OUTBOUND-TRAFFIC-SAFETY.md)
+- [Owner QA Control Center — current silent-run behavior](OWNER-TESTCOMMAND-VERIFICATION.md)
+- [Archived source snapshots](archive/source-snapshots/README.md)
+
+## Git upload and repository integrity
+
+- [Stage 53 — GitHub-Safe Upload](STAGE-53-GITHUB-SAFE-UPLOAD.md)
+- [Stage 54 — Repository Integrity](STAGE-54-REPOSITORY-INTEGRITY.md)
+- [Stage 55 — Plugin & Command Intelligence](STAGE-55-PLUGIN-COMMAND-INTELLIGENCE.md)
+- [Stage 56 — Git History & Move Intelligence](STAGE-56-GIT-HISTORY-MOVE-INTELLIGENCE.md)
+- [Stage 56 test report](reports/TEST-REPORT-STAGE-56-GIT-HISTORY-MOVE-INTELLIGENCE.md)
+- [Git Upload QA & supply-chain hotfix report (2026-11-02)](TEST-REPORT-GIT-UPLOAD-QA-HOTFIX-2026-11-02.md)
+
+## Quick links
+
+- [Stage 51 — Adzan Personal Region Profiles (v2.35.7 · Part 3)](STAGE-51-ADZAN-ENGINE-INTEGRATION.md)
+- [Stage 51 Part 3 test report](TEST-REPORT-STAGE-51-ADZAN-ENGINE.md)
+- [Stage 51 — Adzan Personal Region Profiles (v2.35.6 · Part 2)](STAGE-51-ADZAN-PROFILES.md)
+- [Stage 51 test report](TEST-REPORT-STAGE-51-ADZAN-PROFILES.md)
+- [Stage 50 — Leveling Data Integrity & Recovery (2026-10-31)](STAGE-50-LEVELING-DATA-INTEGRITY.md)
+- [Stage 50 test report](TEST-REPORT-STAGE-50-LEVELING-DATA-INTEGRITY.md)
+
+- [Stage 42 Iteration 1 — Tunnel resolution and Baileys identity/decryption diagnostics](BAILEYS-IDENTITY-AND-DECRYPTION.md)
+
 - [Stage 41 Iteration 4 — Quiz Poll Authorization and One-Click Sessions](stages/STAGE-41-ITERATION-4.md)
 - [Stage 41 Iteration 4 test report](stages/TEST-REPORT-STAGE-41-ITERATION-4.md)
 
@@ -11,9 +61,36 @@
 - [Test report — 2026-10-27 menu/egg/canvas](TEST-REPORT-2026-10-26-MENU-EGG-CANVAS.md)
 - [Release 2.5.5 — Menu, Egg Canvas & Serializer Compatibility](RELEASE-2.5.5-MENU-EGG-CANVAS.md)
 - [Baileys interactive compatibility notes](BAILEYS-INTERACTIVE-COMPATIBILITY.md)
-# Documentation index
+
+## Stage 51 — Adzan
+
+- [Part 8 — Smart Adzan Automation](STAGE-51-ADZAN-AUTOMATION.md)
+- [Part 8 test report](TEST-REPORT-STAGE-51-ADZAN-AUTOMATION.md)
+
+- [Part 7 — Advanced Adzan Intelligence](STAGE-51-ADZAN-INTELLIGENCE.md)
+- [Part 7 test report](TEST-REPORT-STAGE-51-ADZAN-INTELLIGENCE.md)
+- [Part 6 — Adzan Dashboard](STAGE-51-ADZAN-DASHBOARD.md)
+- [Part 6 test report](TEST-REPORT-STAGE-51-ADZAN-DASHBOARD.md)
+- [Part 5 — Delivery Reliability](STAGE-51-ADZAN-RELIABILITY.md)
+- [Part 5 test report](TEST-REPORT-STAGE-51-ADZAN-RELIABILITY.md)
+- [Part 4 — WhatsApp Audio](STAGE-51-ADZAN-AUDIO.md)
+- [Part 4 test report](TEST-REPORT-STAGE-51-ADZAN-AUDIO.md)
+- [Part 3 — Razzaq Adzan Engine](STAGE-51-ADZAN-ENGINE-INTEGRATION.md)
+- [Part 3 test report](TEST-REPORT-STAGE-51-ADZAN-ENGINE.md)
+- [Part 2 — Personal Profiles and Location](STAGE-51-ADZAN-PROFILES.md)
+- [Part 2 test report](TEST-REPORT-STAGE-51-ADZAN-PROFILES.md)
+
 
 # Recent implementation records
+
+- [Git upload pipeline and ZIP QA reports](GIT-UPLOAD-AND-QA-REPORTS.md) — script relocation, npm ci gate, report ZIP format and branch ownership.
+- [Test report — Git upload safety and npm test ZIP reports (2026-11-01)](TEST-REPORT-GIT-UPLOAD-NPM-TEST-2026-11-01.md)
+
+- [Stage 48 — TEAMDROP private document relay (2026-10-30)](STAGE-48-TEAMDROP-DOCUMENT-RELAY.md)
+- [Owner QA Control Center — isolated verification, manual status polling and Baileys pre-key classification](OWNER-TESTCOMMAND-VERIFICATION.md)
+- [Owner Testcommand delivery fix — historical background progress design (superseded by Stage 58)](OWNER-TESTCOMMAND-DELIVERY-FIX-2026-10-31.md)
+- [Test report — Owner QA live progress (2026-10-31; historical, superseded by Stage 58)](TEST-REPORT-TESTCOMMAND-LIVE-PROGRESS-2026-10-31.md)
+- [Test report — Owner Testcommand delivery fix (2026-10-31)](TEST-REPORT-TESTCOMMAND-DELIVERY-2026-10-31.md)
 
 - [Stage 2 — Jadibot portal security hardening (2026-10-26)](SECURITY-HARDENING-2026-10-26.md)
 - [Changelog — 2026-10-26](CHANGELOG-2026-10-26.md)
@@ -373,51 +450,19 @@ This catalog includes every current Markdown file, including imported archive du
 - [Stage 29 — Menu Studio, Contextual Explore & RPG Integration](stages/STAGE-29.md)
 - [Stage 29 Test Report](stages/TEST-REPORT-STAGE-29.md)
 
+## Stage 32 — Menu, Energy, Profile, and Leveling
+- [Stage 32 implementation record](stages/STAGE-32.md)
+- [Stage 32 regression test report](stages/TEST-REPORT-STAGE-32.md)
+- [Stage 32 work breakdown](stages/STAGE-32-250-SUBCATEGORIES.md)
+
 ## Stage 34 — Energy, Chronos, Safe Autonomy
 - [Stage 34 implementation record](stages/STAGE-34.md)
 - [Stage 34 metrics and status registry](stages/STAGE-34-METRICS.md)
 - [Stage 34 verification report](stages/STAGE-34-VERIFICATION.md)
 - [Stage 34 — 250 subcategories for Literasi 1–5](stages/STAGE-34-250-SUBCATEGORIES.md)
 - [Stage 34 — owner-supplied Literasi 6 backlog](stages/STAGE-34-LITERACY-6-OWNER-BACKLOG.md)
-- [Stage 34 — Experimental-Bell feature gap ledger](stages/STAGE-34-BELL-GAP-LEDGER.md)
-
-- [Stage 35](stages/STAGE-35.md) — Chess, command XP, typo, energy controls, and Experimental-Bell gap ledger.
-
-- Stage 36 source audit: `stages/STAGE-36-SOURCE-AUDIT.md`
 
 
-## Stage 37 — Experimental-Bell parity transplant
-- [`stages/STAGE-37.md`](stages/STAGE-37.md) — scope, architecture rules, batch priorities, verification contract, and truthful status.
-- [`stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json`](stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json) — machine-readable 17-family parity ledger.
-- [`stages/TEST-REPORT-STAGE-37.md`](stages/TEST-REPORT-STAGE-37.md) — automated verification results and unverified boundaries.
-- Test: `npm run verify:stage37` (`test/stage37-parity-manifest.test.js`).
-- Status: audit scaffold and documentation gates are present; full command-level transplant is still in progress.
-- [Stage 38 — Owner parity transplant](stages/STAGE-38.md)
-- [Stage 38 owner feature parity audit](stages/STAGE-38-OWNER-PARITY-AUDIT.md)
-- [Stage 38 verification report](stages/TEST-REPORT-STAGE-38.md)
-- [Stage 38 owner management — Iteration 2](stages/STAGE-38-OWNER-MANAGEMENT-ITERATION-2.md)
-- [Stage 38 owner access — Iteration 3](stages/STAGE-38-OWNER-ACCESS-ITERATION-3.md)
-- [Stage 38 offline mode — Iteration 4](stages/STAGE-38-OFFLINE-MODE-ITERATION-4.md)
-
-
-- [Stage 39 — Group administration parity, Iteration 1](stages/STAGE-39-GROUP-ADMIN-ITERATION-1.md)
-- [Stage 39 — Group administration parity, Iteration 2](stages/STAGE-39-GROUP-ADMIN-ITERATION-2.md)
-- [Stage 39 — Group administration parity, Iteration 3](stages/STAGE-39-GROUP-ADMIN-ITERATION-3.md)
-- [Stage 39 — Group administration parity, Iteration 4](stages/STAGE-39-GROUP-ADMIN-ITERATION-4.md)
-- [Stage 39 — Group administration parity overview](stages/STAGE-39.md)
-- [Stage 39 — Test report, Iteration 3](stages/TEST-REPORT-STAGE-39-ITERATION-3.md)
-- [Stage 39 — Test report, Iteration 4](stages/TEST-REPORT-STAGE-39-ITERATION-4.md)
-
-- [Stage 39 Iteration 5 — Group settings aliases](stages/STAGE-39-GROUP-ADMIN-ITERATION-5.md)
-- [Stage 39 Iteration 6 — Final parity audit and blacklist/profile tools](stages/STAGE-39-GROUP-ADMIN-ITERATION-6.md)
-- [Stage 39 Iteration 6 — Test report](stages/TEST-REPORT-STAGE-39-ITERATION-6.md)
-- [Stage 39 Iteration 5 — Test report](stages/TEST-REPORT-STAGE-39-ITERATION-5.md)
-
-- [Stage 40 — Downloader Feature Parity (Iteration 1)](stages/STAGE-40-DOWNLOADER-ITERATION-1.md)
-- [Stage 40 — Test Report (Iteration 1)](stages/TEST-REPORT-STAGE-40-ITERATION-1.md)
-
-- [Stage 40 Iteration 2 — YouTube Search/Play & GitHub Clone](stages/STAGE-40-ITERATION-2.md)
-- [Stage 40 Iteration 2 — Test Report](stages/TEST-REPORT-STAGE-40-ITERATION-2.md)
 
 
 ## Stage 40 — Downloader Feature Parity
@@ -443,4 +488,60 @@ This catalog includes every current Markdown file, including imported archive du
 
 - [Stage 40 Iteration 10 — source-family parity audit](stages/STAGE-40-ITERATION-10.md)
 - [Stage 40 Iteration 10 — test report](stages/TEST-REPORT-STAGE-40-ITERATION-10.md)
-- [Stage 40 — Experimental-Bell source parity audit manifest](stages/STAGE-40-SOURCE-PARITY-AUDIT.json)
+
+## Stage 42 — Runtime reliability
+- [Stage 42 Iteration 1 — Tunnel resolution and Baileys identity/decryption diagnostics](stages/STAGE-42-ITERATION-1.md)
+- [Stage 42 Iteration 1 test report](stages/TEST-REPORT-STAGE-42-ITERATION-1.md)
+
+- [Stage 45 Iteration 1 — Adaptive Energy Intelligence](stages/STAGE-45-ITERATION-1.md)
+- [Stage 45 Iteration 1 — Test Report](stages/TEST-REPORT-STAGE-45-ITERATION-1.md)
+
+
+## Stage 46 — Startup, configuration and GitHub control
+- [Stage 46 Iteration 1 — implementation and architecture](stages/STAGE-46-ITERATION-1.md)
+- [Stage 46 Iteration 1 — test report](stages/TEST-REPORT-STAGE-46-ITERATION-1.md)
+- [Stage 46 Iteration 2 — commit fingerprint and Git push retry hardening](stages/STAGE-46-ITERATION-2.md)
+- [Stage 46 Iteration 2 — test report](stages/TEST-REPORT-STAGE-46-ITERATION-2.md)
+
+- [Stage 47 Iteration 1 — WhatsApp connection recovery](stages/STAGE-47-ITERATION-1.md)
+
+
+## Stage 49 — Runtime & Group Cache Foundations
+- [Stage 49 Part 1 — TryCloudflare persistence, group metadata cache, `.joingc`, and `.listgc`](STAGE-49-PART-1.md)
+- Test: `npm run verify:stage49-part1`
+- Status: Part 1 completed in v2.35.4; Parts 2–5 are staged separately.
+
+## Stage 49 — Runtime and experience improvements
+- [Part 1 — TryCloudflare persistence and group metadata cache](STAGE-49-PART-1.md)
+- [Part 2 — Group collaboration and consent-based invitations](STAGE-49-PART-2.md)
+- [Part 3 — Workload Scheduler](STAGE-49-PART-3.md)
+- [Part 4 — XP Intelligence, Energy Canvas, and personal preferences](STAGE-49-PART-4.md)
+- [Part 4 test report](reports/stages/STAGE-49-PART-4-TEST-REPORT.md)
+
+- [Stage 35 — Chess and XP](STAGE-35-CHESS-XP.md)
+- [Owner operations](OWNER-OPERATIONS.md)
+
+## Owner Operations
+
+- [Owner Testcommand Verification](OWNER-TESTCOMMAND-VERIFICATION.md) — pipeline QA, isolation, diagnostic ZIPs, and native-flow control center.
+
+
+## Stage 37 — Command-family parity inventory
+- [Stage 37 implementation record](stages/STAGE-37.md)
+- [Stage 37 machine-readable family manifest](stages/STAGE-37-EXPERIMENTAL-BELL-PARITY.json)
+
+## Stage 40 — Source parity audit
+- [Stage 40 source-family audit JSON](stages/STAGE-40-SOURCE-PARITY-AUDIT.json)
+
+- [Testcommand diagnostic delivery and full-suite regression repair](TESTCOMMAND-DIAGNOSTIC-DELIVERY-AND-REGRESSION-FIX-2026-10-31.md)
+- [Test report — Testcommand diagnostic delivery and 15 regression fixes](TEST-REPORT-TESTCOMMAND-DIAGNOSTIC-FIX-2026-10-31.md)
+
+- [npm test discovery isolation and QA status deduplication](NPM-TEST-DISCOVERY-ISOLATION-2026-10-31.md) — scoped test discovery, `.testignore`, temp runtime isolation, and status-card duplicate-heading fix.
+
+- **QA regression hotfix v2.35.14:** aligns Owner Tester discovery/reporter assertions and restores the Git upload launcher executable mode; includes v2.35.13 fixes. See `project/CHANGELOG.md`.
+
+## Current repository operations
+
+- [Stage 53 — GitHub-Safe Upload & Runtime Data Isolation](STAGE-53-GITHUB-SAFE-UPLOAD.md)
+- [Stage 53 test report — upload security, branch-only publishing and diagnostics](TEST-REPORT-STAGE-53-GITHUB-SAFE-UPLOAD.md)
+- [Git Upload Pipeline & ZIP QA Reports](GIT-UPLOAD-AND-QA-REPORTS.md)

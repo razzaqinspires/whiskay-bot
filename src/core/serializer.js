@@ -1,16 +1,77 @@
+import { groupMetadataStore } from '../services/groupMetadataStore.js';
 /** ESM facade over the project's CommonJS Baileys serializer compatibility layer. */
 import compat from './serializer-compat.cjs';
 export const sendInteractiveMessage = compat.sendInteractiveMessage;
 export const serialize = compat.serialize;
+
+/** Keep outgoing poll creation WAMessages available to Baileys vote decryption. */
+export function rememberPollCreationMessage(message) {
+  if (message?.key?.id && message?.message) compat.storeMessage(message);
+  return message;
+}
 import configDefault from '../config/index.js';
 import { isOwner } from '../lib/security.js';
 import { createMessageEnvelope } from '../lib/stage26-observability.js';
-const groupMetaCache = new Map();
+import { registerLevelingIdentityAlias } from '../lib/leveling.js';
+
+/** Normalize native Baileys poll votes without changing serializer-compat.cjs.
+ * A poll vote arrives as a normal message containing pollUpdateMessage; its key
+ * points back to the poll-creation message and is the key used by the quiz router.
+ */
+export function extractPollUpdateEvents(upsert) {
+  const events = [];
+  for (const raw of upsert?.messages || []) {
+    const unwrapResult = compat.unwrapMessage?.(raw?.message);
+    const unwrapped = unwrapResult?.message || raw?.message;
+    const update = unwrapped?.pollUpdateMessage || unwrapped?.protocolMessage?.editedMessage?.pollUpdateMessage;
+    const creationKey = update?.pollCreationMessageKey;
+    // Only accept already-decrypted vote payloads from upserts. Encrypted
+    // encPayload/encIv must be decrypted by Baileys via getMessage() and then
+    // arrive through messages.update; treating ciphertext as a vote is invalid.
+    if (!update || !creationKey?.id || !Array.isArray(update?.vote?.selectedOptions)) continue;
+    const pollUpdateMessageKey = raw?.key || update?.key;
+    if (!pollUpdateMessageKey) continue;
+    events.push({
+      key: { ...creationKey, remoteJid: creationKey.remoteJid || raw?.key?.remoteJid },
+      update: { pollUpdates: [{ pollUpdateMessageKey, vote: update.vote, senderTimestampMs: update.senderTimestampMs || raw?.messageTimestamp || Date.now() }] },
+      rawVoteKey: raw?.key || null
+    });
+  }
+  return events;
+}
+
+export function normalizePollUpdateBatch(updates) {
+  if (!Array.isArray(updates)) return [];
+  const normalized = [];
+  for (const item of updates) {
+    if (item?.update?.pollUpdates && item?.key?.id) { normalized.push(item); continue; }
+    const raw = item?.message?.pollUpdateMessage;
+    const creationKey = raw?.pollCreationMessageKey;
+    if (raw && creationKey?.id) normalized.push({ key: creationKey, update: { pollUpdates: [{ pollUpdateMessage: raw, senderTimestampMs: raw.senderTimestampMs || Date.now() }] } });
+  }
+  return normalized;
+}
+
 export async function serializeMessage(sock, raw, config = configDefault, bot = null) {
+  const key = raw?.key || {};
+  const aliasPairs = [
+    [key.participant, key.participantAlt], [key.participant, key.participantPn],
+    [key.remoteJid, key.remoteJidAlt], [key.remoteJid, key.remoteJidPn]
+  ];
+  for (const [lid, pn] of aliasPairs) {
+    if (String(lid || '').endsWith('@lid') && String(pn || '').endsWith('@s.whatsapp.net')) {
+      await registerLevelingIdentityAlias(lid, pn, 'message-key').catch(error => console.warn('[leveling-identity] alias registration failed:', error?.message || error));
+    }
+  }
   const ctx = compat.serialize(sock, raw);
   if (!ctx) return ctx;
   ctx.sock = sock;
   ctx.bot = bot;
+  // Expose poll votes as first-class serialized context data for plugins.
+  const pollEvent = extractPollUpdateEvents({ messages: [raw] })[0] || null;
+  ctx.isPollUpdate = Boolean(pollEvent);
+  ctx.pollUpdate = pollEvent?.update?.pollUpdates?.[0]?.pollUpdateMessage || null;
+  ctx.pollCreationMessageKey = pollEvent?.key || null;
   // Stage 26: stable per-message correlation metadata for logs/events; message content is excluded.
   ctx.event = createMessageEnvelope(raw);
   ctx.correlationId = ctx.event.correlationId;
@@ -66,25 +127,22 @@ export async function serializeMessage(sock, raw, config = configDefault, bot = 
   ctx.isOwner = ownerCheck;
   ctx.isAdmin = false;
   ctx.isBotAdmin = false;
-  if (ctx.isGroup && typeof sock?.groupMetadata === 'function') {
+  if (ctx.isGroup) {
     try {
-      const now = Date.now();
-      let cached = groupMetaCache.get(ctx.chat);
-      if (!cached || now - cached.at > 30_000) {
-        cached = { at: now, value: await sock.groupMetadata(ctx.chat) };
-        groupMetaCache.set(ctx.chat, cached);
-        if (groupMetaCache.size > 500) {
-          for (const [jid, row] of groupMetaCache) if (now - row.at > 60_000) groupMetaCache.delete(jid);
-        }
+      let metadata = groupMetadataStore.get(ctx.chat);
+      // Fetch one group only when it is absent from the persistent event cache.
+      if (!metadata && typeof sock?.groupMetadata === 'function') {
+        metadata = await sock.groupMetadata(ctx.chat);
+        if (metadata) groupMetadataStore.upsert(metadata, ctx.chat);
       }
-      const participants = cached.value?.participants || [];
-      const roleOf = jid => participants.find(p => [p.id, p.jid, p.lid].filter(Boolean).includes(jid));
+      const participants = metadata?.participants || [];
+      const roleOf = jid => participants.find(p => [p.id, p.jid, p.lid, p.phoneNumber].filter(Boolean).includes(jid));
       const senderRole = candidates.map(roleOf).find(Boolean);
       const botCandidates = [sock?.user?.id, sock?.user?.lid].filter(Boolean).map(String);
       const botRole = botCandidates.map(roleOf).find(Boolean);
       ctx.isAdmin = Boolean(senderRole?.admin || senderRole?.isAdmin || senderRole?.isSuperAdmin || senderRole?.role === 'admin' || senderRole?.role === 'superadmin');
       ctx.isBotAdmin = Boolean(botRole?.admin || botRole?.isAdmin || botRole?.isSuperAdmin || botRole?.role === 'admin' || botRole?.role === 'superadmin');
-      ctx.groupMetadata = cached.value;
+      ctx.groupMetadata = metadata;
     } catch {}
   }
   ctx.download = async (target = ctx, options = {}) => compat.downloadMedia(target || ctx, sock, options);

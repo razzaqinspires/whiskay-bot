@@ -1,10 +1,20 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { awardCommandXP, getProfile, xpForNextLevel } from '../src/lib/leveling.js';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { suggestCommands, similarity } from '../src/core/typo-suggestions.js';
 
-test('Stage 35: command XP is independent of group message leveling toggle', async () => {
+// This file is also run directly by `npm run verify:stage35` and `verify:all`,
+// outside the npm-test sandbox. Point leveling storage at a disposable folder
+// before importing the module so test fixtures can never touch production data.
+const stage35Runtime = await mkdtemp(path.join(os.tmpdir(), 'whiskay-stage35-test-'));
+process.env.WHISKAY_DATA_DIR = path.join(stage35Runtime, 'data');
+const { awardCommandXP, getProfile, xpForNextLevel } = await import('../src/lib/leveling.js');
+after(async () => { await rm(stage35Runtime, { recursive: true, force: true }); });
+
+test('Stage 35: command XP is independent of group message leveling toggle and isolated from production data', async () => {
+ assert.equal(process.env.WHISKAY_DATA_DIR, path.join(stage35Runtime, 'data'));
  const stamp=Date.now(), group=`stage35-test-group-${stamp}`, user=`stage35-test-user-${stamp}@s.whatsapp.net`;
  const before=await getProfile(group,user);
  const award=await awardCommandXP(group,user,'profile',Date.now());

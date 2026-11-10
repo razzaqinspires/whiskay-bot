@@ -71,9 +71,12 @@ test('group guard suppresses muted-group messages but permits owner recovery com
 test('group plugins expose owner controls and admin safety commands', async () => {
   const { default: ownerPlugin } = await import('../src/plugins/owner/group-control.js');
   const { default: safetyPlugin } = await import('../src/plugins/general/group-safety.js');
+  const { default: groupToolsPlugin } = await import('../src/plugins/general/group-tools.js');
   assert.equal(ownerPlugin.owner,true);
   assert.ok(ownerPlugin.command.includes('groupbot'));
-  for (const command of ['antitoxic','antibanword','textguard','groupstatus','grouphelp']) assert.ok(safetyPlugin.command.includes(command));
+  for (const command of ['antitoxic','antibanword','textguard','groupstatus']) assert.ok(safetyPlugin.command.includes(command));
+  assert.ok(!safetyPlugin.command.includes('grouphelp'), 'grouphelp must not be duplicated by group-safety');
+  assert.ok(groupToolsPlugin.command.includes('grouphelp'), 'group-tools is the authoritative grouphelp handler');
 });
 
 

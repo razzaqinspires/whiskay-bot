@@ -1,5 +1,6 @@
 import { getGroupSettings, updateGroupSettings } from '../../lib/group-settings.js';
 import { isOwner, sameUser } from '../../lib/security.js';
+import { groupMetadataStore } from '../../services/groupMetadataStore.js';
 
 const isAdminParticipant = (p) => p?.admin === 'admin' || p?.admin === 'superadmin';
 const digits = (jid) => String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
@@ -10,7 +11,8 @@ async function groupContext(ctx, requireAdmin = false, requireBotAdmin = false) 
     await ctx.reply('Perintah ini hanya dapat digunakan di grup WhatsApp.');
     return null;
   }
-  const metadata = await ctx.sock.groupMetadata(ctx.chat);
+  let metadata = ctx.groupMetadata || groupMetadataStore.get(ctx.chat);
+  if (!metadata) { metadata = await ctx.sock.groupMetadata(ctx.chat); if (metadata) groupMetadataStore.upsert(metadata, ctx.chat); }
   const participants = Array.isArray(metadata?.participants) ? metadata.participants : [];
   const callerIds = [ctx.sender, ctx.raw?.key?.participant, ctx.raw?.key?.participantAlt, ctx.raw?.key?.participantPn].filter(Boolean).map(String);
   const caller = participants.find(p => [p.id, p.jid, p.lid, p.phoneNumber].filter(Boolean).some(id => callerIds.some(candidate => sameUser(id, candidate))));

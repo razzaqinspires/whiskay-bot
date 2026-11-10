@@ -1,0 +1,559 @@
+import { registry } from '../../core/registry.js';
+
+const PAGE_SIZE = 8;
+
+const KIND_ICON = {
+  'add':              '+',
+  'change':           '~',
+  'unlink':           '-',
+  'batch':            '#',
+  'reload-start':     '>',
+  'reload-ok':        'OK',
+  'reload-fail':      'X',
+  'queue-coalesce':   '@',
+  'watcher-enabled':  'ON',
+  'watcher-disabled': 'OFF',
+  'src-add':          '+s',
+  'src-change':       '~s',
+  'src-unlink':       '-s',
+  'src-batch':        '#s',
+  'src-restart-blocked': '!s',
+  'source-watcher-enabled': 'ONs',
+  'source-watcher-disabled': 'OFFs',
+  'autoclean':        'AC',
+  'autoclean-enabled': 'AC+',
+  'autoclean-disabled': 'AC-'
+};
+
+const KINDS_ALL = Object.keys(KIND_ICON);
+
+// ─── Helpers ───
+
+function fmtTime(iso) {
+  try {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  } catch { return iso; }
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? s.slice(0, n - 1) + '~' : s;
+}
+
+function parseArgs(raw) {
+  const tokens = String(raw || '').split(/\s+/).filter(Boolean);
+  const opts = {
+    sub: null, limit: null, page: null,
+    kind: null, file: null, q: null,
+    since: null, until: null, id: null
+  };
+  for (const tok of tokens) {
+    const m = tok.match(/^(\w+):(.+)$/);
+    if (m) {
+      const k = m[1].toLowerCase(), v = m[2];
+      if (k === 'kind') opts.kind = v;
+      else if (k === 'file') opts.file = v;
+      else if (k === 'q') opts.q = v;
+      else if (k === 'since') opts.since = v;
+      else if (k === 'until') opts.until = v;
+      else if (k === 'page') opts.page = Math.max(1, parseInt(v, 10) || 1);
+      continue;
+    }
+    if (/^\d+$/.test(tok)) {
+      const n = parseInt(tok, 10);
+      if (opts.limit == null) opts.limit = n;
+      else if (opts.page == null) opts.page = Math.max(1, n);
+      continue;
+    }
+    if (!opts.sub) opts.sub = tok.toLowerCase();
+    else if (opts.sub === 'search') opts.q = opts.q ? opts.q + ' ' + tok : tok;
+    else if (opts.sub === 'detail' && !opts.id) opts.id = parseInt(tok, 10);
+    else if (opts.sub === 'kind' && !opts.kind) opts.kind = tok;
+    else if (opts.sub === 'file' && !opts.file) opts.file = tok;
+    else if (opts.sub === 'since' && !opts.since) opts.since = tok;
+    else if (opts.sub === 'until' && !opts.until) opts.until = tok;
+    else if (opts.sub === 'page' && !opts.page) opts.page = Math.max(1, parseInt(tok, 10) || 1);
+  }
+  return opts;
+}
+
+function buildFilterSuffix(filters) {
+  const p = [];
+  if (filters.kind)  p.push('kind:' + filters.kind);
+  if (filters.file)  p.push('file:' + filters.file);
+  if (filters.q)     p.push('q:' + filters.q);
+  if (filters.since) p.push('since:' + filters.since);
+  if (filters.until) p.push('until:' + filters.until);
+  return p.length ? ' ' + p.join(' ') : '';
+}
+
+// ─── Views ───
+
+async function showHome(ctx) {
+  const log = registry.watcherLog;
+  const s = log.summary();
+  const latest = log.query({ limit: 3 });
+  const watcherOn = Boolean(registry.watcher);
+
+  const bodyLines = [
+    'Total: ' + s.total + ' entri | ' + s.files + ' files tracked',
+    'Watcher: ' + (watcherOn ? 'ON' : 'OFF'),
+    '',
+    '*Terbaru:*',
+    ''
+  ];
+  for (const e of latest) {
+    bodyLines.push(describeEntryShort(e));
+  }
+  if (!latest.length) bodyLines.push('(kosong)');
+
+  // Build filter sections
+  const kindsWithCount = KINDS_ALL
+    .map(k => ({ k, n: s[k] || 0 }))
+    .filter(x => x.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 10);
+
+  const kindRows = kindsWithCount.map(({ k, n }) => ({
+    title: KIND_ICON[k] + ' ' + k,
+    description: n + ' entri',
+    id: '.hrlog kind:' + k
+  }));
+
+  const actionRows = [
+    { title: 'Latest 20', description: 'Entri terbaru', id: '.hrlog list 20' },
+    { title: 'Reload Failed', description: 'Hanya error', id: '.hrlog kind:reload-fail' },
+    { title: 'Reload OK', description: 'Sukses reload', id: '.hrlog kind:reload-ok' },
+    { title: 'Changes Only', description: 'Edit file', id: '.hrlog kind:change' },
+    { title: 'Src Changes', description: 'Core edit', id: '.hrlog kind:src-change' },
+    { title: 'Stats', description: 'Ringkasan', id: '.hrlog stats' },
+    { title: 'Export JSONL', description: 'Kirim file', id: '.hrlog export' },
+    { title: 'Clear Log', description: 'Hapus semua', id: '.hrlog clear' }
+  ];
+
+  const timeRows = [
+    { title: '5 menit terakhir', id: '.hrlog since:5m' },
+    { title: '30 menit terakhir', id: '.hrlog since:30m' },
+    { title: '1 jam terakhir', id: '.hrlog since:1h' },
+    { title: '1 hari terakhir', id: '.hrlog since:1d' }
+  ];
+
+  const sections = [
+    { title: 'Actions', rows: actionRows }
+  ];
+  if (kindRows.length) sections.push({ title: 'Filter by Kind', rows: kindRows });
+  sections.push({ title: 'Filter by Time', rows: timeRows });
+
+  const buttons = [
+    { name: 'single_select', title: 'Buka Filter / Action', sections }
+  ];
+
+  try {
+    await ctx.sendInteractive({
+      title: 'Watcher Log',
+      subtitle: s.total + ' entries',
+      body: bodyLines.join('\n'),
+      footer: 'Pilih item untuk filter',
+      buttons
+    });
+  } catch (e) {
+    await ctx.reply(fallbackHome(s, latest));
+  }
+}
+
+function fallbackHome(s, latest) {
+  const lines = [
+    'Watcher Log',
+    '',
+    'Total: ' + s.total + ' entri | ' + s.files + ' files',
+    '',
+    'Terbaru:',
+    ''
+  ];
+  for (const e of latest) lines.push(describeEntryShort(e));
+  lines.push('');
+  lines.push('Gunakan:');
+  lines.push('  .hrlog list [n]');
+  lines.push('  .hrlog kind <name>');
+  lines.push('  .hrlog file <substr>');
+  lines.push('  .hrlog since <5m|2h|1d>');
+  lines.push('  .hrlog search <kw>');
+  lines.push('  .hrlog stats');
+  lines.push('  .hrlog export');
+  return lines.join('\n');
+}
+
+function describeEntryShort(e) {
+  const icon = KIND_ICON[e.kind] || '.';
+  const time = fmtTime(e.t);
+  const file = e.file ? ' ' + e.file : '';
+  const diff = e.diff ? '  (+' + e.diff.addedCount + '/-' + e.diff.removedCount + ')' : '';
+  const dur = typeof e.duration === 'number' ? ' ' + e.duration + 'ms' : '';
+  return '[' + icon + '] #' + e.id + ' ' + time + file + diff + dur;
+}
+
+function describeEntryLong(e) {
+  const icon = KIND_ICON[e.kind] || '.';
+  const lines = [
+    '[' + icon + '] #' + e.id + ' ' + fmtTime(e.t) + ' | ' + e.kind
+  ];
+  if (e.file) lines.push('  File: ' + e.file);
+  if (e.reason) lines.push('  Reason: ' + e.reason);
+  if (typeof e.duration === 'number') lines.push('  Duration: ' + e.duration + 'ms');
+  if (e.diff) {
+    lines.push('  Diff: +' + e.diff.addedCount + ' / -' + e.diff.removedCount);
+    for (const a of (e.diff.added || []).slice(0, 3)) lines.push('    +L' + a.line + ': ' + truncate(a.text, 60));
+    for (const r of (e.diff.removed || []).slice(0, 3)) lines.push('    -L' + r.line + ': ' + truncate(r.text, 60));
+  }
+  if (e.error) lines.push('  Error: ' + truncate(e.error, 120));
+  if (e.count) lines.push('  Count: ' + e.count);
+  if (Array.isArray(e.files) && e.files.length) {
+    lines.push('  Files: ' + e.files.slice(0, 3).join(', ') + (e.files.length > 3 ? ', +' + (e.files.length - 3) : ''));
+  }
+  return lines.join('\n');
+}
+
+async function showList(ctx, opts) {
+  const log = registry.watcherLog;
+  const limit = opts.limit || PAGE_SIZE;
+  const page = opts.page || 1;
+  const filters = {
+    kind: opts.kind, file: opts.file, q: opts.q,
+    since: opts.since, until: opts.until
+  };
+
+  const all = log.query({ limit: 100000, ...filters });
+  const total = all.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const curPage = Math.min(page, totalPages);
+  const start = (curPage - 1) * limit;
+  const entries = all.slice(start, start + limit);
+
+  // Body
+  const headLines = [];
+  const activeFilters = [];
+  if (filters.kind)  activeFilters.push('kind:' + filters.kind);
+  if (filters.file)  activeFilters.push('file:' + filters.file);
+  if (filters.q)     activeFilters.push('q:' + filters.q);
+  if (filters.since) activeFilters.push('since:' + filters.since);
+  if (filters.until) activeFilters.push('until:' + filters.until);
+
+  headLines.push('Filter: ' + (activeFilters.length ? activeFilters.join(' ') : 'none'));
+  headLines.push('Page ' + curPage + '/' + totalPages + ' | ' + total + ' entri');
+  headLines.push('');
+
+  for (const e of entries) {
+    headLines.push(describeEntryLong(e));
+    headLines.push('');
+  }
+
+  if (!entries.length) headLines.push('(tidak ada entri cocok)');
+
+  // Buttons
+  const fid = buildFilterSuffix(filters);
+  const buttons = [];
+
+  // Navigation buttons
+  const navRows = [];
+  if (curPage > 1) navRows.push({ title: 'Prev page', id: '.hrlog page:' + (curPage - 1) + fid });
+  if (curPage < totalPages) navRows.push({ title: 'Next page', id: '.hrlog page:' + (curPage + 1) + fid });
+  navRows.push({ title: 'Refresh', id: '.hrlog page:' + curPage + fid });
+  navRows.push({ title: 'Home', id: '.hrlog' });
+  navRows.push({ title: 'Stats', id: '.hrlog stats' });
+
+  // Detail picker (max 10 entries)
+  const detailRows = entries.slice(0, 10).map(e => ({
+    title: '#' + e.id + ' ' + (KIND_ICON[e.kind] || '.') + ' ' + (e.file || e.kind),
+    description: fmtTime(e.t) + (e.diff ? ' (+' + e.diff.addedCount + '/-' + e.diff.removedCount + ')' : ''),
+    id: '.hrlog detail ' + e.id
+  }));
+
+  const sections = [];
+  sections.push({ title: 'Navigation', rows: navRows });
+  if (detailRows.length) sections.push({ title: 'Detail', rows: detailRows });
+  sections.push({ title: 'Actions', rows: [
+    { title: 'Export JSONL', id: '.hrlog export' },
+    { title: 'Clear Log', id: '.hrlog clear' }
+  ]});
+
+  buttons.push({ name: 'single_select', title: 'Aksi / Detail', sections });
+
+  const titleLine = filters.kind ? 'Log: ' + filters.kind : 'Watcher Log';
+  const body = headLines.join('\n');
+
+  try {
+    await ctx.sendInteractive({
+      title: titleLine,
+      subtitle: total + ' entri | page ' + curPage + '/' + totalPages,
+      body,
+      footer: 'Pilih detail atau navigasi',
+      buttons
+    });
+  } catch (err) {
+    // Plain fallback
+    const plain = [titleLine, '', body].join('\n');
+    if (plain.length <= 4000) return ctx.reply(plain);
+    const chunks = [];
+    let cur = titleLine + '\n\n';
+    for (const e of entries) {
+      const chunk = describeEntryLong(e) + '\n\n';
+      if ((cur + chunk).length > 3500) { chunks.push(cur); cur = ''; }
+      cur += chunk;
+    }
+    if (cur.trim()) chunks.push(cur);
+    for (const c of chunks) await ctx.reply(c.trim());
+  }
+}
+
+async function showDetail(ctx, id) {
+  const log = registry.watcherLog;
+  const e = log.getById(id);
+  if (!e) return ctx.reply('Entri #' + id + ' tidak ditemukan');
+
+  const lines = [
+    'Detail #' + e.id,
+    'Waktu: ' + e.t,
+    'Kind : ' + (KIND_ICON[e.kind] || '.') + ' ' + e.kind,
+    e.file ? 'File : ' + e.file : null,
+    e.reason ? 'Reason: ' + e.reason : null,
+    typeof e.duration === 'number' ? 'Duration: ' + e.duration + 'ms' : null,
+    e.hash ? 'Hash: ' + e.hash + (e.prevHash ? ' <- ' + e.prevHash : '') : null,
+    e.size ? 'Size: ' + e.size + 'B / ' + e.lines + ' lines' : null,
+    '',
+    e.diff ? 'Diff +' + e.diff.addedCount + ' / -' + e.diff.removedCount : null
+  ].filter(Boolean);
+
+  if (e.diff && e.diff.added && e.diff.added.length) {
+    lines.push('');
+    lines.push('Added:');
+    for (const a of e.diff.added.slice(0, 20)) {
+      lines.push('  +L' + a.line + ': ' + truncate(a.text, 80));
+    }
+  }
+  if (e.diff && e.diff.removed && e.diff.removed.length) {
+    lines.push('');
+    lines.push('Removed:');
+    for (const r of e.diff.removed.slice(0, 20)) {
+      lines.push('  -L' + r.line + ': ' + truncate(r.text, 80));
+    }
+  }
+  if (e.preview) {
+    lines.push('');
+    lines.push('Preview:');
+    lines.push('```');
+    lines.push(e.preview.slice(0, 500));
+    lines.push('```');
+  }
+  if (e.error) {
+    lines.push('');
+    lines.push('Error: ' + e.error);
+  }
+
+  const buttons = [{
+    name: 'single_select',
+    title: 'Aksi',
+    sections: [{
+      title: 'Entry #' + e.id,
+      rows: [
+        { title: 'Back to list', id: '.hrlog list 20' },
+        { title: 'Home', id: '.hrlog' },
+        { title: 'Export JSONL', id: '.hrlog export' }
+      ]
+    }]
+  }];
+
+  try {
+    await ctx.sendInteractive({
+      title: 'Detail #' + e.id,
+      subtitle: e.kind,
+      body: lines.join('\n'),
+      footer: 'Pilih aksi',
+      buttons
+    });
+  } catch {
+    const txt = lines.join('\n');
+    if (txt.length <= 4000) return ctx.reply(txt);
+    await ctx.reply(txt.slice(0, 3900));
+    await ctx.reply(txt.slice(3900, 7800));
+  }
+}
+
+async function showStats(ctx) {
+  const log = registry.watcherLog;
+  const s = log.summary();
+  const watcher = registry.watcher;
+  const sourceW = registry.sourceWatcher;
+  const cleaner = registry.autoCleaner;
+
+  const lines = [
+    'Stats Watcher Log',
+    '',
+    'Total entries : ' + s.total,
+    'Files tracked : ' + s.files,
+    '',
+    'Per Kind:'
+  ];
+  for (const k of KINDS_ALL) {
+    if ((s[k] || 0) > 0) lines.push('  ' + KIND_ICON[k] + ' ' + k + ' : ' + s[k]);
+  }
+  lines.push('');
+  lines.push('Systems:');
+  lines.push('  Hot Reload (plugins): ' + (watcher ? 'ON' : 'OFF'));
+  lines.push('  Source Reload       : ' + (sourceW ? 'ON' : 'OFF'));
+  lines.push('  Auto Clean          : ' + (cleaner?.active ? 'ON' : 'OFF'));
+
+  try {
+    await ctx.sendInteractive({
+      title: 'Log Stats',
+      subtitle: s.total + ' entri',
+      body: lines.join('\n'),
+      footer: 'Pilih aksi',
+      buttons: [{
+        name: 'single_select',
+        title: 'Aksi',
+        sections: [{
+          title: 'Stats',
+          rows: [
+            { title: 'Refresh', id: '.hrlog stats' },
+            { title: 'Home', id: '.hrlog' },
+            { title: 'Export', id: '.hrlog export' },
+            { title: 'Clear log', id: '.hrlog clear' }
+          ]
+        }]
+      }]
+    });
+  } catch {
+    await ctx.reply(lines.join('\n'));
+  }
+}
+
+// ─── Main ───
+
+export default {
+  name: 'hrlog',
+  command: ['hrlog', 'watchlog', 'changelog'],
+  aliases: ['wlog'],
+  category: 'owner',
+  owner: true,
+  cooldown: 1200,
+  description: 'Riwayat perubahan (interactive list)',
+  async execute(ctx) {
+    const log = registry.watcherLog;
+    if (!log) return ctx.reply('Watcher log tidak tersedia');
+
+    const o = parseArgs(ctx.text || '');
+    const sub = o.sub;
+
+    // No sub → home
+    if (!sub) return showHome(ctx);
+
+    // Help
+    if (sub === 'help' || sub === '-h' || sub === '--help') {
+      return ctx.reply([
+        'HRLlog Help',
+        '',
+        '.hrlog                 - home (interactive)',
+        '.hrlog list [n]        - daftar entri',
+        '.hrlog kind:<name>     - filter by kind',
+        '.hrlog file:<substr>   - filter by file',
+        '.hrlog since:<5m|1h>   - sejak waktu',
+        '.hrlog until:<...>     - sampai waktu',
+        '.hrlog page:<n>        - halaman n',
+        '.hrlog search <kw>     - full-text search',
+        '.hrlog detail <id>     - detail 1 entri',
+        '.hrlog stats           - ringkasan',
+        '.hrlog export [n]      - kirim .jsonl',
+        '.hrlog clear           - hapus log'
+      ].join('\n'));
+    }
+
+    // Detail
+    if (sub === 'detail' && o.id != null) return showDetail(ctx, o.id);
+
+    // Stats
+    if (sub === 'stats' || sub === 'summary') return showStats(ctx);
+
+    // Kinds
+    if (sub === 'kinds') {
+      const s = log.summary();
+      const lines = ['Log Kinds', ''];
+      for (const k of KINDS_ALL) {
+        lines.push('  ' + KIND_ICON[k] + ' ' + k + ' : ' + (s[k] || 0));
+      }
+      return ctx.reply(lines.join('\n'));
+    }
+
+    // Clear
+    if (sub === 'clear' || sub === 'reset') {
+      log.clear();
+      log.push({ kind: 'watcher-enabled', file: '(log cleared by owner)' });
+      return ctx.reply('Log dibersihkan.');
+    }
+
+    // Export
+    if (sub === 'export') {
+      const limit = o.limit || null;
+      const data = log.exportJSONL({ limit });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      await ctx.sock.sendMessage(ctx.chat, {
+        document: Buffer.from(data, 'utf8'),
+        mimetype: 'application/x-ndjson',
+        fileName: 'watcher-log-' + stamp + '.jsonl',
+        caption: 'Watcher Log Export | ' + (limit || log.count()) + ' entries'
+      }, { quoted: ctx.raw });
+      return;
+    }
+
+    // Search
+    if (sub === 'search') {
+      if (!o.q) return ctx.reply('Usage: .hrlog search <keyword>');
+      const results = log.searchDetailed(o.q, {
+        limit: 20, kind: o.kind, file: o.file, since: o.since, until: o.until
+      });
+      if (!results.length) return ctx.reply('Tidak ada hasil untuk: ' + o.q);
+
+      const lines = ['Search: ' + o.q + ' | ' + results.length + ' hit', ''];
+      for (const { entry, hits } of results.slice(0, 8)) {
+        lines.push(describeEntryShort(entry));
+        for (const h of hits.slice(0, 2)) {
+          const tag = h.where === 'added' ? '+L' + h.line
+                    : h.where === 'removed' ? '-L' + h.line
+                    : h.where;
+          lines.push('  ' + tag + ': ' + truncate(h.text, 70));
+        }
+        lines.push('');
+      }
+      if (results.length > 8) lines.push('... +' + (results.length - 8) + ' more');
+
+      try {
+        await ctx.sendInteractive({
+          title: 'Search: ' + o.q,
+          subtitle: results.length + ' hit',
+          body: lines.join('\n'),
+          footer: 'Klik untuk lihat semua',
+          buttons: [{
+            name: 'single_select',
+            title: 'Aksi',
+            sections: [{
+              title: 'Search',
+              rows: [
+                { title: 'Semua hasil (list)', id: '.hrlog q:' + o.q },
+                { title: 'Only changes', id: '.hrlog q:' + o.q + ' kind:change' },
+                { title: 'Only reload-fail', id: '.hrlog q:' + o.q + ' kind:reload-fail' },
+                { title: 'Home', id: '.hrlog' }
+              ]
+            }]
+          }]
+        });
+      } catch {
+        await ctx.reply(lines.join('\n'));
+      }
+      return;
+    }
+
+    // List (any filter, or explicit list/page)
+    return showList(ctx, o);
+  }
+};

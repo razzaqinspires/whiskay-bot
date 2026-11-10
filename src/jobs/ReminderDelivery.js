@@ -1,11 +1,35 @@
-import { claimDueReminders,finishReminder } from '../services/ReminderManager.js';
+import { claimDueReminders, finishReminder } from '../services/ReminderManager.js';
 import { dueAdzan, markAdzanSent } from '../services/AdzanManager.js';
-/** Runs only when explicitly started by Bot; claims persisted reminders before delivery. */
-export async function runReminderDelivery(sock, now=Date.now()) {
-  const result={claimed:0,sent:0,failed:0,adzan:0};
-  const due=await claimDueReminders(now,25);result.claimed=due.length;
-  for(const r of due){try{await sock.sendMessage(r.chat,{text:`⏰ *PENGINGAT*\n\n${r.text}\n\n_${new Date(now).toLocaleString('id-ID',{timeZone:r.timezone||'Asia/Jakarta'})}_`});await finishReminder(r.id,{ok:true,now});result.sent++;}catch(e){await finishReminder(r.id,{ok:false,error:e?.message,now}).catch(()=>{});result.failed++;}}
-  const calls=await dueAdzan(now);for(const a of calls){try{await sock.sendMessage(a.chat,{text:`🕌 *WAKTU ADZAN ${a.name.toUpperCase()}*\nJadwal lokal yang dikonfigurasi: ${a.time}.\nPastikan waktu salat telah diverifikasi sesuai lokasi grup.`});await markAdzanSent(a.chat,a.name,a.day,true);result.adzan++;}catch{await markAdzanSent(a.chat,a.name,a.day,false).catch(()=>{});}}
+import { runPersonalAdzanScheduler } from '../services/AdzanEngineService.js';
+
+/** Runs only when explicitly started by Bot. Personal adzan is opt-in and delivered by DM. */
+export async function runReminderDelivery(sock, now = Date.now()) {
+  const result = { claimed: 0, sent: 0, failed: 0, adzan: 0, personalAdzan: null };
+  const due = await claimDueReminders(now, 25);
+  result.claimed = due.length;
+  for (const reminder of due) {
+    try {
+      await sock.sendMessage(reminder.chat, {
+        text: `⏰ *PENGINGAT*\n\n${reminder.text}\n\n_${new Date(now).toLocaleString('id-ID', { timeZone: reminder.timezone || 'Asia/Jakarta' })}_`
+      });
+      await finishReminder(reminder.id, { ok: true, now });
+      result.sent++;
+    } catch (error) {
+      await finishReminder(reminder.id, { ok: false, error: error?.message, now }).catch(() => {});
+      result.failed++;
+    }
+  }
+  const groupCalls = await dueAdzan(now);
+  for (const item of groupCalls) {
+    try {
+      await sock.sendMessage(item.chat, { text: `🕌 *WAKTU ADZAN ${item.name.toUpperCase()}*\nJadwal manual grup: ${item.time}.` });
+      await markAdzanSent(item.chat, item.name, item.day, true);
+      result.adzan++;
+    } catch {
+      await markAdzanSent(item.chat, item.name, item.day, false).catch(() => {});
+    }
+  }
+  result.personalAdzan = await runPersonalAdzanScheduler(sock, now);
   return result;
 }
-export default {name:'reminder-delivery',intervalMs:15000,enabled:true,run:({sock,now})=>runReminderDelivery(sock,now)};
+export default { name: 'reminder-delivery', intervalMs: 15000, enabled: true, run: ({ sock, now }) => runReminderDelivery(sock, now) };

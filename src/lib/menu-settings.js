@@ -2,7 +2,9 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = process.env.WHISKAY_DATA_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const CONFIGURED_ROOT = process.env.WHISKAY_DATA_DIR;
+const ROOT = CONFIGURED_ROOT ? (path.isAbsolute(CONFIGURED_ROOT) ? CONFIGURED_ROOT : path.resolve(PROJECT_ROOT, CONFIGURED_ROOT)) : path.join(PROJECT_ROOT, 'data');
 const SETTINGS_FILE = path.join(ROOT, 'menu-settings.json');
 const LEDGER_FILE = path.join(ROOT, 'menu-command-ledger.json');
 const USAGE_FILE = path.join(ROOT, 'menu-command-usage.json');
@@ -20,6 +22,9 @@ const DEFAULTS = Object.freeze({
   commandPageLimitEnabled: true,
   profileWidgets: ['userprofile','progress','economy','familiarity','premium','smartenergy'],
   batteryNotification: 'merge',
+  energyNotificationEnabled: true,
+  xpNotificationEnabled: true,
+  showXpInMenu: true,
   description: true,
   categoriesVisible: true,
   order: 'category',
@@ -70,7 +75,10 @@ export async function getMenuSettings(userId) {
   const global = await readJson(GLOBAL_DEFAULTS_FILE, {});
   const settings = { ...defaultMenuSettings(), ...(global.settings || {}), ...(all[String(userId || 'unknown')] || {}) };
   if (!['match_menu','default'].includes(settings.batteryDisplayStyle)) settings.batteryDisplayStyle = 'match_menu';
-  if (!['hide','merge','separate'].includes(settings.batteryNotification)) settings.batteryNotification = 'merge';
+  if (!['hide','merge','separate','card'].includes(settings.batteryNotification)) settings.batteryNotification = 'merge';
+  settings.energyNotificationEnabled = settings.energyNotificationEnabled !== false;
+  settings.xpNotificationEnabled = settings.xpNotificationEnabled !== false;
+  settings.showXpInMenu = settings.showXpInMenu !== false;
   if (!['classic','minimal','cyberpunk','kawaii','boxed','elegant','japanese','developer'].includes(settings.widgetDesign)) settings.widgetDesign = 'classic';
   settings.commandPageSize = Math.max(100, Math.min(500, Math.floor(Number(settings.commandPageSize) || 100)));
   if (!Array.isArray(settings.profileWidgets)) settings.profileWidgets = defaultMenuSettings().profileWidgets;
@@ -94,15 +102,10 @@ export async function setGlobalMenuDefaults(settings, actor='owner') {
   const safe = { ...builtIn, ...settings, imageMode: 'official', imagePath: '' };
   const payload = { settings: safe, updatedAt: new Date().toISOString(), updatedBy: String(actor).slice(0,80) };
   await writeJson(GLOBAL_DEFAULTS_FILE, payload);
-  // Migrate legacy fully-materialized user settings: values equal to the old built-in
-  // defaults were not meaningful overrides, so allow them to inherit the new baseline.
+  // Preserve every existing user's explicit preferences. The owner becomes the
+  // source of the new baseline, so clear only the owner's own override record.
   const all = await readJson(SETTINGS_FILE, {});
-  for (const record of Object.values(all)) {
-    if (!record || typeof record !== 'object' || Array.isArray(record)) continue;
-    for (const [key, value] of Object.entries(record)) {
-      if (Object.prototype.hasOwnProperty.call(builtIn, key) && JSON.stringify(value) === JSON.stringify(builtIn[key])) delete record[key];
-    }
-  }
+  if (actor && Object.prototype.hasOwnProperty.call(all, String(actor))) delete all[String(actor)];
   await writeJson(SETTINGS_FILE, all);
   return payload;
 }

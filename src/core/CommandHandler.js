@@ -13,6 +13,9 @@ import { awardCommandXP } from '../lib/leveling.js';
 import { registry } from './registry.js';
 import { shouldBlockForOffline, formatOfflineStatus } from '../lib/offline-mode.js';
 import { getGroupSettings } from '../lib/group-settings.js';
+import { runWithOutboundContext } from './OutboundTrafficGuard.js';
+import { workloadTracker } from './WorkloadTracker.js';
+import { recordNextoraFailure } from '../services/nextora-repair/NextoraRepairService.js';
 
 const offlineNoticeAt = new Map();
 const OFFLINE_NOTICE_COOLDOWN_MS = 30 * 60 * 1000;
@@ -57,6 +60,8 @@ export class CommandHandler {
   }
 
   async handle(ctx) {
+    // Defense in depth: no caller may dispatch a self-authored WhatsApp echo.
+    if (!ctx || ctx.isBot || ctx.fromMe || ctx.raw?.key?.fromMe) return true;
     if (!this.parse(ctx)) {
       if (ctx.unknownCommand && !ctx.isBot) {
         try { const settings = await getTypoSettings(); if (settings.enabled) { const candidates = await suggestCommands(ctx.unknownCommand, [...this._pm.commands.keys(), ...this._pm._alias.keys()]); if (candidates.length) { const buttons = candidates.map(x => ({ name: 'quick_reply', title: `${ctx.unknownPrefix}${x.command} · ${x.percentage}%`, id: `${ctx.unknownPrefix}${x.command}` })); await ctx.sendInteractive({ title: 'Mungkin yang kamu maksud?', body: `Perintah \`${ctx.unknownPrefix}${ctx.unknownCommand}\` tidak ditemukan.
@@ -65,7 +70,9 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
       }
       return false;
     }
-    try { stage24Logger.command(ctx.sender || ctx.chat || 'unknown', `${ctx.prefix || ''}${ctx.command || ''}`); } catch {}
+    const releasePluginLease = this._pm.acquire?.(ctx.plugin) || (() => {});
+    try {
+      try { stage24Logger.command(ctx.sender || ctx.chat || 'unknown', `${ctx.prefix || ''}${ctx.command || ''}`); } catch {}
     const chain = new MiddlewareChain();
     for (const mw of this._base.stack) chain.use(mw);
     const p = ctx.plugin;
@@ -126,23 +133,55 @@ ${candidates.map(x => `• ${ctx.unknownPrefix}${x.command} — kemiripan ${x.pe
     const ok = await chain.run(ctx);
     if (!ok || ctx.aborted) return true;
 
+    const commandStartedAt = performance.now();
+    const commandInvocationId = workloadTracker.beginCommandInvocation({ command: ctx.command, actor: ctx.sender || ctx.chat || 'unknown' });
+    let commandSucceeded = true;
     try {
       const t0 = performance.now();
-      await p.execute(ctx);
+      await runWithOutboundContext({ source: `command:${ctx.command}`, command: ctx.command, sender: ctx.sender || '', chat: ctx.chat || '' }, () => p.execute(ctx));
       await recordCommandUsage(ctx.sender || ctx.chat, p.menuCommands?.[0] || (Array.isArray(p.command) ? p.command[0] : p.command) || ctx.command).catch(() => {});
-      if (!ctx.isBot && ctx.sender && !['daftar','register','statusdaftar'].includes(ctx.command)) {
+      if (!ctx.suppressPostCommandXp && !ctx.isBot && ctx.sender && !['daftar','register','statusdaftar'].includes(ctx.command)) {
         const xp = await awardCommandXP(ctx.chat || ctx.sender, ctx.sender, ctx.command).catch(() => null);
+        ctx.xpAward = xp;
         if (xp?.leveled && xp.profile?.notifyLevelUp !== false) {
-          await ctx.sendInteractive({ title:'⭐ LEVEL UP!', subtitle:`Level ${xp.from} → ${xp.to}`, body:`Perintah berhasil dijalankan dan kamu memperoleh +${xp.gain} XP.\nLevel baru: ${xp.to} · ${xp.profile.xp}/${xp.needed} XP menuju level berikutnya.`, buttons:[{name:'quick_reply',title:'Lihat Profil',id:`${ctx.prefix}profile`},{name:'quick_reply',title:'Leaderboard',id:`${ctx.prefix}leaderboard`}] }).catch(()=>{});
+          await runWithOutboundContext({ source: `command:${ctx.command}:level-up`, command: ctx.command }, () => ctx.sendInteractive({ title:'⭐ LEVEL UP!', subtitle:`Level ${xp.from} → ${xp.to}`, body:`Perintah berhasil dijalankan dan kamu memperoleh +${xp.gain} XP.\nLevel baru: ${xp.to} · ${xp.profile.xp}/${xp.needed} XP menuju level berikutnya.`, buttons:[{name:'quick_reply',title:'Lihat Profil',id:`${ctx.prefix}profile`},{name:'quick_reply',title:'Leaderboard',id:`${ctx.prefix}leaderboard`}] })).catch(()=>{});
         }
       }
       Logger.debug(`${ctx.command} -> ${(performance.now() - t0).toFixed(2)}ms`);
     } catch (e) {
+      commandSucceeded = false;
       Logger.error({ cmd: ctx.command, err: e.message }, 'cmd error');
       const shard = await recordCommandFailure(ctx.command, e).catch(() => null);
       if (shard?.quarantinedUntil > Date.now()) Logger.error({ cmd: ctx.command, quarantinedUntil: shard.quarantinedUntil }, 'command quarantined after repeated failures');
-      await ctx.reply('❌ ' + e.message).catch(() => {});
+      await ctx.reply('❌ Perintah gagal diproses. Error sudah dicatat untuk dianalisis Nextora.').catch(() => {});
+      try {
+        const stack = String(e?.stack || '');
+        const sourceMatch = stack.match(/(?:[A-Za-z]:)?[^\s()]*?((?:src\/plugins|src\/services)\/[A-Za-z0-9_./-]+\.js)/);
+        const sourceFile = sourceMatch?.[1] || (p.__sourceFile ? `src/plugins/${p.__sourceFile}` : null);
+        const repairTask = await recordNextoraFailure({
+          command: ctx.command, error: e?.message || String(e), stack,
+          sourceFile, correlationId: ctx.correlationId, chat: ctx.chat, sender: ctx.sender
+        });
+        for (const ownerJid of [...new Set([...(config.owners || []), ...(config.ownerLids || [])])]) {
+          if (!ctx.sock?.sendInteractive) continue;
+          await ctx.sock.sendInteractive(ownerJid, {
+            title: 'NEXORA · Command Error Detected',
+            body: `Command: ${ctx.prefix}${ctx.command}\nError: ${String(e?.message || e).slice(0, 300)}\nTask: ${repairTask.id}\n\nNextora sudah mencatat error dan menunggu pemeriksaan owner.`,
+            footer: 'Owner-only · Source belum diubah',
+            buttons: [{ name: 'quick_reply', title: 'Perbaiki dengan Nexora', id: `${ctx.prefix || '.'}nextora inspect ${repairTask.id}` }]
+          }).catch(() => {});
+        }
+      } catch (repairError) {
+        Logger.warn({ cmd: ctx.command, err: repairError?.message || String(repairError) }, 'Nextora repair task capture failed');
+      }
+    } finally {
+      const commandDurationMs = performance.now() - commandStartedAt;
+      workloadTracker.finishCommandInvocation(commandInvocationId, { ok: commandSucceeded, durationMs: commandDurationMs });
+      await runWithOutboundContext({ source: `command:${ctx.command}:completion`, command: ctx.command }, () => ctx.completeEnergyTelemetry?.({ durationMs: commandDurationMs, ok: commandSucceeded })).catch(error => Logger.error({ cmd: ctx.command, err: error.message }, 'energy telemetry finalize failed'));
     }
     return true;
+    } finally {
+      releasePluginLease();
+    }
   }
 }
