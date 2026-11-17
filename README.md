@@ -308,7 +308,7 @@ The workflow [`github-metrics.yml`](.github/workflows/github-metrics.yml) refres
 **Documentation maintenance contract:** every feature, fix, removal or test change must add a dated change record under `docs/`, update the `docs/README.md` index, and update this root `README.md` without deleting unrelated existing information. Mermaid architecture diagrams and explicit test reports are expected for substantial changes.
 
 <!-- GITHUB_METRICS_START -->
-> Snapshot terakhir: **2026-11-17T01:08:14+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
+> Snapshot terakhir: **2026-11-17T14:57:11+00:00** (UTC). GitHub Actions dijadwalkan menyegarkan data setiap 6 jam dan saat ada push yang relevan.
 
 | Metrik | Nilai |
 |---|---:|
@@ -331,10 +331,10 @@ xychart-beta
     title "Commit activity · last 14 days"
     x-axis ["11-08", "11-09", "11-10", "11-11", "11-12", "11-13", "11-14", "11-15", "11-16", "11-17"]
     y-axis "Count" 0 --> 4
-    line [0, 0, 2, 3, 3, 3, 3, 3, 2, 0]
+    line [0, 0, 2, 3, 3, 3, 3, 3, 2, 1]
 ```
 
-Riwayat snapshot tersimpan: **21** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
+Riwayat snapshot tersimpan: **22** (maksimum 90 snapshot lokal di berkas metrik). Buka [Insights → Traffic](https://github.com/razzaqinspires/whiskay-bot/graphs/traffic) untuk tampilan paling mutakhir langsung dari GitHub.
 <!-- GITHUB_METRICS_END -->
 
 ## 🛡️ Stage 2 — Pairing Portal Hardening (2026-10-26)
