@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-20T23:50:02+00:00",
-  "sampled_commits": 94,
+  "updated_at": "2026-11-21T06:24:10+00:00",
+  "sampled_commits": 95,
   "active_authors": [
     [
       "github-actions[bot]",
-      46
+      47
     ],
     [
       "Arifi Razzaq",
@@ -18,11 +18,11 @@
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      45
+      46
     ],
     [
       "docs/metrics/history.json",
-      45
+      46
     ],
     [
       "data/menu-command-usage.json",
@@ -111,11 +111,11 @@
       7
     ],
     [
-      14,
+      4,
       6
     ],
     [
-      3,
+      14,
       6
     ]
   ]
