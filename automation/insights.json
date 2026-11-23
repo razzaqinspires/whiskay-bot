@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-23T11:47:47+00:00",
+  "updated_at": "2026-11-23T23:37:41+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
       "github-actions[bot]",
-      53
+      54
     ],
     [
       "Arifi Razzaq",
@@ -12,40 +12,40 @@
     ],
     [
       "root",
-      18
+      17
     ]
   ],
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      52
+      53
     ],
     [
       "docs/metrics/history.json",
-      52
+      53
     ],
     [
       "data/menu-command-usage.json",
-      21
-    ],
-    [
-      "data/leveling.json",
-      15
+      20
     ],
     [
       "docs/README.md",
       15
     ],
     [
+      "data/leveling.json",
+      14
+    ],
+    [
       "docs/history/updates.jsonl",
       11
     ],
     [
-      ".github/workflows/repo-update-history.yml",
-      10
+      ".github/workflows/github-metrics.yml",
+      9
     ],
     [
-      ".github/workflows/github-metrics.yml",
+      ".github/workflows/repo-update-history.yml",
       9
     ],
     [
@@ -94,7 +94,7 @@
     ],
     [
       "src/plugins/games/rpg.js",
-      6
+      5
     ]
   ],
   "busy_utc_hours": [
@@ -115,7 +115,7 @@
       7
     ],
     [
-      22,
+      16,
       6
     ]
   ]
