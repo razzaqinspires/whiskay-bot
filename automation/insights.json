@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-23T23:37:41+00:00",
+  "updated_at": "2026-11-24T09:12:32+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
@@ -18,11 +18,11 @@
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      53
+      54
     ],
     [
       "docs/metrics/history.json",
-      53
+      54
     ],
     [
       "data/menu-command-usage.json",
@@ -38,7 +38,7 @@
     ],
     [
       "docs/history/updates.jsonl",
-      11
+      10
     ],
     [
       ".github/workflows/github-metrics.yml",
@@ -103,6 +103,10 @@
       9
     ],
     [
+      3,
+      8
+    ],
+    [
       9,
       8
     ],
@@ -111,11 +115,7 @@
       7
     ],
     [
-      3,
-      7
-    ],
-    [
-      16,
+      22,
       6
     ]
   ]
