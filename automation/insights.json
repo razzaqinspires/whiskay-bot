@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-24T13:17:01+00:00",
+  "updated_at": "2026-11-24T22:08:41+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
       "github-actions[bot]",
-      54
+      55
     ],
     [
       "Arifi Razzaq",
@@ -12,21 +12,21 @@
     ],
     [
       "root",
-      17
+      16
     ]
   ],
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      54
+      55
     ],
     [
       "docs/metrics/history.json",
-      54
+      55
     ],
     [
       "data/menu-command-usage.json",
-      20
+      19
     ],
     [
       "docs/README.md",
@@ -34,7 +34,7 @@
     ],
     [
       "data/leveling.json",
-      14
+      13
     ],
     [
       "docs/history/updates.jsonl",
@@ -69,20 +69,20 @@
       8
     ],
     [
-      "src/plugins/tools/youtube.js",
-      7
-    ],
-    [
-      "src/core/CommandHandler.js",
-      7
-    ],
-    [
       "src/lib/energy-worker.js",
       7
     ],
     [
+      "src/plugins/tools/youtube.js",
+      6
+    ],
+    [
+      "src/core/CommandHandler.js",
+      6
+    ],
+    [
       "src/plugins/general/leveling.js",
-      7
+      6
     ],
     [
       "src/plugins/owner/energy-system.js",
@@ -115,7 +115,7 @@
       7
     ],
     [
-      22,
+      16,
       6
     ]
   ]
