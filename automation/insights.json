@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-25T12:07:29+00:00",
+  "updated_at": "2026-11-25T21:24:38+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
       "github-actions[bot]",
-      56
+      57
     ],
     [
       "Arifi Razzaq",
@@ -12,21 +12,21 @@
     ],
     [
       "root",
-      15
+      14
     ]
   ],
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      56
+      57
     ],
     [
       "docs/metrics/history.json",
-      56
+      57
     ],
     [
       "data/menu-command-usage.json",
-      18
+      17
     ],
     [
       "docs/README.md",
@@ -34,7 +34,7 @@
     ],
     [
       "data/leveling.json",
-      12
+      11
     ],
     [
       "docs/history/updates.jsonl",
@@ -53,23 +53,19 @@
       8
     ],
     [
-      "src/lib/menu-settings.js",
-      8
-    ],
-    [
-      "src/plugins/general/menu.js",
-      8
-    ],
-    [
-      "src/plugins/general/setmenu.js",
-      8
-    ],
-    [
-      "src/handlers/message.js",
+      "src/lib/energy-worker.js",
       7
     ],
     [
-      "src/lib/energy-worker.js",
+      "src/lib/menu-settings.js",
+      7
+    ],
+    [
+      "src/plugins/general/menu.js",
+      7
+    ],
+    [
+      "src/plugins/general/setmenu.js",
       7
     ],
     [
@@ -77,7 +73,7 @@
       6
     ],
     [
-      "src/plugins/general/leveling.js",
+      "src/handlers/message.js",
       6
     ],
     [
@@ -89,12 +85,16 @@
       6
     ],
     [
-      "src/plugins/tools/youtube.js",
+      "src/plugins/general/leveling.js",
       5
     ],
     [
-      "src/plugins/games/rpg.js",
-      5
+      "src/plugins/general/group-tools.js",
+      4
+    ],
+    [
+      "src/plugins/tools/youtube.js",
+      4
     ]
   ],
   "busy_utc_hours": [
@@ -111,12 +111,12 @@
       8
     ],
     [
-      4,
+      16,
       7
     ],
     [
-      1,
-      6
+      4,
+      7
     ]
   ]
 }
