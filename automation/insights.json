@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-11-26T11:53:25+00:00",
+  "updated_at": "2026-11-26T21:11:24+00:00",
   "sampled_commits": 100,
   "active_authors": [
     [
       "github-actions[bot]",
-      58
+      59
     ],
     [
       "Arifi Razzaq",
@@ -12,29 +12,25 @@
     ],
     [
       "root",
-      13
+      12
     ]
   ],
   "frequently_changed_files": [
     [
       "docs/metrics/github-metrics.json",
-      58
+      59
     ],
     [
       "docs/metrics/history.json",
-      58
+      59
     ],
     [
       "data/menu-command-usage.json",
-      16
+      15
     ],
     [
       "docs/README.md",
       15
-    ],
-    [
-      "data/leveling.json",
-      10
     ],
     [
       "docs/history/updates.jsonl",
@@ -46,6 +42,10 @@
     ],
     [
       ".github/workflows/repo-update-history.yml",
+      9
+    ],
+    [
+      "data/leveling.json",
       9
     ],
     [
